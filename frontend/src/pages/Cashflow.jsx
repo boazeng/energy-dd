@@ -135,6 +135,11 @@ function LoanTab({ loan, onChange }) {
           <input type="number" step="0.1" value={loan.margin ?? 0}
             onChange={(e) => onChange({ margin: parseFloat(e.target.value) || 0 })} />
         </label>
+        <label>
+          <span>חודש התחלת ההלוואה</span>
+          <input type="month" value={loan.start_month || ''}
+            onChange={(e) => onChange({ start_month: e.target.value })} />
+        </label>
         <div className="cf-rate-chip">
           ריבית שנתית כוללת
           <strong>{rate.toFixed(2)}%</strong>
@@ -219,8 +224,9 @@ function LoanTab({ loan, onChange }) {
         </table>
       </div>
       <p className="ta-source muted">
-        חישוב לוח שפיצר (תשלום חודשי קבוע). התשלום החודשי ₪{Math.round(am.monthly).toLocaleString('he-IL')} —
-        ניתן בהמשך לשלב אותו אוטומטית כהוצאה בתחזית התזרים.
+        חישוב לוח שפיצר (תשלום חודשי קבוע). התשלום החודשי ₪{Math.round(am.monthly).toLocaleString('he-IL')}
+        {' '}משולב אוטומטית כהוצאה חודשית בתחזית התזרים
+        {loan.start_month ? ` החל מ-${loan.start_month}` : ' (החל מתחילת התחזית — קבע "חודש התחלה" לעיתוי מדויק)'}.
       </p>
     </div>
   )
@@ -295,14 +301,28 @@ export default function Cashflow({ loading: parentLoading }) {
     [startYM, horizon],
   )
 
+  // החזר ההלוואה כפריט הוצאה וירטואלי בתחזית (לא נשמר ברשימת הפריטים)
+  const forecastItems = useMemo(() => {
+    const amount = Number(loan.amount || 0)
+    const years = Number(loan.years || 0)
+    if (amount <= 0 || years <= 0) return items
+    const { monthly: M, n } = buildAmort(amount, Number(loan.prime || 0) + Number(loan.margin || 0), years)
+    const start = loan.start_month || startYM
+    return [...items, {
+      id: '__loan__', name: 'החזר הלוואת רכישה', type: 'expense', category: 'החזר הלוואה',
+      amount: M, recurrence: 'monthly', day_of_month: 1,
+      start_month: start, end_month: addMonths(start, n - 1),
+    }]
+  }, [items, loan, startYM])
+
   const monthly = useMemo(() => {
     let bal = Number(settings.opening_balance || 0)
     return months.map((ym) => {
-      const mm = projectMonth(items, ym)
+      const mm = projectMonth(forecastItems, ym)
       bal += mm.net
       return { ym, ...mm, balance: bal }
     })
-  }, [items, months, settings.opening_balance])
+  }, [forecastItems, months, settings.opening_balance])
 
   const chartData = monthly.map((d) => ({
     month: fmtYM(d.ym), הכנסות: d.income, הוצאות: d.expense, יתרה: d.balance,
