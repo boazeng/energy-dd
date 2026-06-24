@@ -27,6 +27,33 @@ function addMonths(ym, n) {
 
 const fmtYM = (ym) => { const [y, m] = ym.split('-'); return `${m}/${y}` }
 
+// צבירת התחזית החודשית לפי רזולוציה: חודש / רבעון / שנה.
+// הכנסות+הוצאות מסוכמות בתוך הבאקט; היתרה = היתרה המצטברת בסוף התקופה.
+function bucketize(monthly, gran) {
+  if (gran === 'month') {
+    return monthly.map((d) => ({
+      label: fmtYM(d.ym), income: d.income, expense: d.expense, balance: d.balance,
+    }))
+  }
+  const map = new Map()
+  const order = []
+  for (const d of monthly) {
+    const [y, m] = d.ym.split('-').map(Number)
+    const key = gran === 'quarter' ? `${y}-Q${Math.ceil(m / 3)}` : `${y}`
+    const label = gran === 'quarter' ? `Q${Math.ceil(m / 3)}/${y}` : `${y}`
+    if (!map.has(key)) { map.set(key, { label, income: 0, expense: 0, balance: 0 }); order.push(key) }
+    const b = map.get(key)
+    b.income += d.income
+    b.expense += d.expense
+    b.balance = d.balance // החודשים בסדר כרונולוגי → היתרה האחרונה = סוף התקופה
+  }
+  return order.map((k) => map.get(k))
+}
+
+const GRAN_OPTS = [
+  { v: 'month', l: 'חודשי' }, { v: 'quarter', l: 'רבעוני' }, { v: 'year', l: 'שנתי' },
+]
+
 const CATEGORIES = [
   'דמי ניהול', 'חשמל טעינה', 'התקנות', 'שכר', 'הנהלה וכלליות',
   'מימון', 'החזר הלוואה', 'ספקים', 'מסים', 'שיווק', 'שונות',
@@ -239,6 +266,7 @@ export default function Cashflow({ loading: parentLoading }) {
   const [loan, setLoan] = useState({ amount: 3000000, years: 5, prime: 6, margin: 2, start_month: '' })
   const [loading, setLoading] = useState(true)
   const [horizon, setHorizon] = useState(12)
+  const [gran, setGran] = useState('month')
   const [openMonth, setOpenMonth] = useState(null)
   const [subTab, setSubTab] = useState('forecast')
   const timers = useRef({})
@@ -324,8 +352,8 @@ export default function Cashflow({ loading: parentLoading }) {
     })
   }, [forecastItems, months, settings.opening_balance])
 
-  const chartData = monthly.map((d) => ({
-    month: fmtYM(d.ym), הכנסות: d.income, הוצאות: d.expense, יתרה: d.balance,
+  const chartData = bucketize(monthly, gran).map((b) => ({
+    month: b.label, הכנסות: b.income, הוצאות: b.expense, יתרה: b.balance,
   }))
 
   const totals = monthly.reduce(
@@ -397,6 +425,12 @@ export default function Cashflow({ loading: parentLoading }) {
       </div>
 
       <div className="cf-chart">
+        <div className="cf-gran">
+          {GRAN_OPTS.map((o) => (
+            <button key={o.v} className={`filter-pill ${gran === o.v ? 'active' : ''}`}
+              onClick={() => setGran(o.v)}>{o.l}</button>
+          ))}
+        </div>
         <ResponsiveContainer width="100%" height={320}>
           <ComposedChart data={chartData} margin={{ top: 10, right: 12, left: 12, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e6e9ef" />

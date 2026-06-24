@@ -285,6 +285,7 @@
   background: var(--color-bg-white); border: 1px solid var(--color-border);
   border-radius: var(--radius-md); padding: 16px 12px 8px; margin-bottom: 36px;
 }
+.cf-gran { display: flex; gap: 6px; justify-content: flex-end; margin: 0 6px 10px; }
 
 .cf-fc-row { cursor: pointer; }
 .cf-fc-row:hover { background: var(--color-bg); }
