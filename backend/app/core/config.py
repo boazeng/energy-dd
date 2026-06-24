@@ -17,6 +17,10 @@ class Settings(BaseSettings):
     app_name: str = "מערכת בדיקת נאותות — אנרגיה"
     database_url: str = f"sqlite:///{PROJECT_ROOT / 'enery_dd.db'}"
 
+    # נתוני הפרויקטים (מקובץ האקסל של החברה) — JSON שיושב על ה-volume בשרת,
+    # לא ב-git (מכיל שמות לקוחות). בפרודקשן: /app/database/projects.json
+    projects_data_path: str = str(PROJECT_ROOT / "database" / "projects.json")
+
     # CORS — שרת הפיתוח של Vite
     cors_origins: list[str] = [
         "http://localhost:5173",

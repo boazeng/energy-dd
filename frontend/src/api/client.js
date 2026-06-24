@@ -16,6 +16,8 @@ export const api = {
   updateTask: (id, data) =>
     request(`/api/tasks/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
 
+  getProjects: () => request('/api/projects'),
+
   listAgreements: () => request('/api/tenant-agreements'),
   createAgreement: (data) =>
     request('/api/tenant-agreements', {
