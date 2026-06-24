@@ -1,0 +1,12 @@
+services:
+  energy-dd:
+    build: .
+    container_name: energy-dd
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8100:8000"   # localhost בלבד — ה-Cloudflare Tunnel מתחבר מקומית
+    environment:
+      - DATABASE_URL=sqlite:////app/database/enery_dd.db
+      - TZ=Asia/Jerusalem
+    volumes:
+      - ./database:/app/database   # שורד restart/rebuild (ה-SQLite db)

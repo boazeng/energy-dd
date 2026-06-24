@@ -1,13 +1,18 @@
 """נקודת הכניסה של ה-backend — FastAPI."""
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.api import tasks, tenant_agreements
 from app.core.config import settings
 from app.core.db import SessionLocal, init_db
 from app.seed import seed_tasks
+
+# ה-frontend הבנוי (vite build) — קיים רק בפרודקשן (image), מוגש מאותו origin.
+STATIC_DIR = Path(__file__).resolve().parents[1] / "static"
 
 
 @asynccontextmanager
@@ -34,3 +39,9 @@ app.include_router(tenant_agreements.router)
 @app.get("/health")
 def health():
     return {"status": "ok", "app": settings.app_name}
+
+
+# הגשת ה-SPA הבנוי — חייב להירשם אחרון (תופס את כל שאר הנתיבים).
+# בפיתוח התיקייה לא קיימת (Vite מגיש), ואז נדלג.
+if STATIC_DIR.is_dir():
+    app.mount("/", StaticFiles(directory=STATIC_DIR, html=True), name="static")
