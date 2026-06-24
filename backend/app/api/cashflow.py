@@ -4,11 +4,13 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.db import get_db
-from app.models.cashflow import CashflowItem, CashflowSetting
+from app.models.cashflow import CashflowItem, CashflowLoan, CashflowSetting
 from app.schemas.cashflow import (
     CashflowItemCreate,
     CashflowItemOut,
     CashflowItemUpdate,
+    CashflowLoanIn,
+    CashflowLoanOut,
     CashflowOut,
     CashflowSettingsIn,
     CashflowSettingsOut,
@@ -28,10 +30,21 @@ def _get_settings(db: Session) -> CashflowSetting:
     return s
 
 
+def _get_loan(db: Session) -> CashflowLoan:
+    """מחזיר את פרמטרי ההלוואה (id=1), יוצר עם ברירות מחדל אם חסר."""
+    loan = db.get(CashflowLoan, 1)
+    if loan is None:
+        loan = CashflowLoan(id=1)
+        db.add(loan)
+        db.commit()
+        db.refresh(loan)
+    return loan
+
+
 @router.get("", response_model=CashflowOut)
 def get_cashflow(db: Session = Depends(get_db)):
     items = list(db.scalars(select(CashflowItem).order_by(CashflowItem.id)))
-    return {"items": items, "settings": _get_settings(db)}
+    return {"items": items, "settings": _get_settings(db), "loan": _get_loan(db)}
 
 
 @router.post("", response_model=CashflowItemOut, status_code=201)
@@ -72,3 +85,14 @@ def update_settings(payload: CashflowSettingsIn, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(s)
     return s
+
+
+@router.put("/loan", response_model=CashflowLoanOut)
+def update_loan(payload: CashflowLoanIn, db: Session = Depends(get_db)):
+    """עדכון חלקי של פרמטרי ההלוואה."""
+    loan = _get_loan(db)
+    for field, value in payload.model_dump(exclude_unset=True).items():
+        setattr(loan, field, value)
+    db.commit()
+    db.refresh(loan)
+    return loan

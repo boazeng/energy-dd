@@ -33,6 +33,8 @@ export const api = {
     request(`/api/cashflow/${id}`, { method: 'DELETE' }),
   updateCashflowSettings: (data) =>
     request('/api/cashflow/settings', { method: 'PUT', body: JSON.stringify(data) }),
+  updateCashflowLoan: (data) =>
+    request('/api/cashflow/loan', { method: 'PUT', body: JSON.stringify(data) }),
 
   listAgreements: () => request('/api/tenant-agreements'),
   createAgreement: (data) =>

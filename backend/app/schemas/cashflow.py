@@ -56,6 +56,26 @@ class CashflowSettingsOut(CashflowSettingsIn):
     model_config = ConfigDict(from_attributes=True)
 
 
+class CashflowLoanIn(BaseModel):
+    """עדכון חלקי של פרמטרי ההלוואה."""
+    amount: float | None = None
+    years: int | None = Field(default=None, ge=1, le=30)
+    prime: float | None = None
+    margin: float | None = None
+    start_month: str | None = None
+
+
+class CashflowLoanOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    amount: float
+    years: int
+    prime: float
+    margin: float
+    start_month: str
+
+
 class CashflowOut(BaseModel):
     items: list[CashflowItemOut]
     settings: CashflowSettingsOut
+    loan: CashflowLoanOut

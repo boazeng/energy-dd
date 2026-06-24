@@ -40,3 +40,16 @@ class CashflowSetting(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)  # תמיד 1
     opening_balance: Mapped[float] = mapped_column(Float, default=0)
     balance_date: Mapped[str] = mapped_column(String(10), default="")  # YYYY-MM-DD
+
+
+class CashflowLoan(Base):
+    """פרמטרי הלוואת רכישה (שורה id=1) — לחישוב לוח סילוקין (שפיצר)."""
+
+    __tablename__ = "cashflow_loan"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)  # תמיד 1
+    amount: Mapped[float] = mapped_column(Float, default=3_000_000)   # גובה הרכישה/הלוואה ₪
+    years: Mapped[int] = mapped_column(Integer, default=5)            # שנות החזר
+    prime: Mapped[float] = mapped_column(Float, default=6.0)          # ריבית פריים %
+    margin: Mapped[float] = mapped_column(Float, default=2.0)         # מרווח מעל פריים %
+    start_month: Mapped[str] = mapped_column(String(7), default="")   # YYYY-MM (לשילוב בתזרים בהמשך)

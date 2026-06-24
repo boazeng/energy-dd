@@ -32,7 +32,6 @@ const CATEGORIES = [
   'מימון', 'החזר הלוואה', 'ספקים', 'מסים', 'שיווק', 'שונות',
 ]
 
-// האם פריט חל בחודש נתון, ואיזה סכום
 function appliesInMonth(item, ym) {
   const start = item.start_month
   if (!start || ym < start) return null
@@ -62,28 +61,191 @@ function projectMonth(items, ym) {
   return { income, expense, net: income - expense, breakdown }
 }
 
+// ----- לוח סילוקין (שפיצר — תשלום חודשי קבוע) -----
+function buildAmort(amount, annualPct, years) {
+  const n = Math.max(1, Math.round((years || 0) * 12))
+  const r = (annualPct || 0) / 100 / 12
+  const M = r === 0 ? amount / n : (amount * r) / (1 - Math.pow(1 + r, -n))
+  const rows = []
+  let bal = amount
+  for (let i = 1; i <= n; i++) {
+    const interest = bal * r
+    let principal = M - interest
+    if (i === n) principal = bal // התשלום האחרון מאפס יתרה
+    const payment = principal + interest
+    bal = Math.max(0, bal - principal)
+    rows.push({ i, payment, interest, principal, balance: bal })
+  }
+  const totalPaid = rows.reduce((s, x) => s + x.payment, 0)
+  return { n, monthly: M, rows, totalPaid, totalInterest: totalPaid - amount }
+}
+
 const RECUR_OPTS = [
   { v: 'monthly', l: 'חודשי' }, { v: 'quarterly', l: 'רבעוני' },
   { v: 'annual', l: 'שנתי' }, { v: 'one-time', l: 'חד פעמי' },
 ]
 
+// ============================ תת-לשונית: הלוואה ============================
+function LoanTab({ loan, onChange }) {
+  const [openYear, setOpenYear] = useState(null)
+  const amount = Number(loan.amount || 0)
+  const years = Number(loan.years || 0)
+  const rate = Number(loan.prime || 0) + Number(loan.margin || 0)
+  const am = useMemo(() => buildAmort(amount, rate, years), [amount, rate, years])
+
+  // צבירה לפי שנה
+  const byYear = useMemo(() => {
+    const out = []
+    for (let y = 1; y <= years; y++) {
+      const slice = am.rows.slice((y - 1) * 12, y * 12)
+      if (!slice.length) break
+      out.push({
+        year: y,
+        payment: slice.reduce((s, r) => s + r.payment, 0),
+        interest: slice.reduce((s, r) => s + r.interest, 0),
+        principal: slice.reduce((s, r) => s + r.principal, 0),
+        endBalance: slice[slice.length - 1].balance,
+        months: slice,
+      })
+    }
+    return out
+  }, [am, years])
+
+  return (
+    <div>
+      {/* פקדים */}
+      <div className="cf-open">
+        <label>
+          <span>גובה רכישה / הלוואה ₪</span>
+          <input type="number" value={amount}
+            onChange={(e) => onChange({ amount: parseFloat(e.target.value) || 0 })} />
+        </label>
+        <label>
+          <span>שנות החזר</span>
+          <input type="number" min="1" max="30" value={years}
+            onChange={(e) => onChange({ years: parseInt(e.target.value) || 1 })} />
+        </label>
+        <label>
+          <span>ריבית פריים %</span>
+          <input type="number" step="0.1" value={loan.prime ?? 0}
+            onChange={(e) => onChange({ prime: parseFloat(e.target.value) || 0 })} />
+        </label>
+        <label>
+          <span>מרווח מעל פריים %</span>
+          <input type="number" step="0.1" value={loan.margin ?? 0}
+            onChange={(e) => onChange({ margin: parseFloat(e.target.value) || 0 })} />
+        </label>
+        <div className="cf-rate-chip">
+          ריבית שנתית כוללת
+          <strong>{rate.toFixed(2)}%</strong>
+        </div>
+      </div>
+
+      {/* סיכום */}
+      <div className="kpi-grid">
+        <div className="tact-kpi">
+          <div className="tact-kpi-label">תשלום חודשי</div>
+          <div className="tact-kpi-val">{ils(am.monthly)}</div>
+        </div>
+        <div className="tact-kpi">
+          <div className="tact-kpi-label">סה"כ החזר ({am.n} ת׳)</div>
+          <div className="tact-kpi-val">{ils(am.totalPaid)}</div>
+        </div>
+        <div className="tact-kpi">
+          <div className="tact-kpi-label">סה"כ ריבית</div>
+          <div className="tact-kpi-val fin-neg">{ils(am.totalInterest)}</div>
+        </div>
+        <div className="tact-kpi">
+          <div className="tact-kpi-label">קרן (גובה הלוואה)</div>
+          <div className="tact-kpi-val">{ils(amount)}</div>
+        </div>
+      </div>
+
+      {/* לוח סילוקין לפי שנה (לחיצה פותחת חודשים) */}
+      <h2 className="block-title">לוח סילוקין — {years} שנים</h2>
+      <div className="fin-table-wrap">
+        <table className="fin-table cf-fc">
+          <thead>
+            <tr>
+              <th className="ta-expander" />
+              <th className="fin-rowlabel">שנה</th>
+              <th>סה"כ תשלום</th><th>קרן</th><th>ריבית</th><th>יתרת קרן</th>
+            </tr>
+          </thead>
+          <tbody>
+            {byYear.map((y) => {
+              const isOpen = openYear === y.year
+              return (
+                <Fragment key={y.year}>
+                  <tr className={`cf-fc-row ${isOpen ? 'open' : ''}`}
+                    onClick={() => setOpenYear(isOpen ? null : y.year)}>
+                    <td className="ta-expander">
+                      <span className={`ta-chevron ${isOpen ? 'open' : ''}`}>▸</span>
+                    </td>
+                    <td className="fin-rowlabel">שנה {y.year}</td>
+                    <td>{ils(y.payment)}</td>
+                    <td>{ils(y.principal)}</td>
+                    <td className="fin-neg">{ils(y.interest)}</td>
+                    <td><strong>{ils(y.endBalance)}</strong></td>
+                  </tr>
+                  {isOpen && (
+                    <tr className="ta-detail-row">
+                      <td colSpan={6}>
+                        <div className="ta-detail">
+                          <table className="pr-ch-table">
+                            <thead>
+                              <tr><th>חודש</th><th>תשלום</th><th>קרן</th><th>ריבית</th><th>יתרת קרן</th></tr>
+                            </thead>
+                            <tbody>
+                              {y.months.map((r) => (
+                                <tr key={r.i}>
+                                  <td>{r.i}</td>
+                                  <td>{ils(r.payment)}</td>
+                                  <td>{ils(r.principal)}</td>
+                                  <td className="fin-neg">{ils(r.interest)}</td>
+                                  <td>{ils(r.balance)}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </Fragment>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+      <p className="ta-source muted">
+        חישוב לוח שפיצר (תשלום חודשי קבוע). התשלום החודשי ₪{Math.round(am.monthly).toLocaleString('he-IL')} —
+        ניתן בהמשך לשלב אותו אוטומטית כהוצאה בתחזית התזרים.
+      </p>
+    </div>
+  )
+}
+
+// ============================ עמוד התזרים ============================
 export default function Cashflow({ loading: parentLoading }) {
   const [items, setItems] = useState([])
   const [settings, setSettings] = useState({ opening_balance: 0, balance_date: '' })
+  const [loan, setLoan] = useState({ amount: 3000000, years: 5, prime: 6, margin: 2, start_month: '' })
   const [loading, setLoading] = useState(true)
   const [horizon, setHorizon] = useState(12)
   const [openMonth, setOpenMonth] = useState(null)
+  const [subTab, setSubTab] = useState('forecast')
   const timers = useRef({})
 
   useEffect(() => {
     api.getCashflow().then((d) => {
       setItems(d.items || [])
       setSettings(d.settings || { opening_balance: 0, balance_date: '' })
+      if (d.loan) setLoan(d.loan)
       setLoading(false)
     }).catch(() => setLoading(false))
   }, [])
 
-  // ----- שמירה מושהית של פריט -----
   function patchItem(id, patch) {
     setItems((prev) => prev.map((r) => (r.id === id ? { ...r, ...patch } : r)))
     clearTimeout(timers.current['i' + id])
@@ -108,14 +270,22 @@ export default function Cashflow({ loading: parentLoading }) {
   }
 
   function patchSettings(patch) {
-    setSettings((prev) => ({ ...prev, ...patch }))
+    const next = { ...settings, ...patch }
+    setSettings(next)
     clearTimeout(timers.current.settings)
     timers.current.settings = setTimeout(() => {
-      api.updateCashflowSettings({ ...settings, ...patch }).catch(() => {})
+      api.updateCashflowSettings(next).catch(() => {})
     }, 600)
   }
 
-  // ----- חישוב התחזית -----
+  function patchLoan(patch) {
+    setLoan((prev) => ({ ...prev, ...patch }))
+    clearTimeout(timers.current.loan)
+    timers.current.loan = setTimeout(() => {
+      api.updateCashflowLoan(patch).catch(() => {})
+    }, 600)
+  }
+
   const startYM = settings.balance_date
     ? settings.balance_date.slice(0, 7)
     : (() => { const n = new Date(); return `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, '0')}` })()
@@ -156,10 +326,9 @@ export default function Cashflow({ loading: parentLoading }) {
         <span className="tact-badge tact-badge-on">{items.length} פריטים</span>
       </div>
       <p className="home-sub">
-        תחזית תזרים מתגלגלת מיתרת הפתיחה, לפי פריטי הכנסה/הוצאה חוזרים. כל שינוי נשמר אוטומטית.
+        תחזית תזרים מתגלגלת מיתרת הפתיחה. בונים אותה מתחומים שונים (לשוניות למטה). כל שינוי נשמר אוטומטית.
       </p>
 
-      {/* ----- יתרת פתיחה ----- */}
       <div className="cf-open">
         <label>
           <span>יתרת פתיחה ₪</span>
@@ -177,11 +346,11 @@ export default function Cashflow({ loading: parentLoading }) {
             <option value={6}>6 חודשים</option>
             <option value={12}>12 חודשים</option>
             <option value={24}>24 חודשים</option>
+            <option value={60}>60 חודשים</option>
           </select>
         </label>
       </div>
 
-      {/* ----- KPI ----- */}
       <div className="kpi-grid">
         <div className="tact-kpi">
           <div className="tact-kpi-label">הכנסה חודשית ממוצעת</div>
@@ -207,7 +376,6 @@ export default function Cashflow({ loading: parentLoading }) {
         </div>
       </div>
 
-      {/* ----- גרף ----- */}
       <div className="cf-chart">
         <ResponsiveContainer width="100%" height={320}>
           <ComposedChart data={chartData} margin={{ top: 10, right: 12, left: 12, bottom: 0 }}>
@@ -223,139 +391,151 @@ export default function Cashflow({ loading: parentLoading }) {
         </ResponsiveContainer>
       </div>
 
-      {/* ----- טבלת תחזית חודשית ----- */}
-      <h2 className="block-title">תחזית חודשית</h2>
-      <div className="fin-table-wrap">
-        <table className="fin-table cf-fc">
-          <thead>
-            <tr>
-              <th className="ta-expander" />
-              <th className="fin-rowlabel">חודש</th>
-              <th>הכנסות</th><th>הוצאות</th><th>נטו</th><th>יתרה מצטברת</th>
-            </tr>
-          </thead>
-          <tbody>
-            {monthly.map((d) => {
-              const isOpen = openMonth === d.ym
-              return (
-                <Fragment key={d.ym}>
-                  <tr className={`cf-fc-row ${isOpen ? 'open' : ''}`}
-                    onClick={() => setOpenMonth(isOpen ? null : d.ym)}>
-                    <td className="ta-expander">
-                      <span className={`ta-chevron ${isOpen ? 'open' : ''}`}>▸</span>
-                    </td>
-                    <td className="fin-rowlabel">{fmtYM(d.ym)}</td>
-                    <td className="fin-pos">{ils(d.income)}</td>
-                    <td className="fin-neg">{ils(d.expense)}</td>
-                    <td className={d.net < 0 ? 'fin-neg' : 'fin-pos'}>{ils(d.net)}</td>
-                    <td className={d.balance < 0 ? 'fin-neg' : ''}><strong>{ils(d.balance)}</strong></td>
-                  </tr>
-                  {isOpen && (
-                    <tr className="ta-detail-row">
-                      <td colSpan={6}>
-                        <div className="ta-detail">
-                          {d.breakdown.length === 0 ? (
-                            <p className="muted">אין תנועות בחודש זה.</p>
-                          ) : (
-                            <table className="pr-ch-table">
-                              <thead>
-                                <tr><th>יום</th><th>פירוט</th><th>קטגוריה</th><th>סוג</th><th>סכום</th></tr>
-                              </thead>
-                              <tbody>
-                                {d.breakdown.map((b) => (
-                                  <tr key={b.id}>
-                                    <td>{b.day_of_month || 1}</td>
-                                    <td>{b.name || '—'}</td>
-                                    <td>{b.category || '—'}</td>
-                                    <td>{b.type === 'income' ? 'הכנסה' : 'הוצאה'}</td>
-                                    <td className={b.type === 'income' ? 'fin-pos' : 'fin-neg'}>{ils(b._amt)}</td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                </Fragment>
-              )
-            })}
-          </tbody>
-        </table>
+      {/* ----- תת-לשוניות (תחומים) ----- */}
+      <div className="cf-subtabs">
+        <button className={`cf-subtab ${subTab === 'forecast' ? 'active' : ''}`}
+          onClick={() => setSubTab('forecast')}>תחזית ופריטים</button>
+        <button className={`cf-subtab ${subTab === 'loan' ? 'active' : ''}`}
+          onClick={() => setSubTab('loan')}>הלוואת רכישה</button>
       </div>
 
-      {/* ----- פריטי תזרים (עריכה) ----- */}
-      <div className="cf-items-head">
-        <h2 className="block-title" style={{ margin: 0 }}>פריטי תזרים</h2>
-        <button className="tact-btn" onClick={addItem}>
-          <TactIcon name="plus" size={15} /> פריט חדש
-        </button>
-      </div>
-      <datalist id="cf-cats">
-        {CATEGORIES.map((c) => <option key={c} value={c} />)}
-      </datalist>
-      <div className="fin-table-wrap">
-        <table className="fin-table cf-items">
-          <thead>
-            <tr>
-              <th className="fin-rowlabel">פרטים</th>
-              <th>סוג</th><th>קטגוריה</th><th>סכום ₪</th><th>תדירות</th>
-              <th>יום</th><th>מחודש</th><th>עד חודש</th><th />
-            </tr>
-          </thead>
-          <tbody>
-            {items.length === 0 ? (
-              <tr><td colSpan={9} className="muted" style={{ textAlign: 'center', padding: 24 }}>
-                אין עדיין פריטים. הוסף פריט כדי לבנות את התחזית.
-              </td></tr>
-            ) : items.map((it) => (
-              <tr key={it.id}>
-                <td className="fin-rowlabel">
-                  <input className="cf-in cf-in-lg" value={it.name || ''}
-                    onChange={(e) => patchItem(it.id, { name: e.target.value })} placeholder="פרטים" />
-                </td>
-                <td>
-                  <select className="cf-in" value={it.type}
-                    onChange={(e) => patchItem(it.id, { type: e.target.value })}>
-                    <option value="income">הכנסה</option>
-                    <option value="expense">הוצאה</option>
-                  </select>
-                </td>
-                <td>
-                  <input className="cf-in" list="cf-cats" value={it.category || ''}
-                    onChange={(e) => patchItem(it.id, { category: e.target.value })} placeholder="קטגוריה" />
-                </td>
-                <td>
-                  <input className="cf-in cf-in-num" type="number" value={it.amount ?? 0}
-                    onChange={(e) => patchItem(it.id, { amount: parseFloat(e.target.value) || 0 })} />
-                </td>
-                <td>
-                  <select className="cf-in" value={it.recurrence}
-                    onChange={(e) => patchItem(it.id, { recurrence: e.target.value })}>
-                    {RECUR_OPTS.map((o) => <option key={o.v} value={o.v}>{o.l}</option>)}
-                  </select>
-                </td>
-                <td>
-                  <input className="cf-in cf-in-xs" type="number" min="1" max="31" value={it.day_of_month || 1}
-                    onChange={(e) => patchItem(it.id, { day_of_month: parseInt(e.target.value) || 1 })} />
-                </td>
-                <td>
-                  <input className="cf-in cf-in-mo" type="month" value={it.start_month || ''}
-                    onChange={(e) => patchItem(it.id, { start_month: e.target.value })} />
-                </td>
-                <td>
-                  <input className="cf-in cf-in-mo" type="month" value={it.end_month || ''}
-                    onChange={(e) => patchItem(it.id, { end_month: e.target.value })} />
-                </td>
-                <td>
-                  <button className="cf-del" title="מחק" onClick={() => removeItem(it.id)}>✕</button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {subTab === 'loan' && <LoanTab loan={loan} onChange={patchLoan} />}
+
+      {subTab === 'forecast' && (
+        <>
+          <h2 className="block-title">תחזית חודשית</h2>
+          <div className="fin-table-wrap">
+            <table className="fin-table cf-fc">
+              <thead>
+                <tr>
+                  <th className="ta-expander" />
+                  <th className="fin-rowlabel">חודש</th>
+                  <th>הכנסות</th><th>הוצאות</th><th>נטו</th><th>יתרה מצטברת</th>
+                </tr>
+              </thead>
+              <tbody>
+                {monthly.map((d) => {
+                  const isOpen = openMonth === d.ym
+                  return (
+                    <Fragment key={d.ym}>
+                      <tr className={`cf-fc-row ${isOpen ? 'open' : ''}`}
+                        onClick={() => setOpenMonth(isOpen ? null : d.ym)}>
+                        <td className="ta-expander">
+                          <span className={`ta-chevron ${isOpen ? 'open' : ''}`}>▸</span>
+                        </td>
+                        <td className="fin-rowlabel">{fmtYM(d.ym)}</td>
+                        <td className="fin-pos">{ils(d.income)}</td>
+                        <td className="fin-neg">{ils(d.expense)}</td>
+                        <td className={d.net < 0 ? 'fin-neg' : 'fin-pos'}>{ils(d.net)}</td>
+                        <td className={d.balance < 0 ? 'fin-neg' : ''}><strong>{ils(d.balance)}</strong></td>
+                      </tr>
+                      {isOpen && (
+                        <tr className="ta-detail-row">
+                          <td colSpan={6}>
+                            <div className="ta-detail">
+                              {d.breakdown.length === 0 ? (
+                                <p className="muted">אין תנועות בחודש זה.</p>
+                              ) : (
+                                <table className="pr-ch-table">
+                                  <thead>
+                                    <tr><th>יום</th><th>פירוט</th><th>קטגוריה</th><th>סוג</th><th>סכום</th></tr>
+                                  </thead>
+                                  <tbody>
+                                    {d.breakdown.map((b) => (
+                                      <tr key={b.id}>
+                                        <td>{b.day_of_month || 1}</td>
+                                        <td>{b.name || '—'}</td>
+                                        <td>{b.category || '—'}</td>
+                                        <td>{b.type === 'income' ? 'הכנסה' : 'הוצאה'}</td>
+                                        <td className={b.type === 'income' ? 'fin-pos' : 'fin-neg'}>{ils(b._amt)}</td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          <div className="cf-items-head">
+            <h2 className="block-title" style={{ margin: 0 }}>פריטי תזרים</h2>
+            <button className="tact-btn" onClick={addItem}>
+              <TactIcon name="plus" size={15} /> פריט חדש
+            </button>
+          </div>
+          <datalist id="cf-cats">
+            {CATEGORIES.map((c) => <option key={c} value={c} />)}
+          </datalist>
+          <div className="fin-table-wrap">
+            <table className="fin-table cf-items">
+              <thead>
+                <tr>
+                  <th className="fin-rowlabel">פרטים</th>
+                  <th>סוג</th><th>קטגוריה</th><th>סכום ₪</th><th>תדירות</th>
+                  <th>יום</th><th>מחודש</th><th>עד חודש</th><th />
+                </tr>
+              </thead>
+              <tbody>
+                {items.length === 0 ? (
+                  <tr><td colSpan={9} className="muted" style={{ textAlign: 'center', padding: 24 }}>
+                    אין עדיין פריטים. הוסף פריט כדי לבנות את התחזית.
+                  </td></tr>
+                ) : items.map((it) => (
+                  <tr key={it.id}>
+                    <td className="fin-rowlabel">
+                      <input className="cf-in cf-in-lg" value={it.name || ''}
+                        onChange={(e) => patchItem(it.id, { name: e.target.value })} placeholder="פרטים" />
+                    </td>
+                    <td>
+                      <select className="cf-in" value={it.type}
+                        onChange={(e) => patchItem(it.id, { type: e.target.value })}>
+                        <option value="income">הכנסה</option>
+                        <option value="expense">הוצאה</option>
+                      </select>
+                    </td>
+                    <td>
+                      <input className="cf-in" list="cf-cats" value={it.category || ''}
+                        onChange={(e) => patchItem(it.id, { category: e.target.value })} placeholder="קטגוריה" />
+                    </td>
+                    <td>
+                      <input className="cf-in cf-in-num" type="number" value={it.amount ?? 0}
+                        onChange={(e) => patchItem(it.id, { amount: parseFloat(e.target.value) || 0 })} />
+                    </td>
+                    <td>
+                      <select className="cf-in" value={it.recurrence}
+                        onChange={(e) => patchItem(it.id, { recurrence: e.target.value })}>
+                        {RECUR_OPTS.map((o) => <option key={o.v} value={o.v}>{o.l}</option>)}
+                      </select>
+                    </td>
+                    <td>
+                      <input className="cf-in cf-in-xs" type="number" min="1" max="31" value={it.day_of_month || 1}
+                        onChange={(e) => patchItem(it.id, { day_of_month: parseInt(e.target.value) || 1 })} />
+                    </td>
+                    <td>
+                      <input className="cf-in cf-in-mo" type="month" value={it.start_month || ''}
+                        onChange={(e) => patchItem(it.id, { start_month: e.target.value })} />
+                    </td>
+                    <td>
+                      <input className="cf-in cf-in-mo" type="month" value={it.end_month || ''}
+                        onChange={(e) => patchItem(it.id, { end_month: e.target.value })} />
+                    </td>
+                    <td>
+                      <button className="cf-del" title="מחק" onClick={() => removeItem(it.id)}>✕</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
     </section>
   )
 }
