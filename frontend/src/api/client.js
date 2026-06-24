@@ -24,6 +24,16 @@ export const api = {
   getProjects: () => request('/api/projects'),
   getFinancials: () => request('/api/financials'),
 
+  getCashflow: () => request('/api/cashflow'),
+  createCashflowItem: (data) =>
+    request('/api/cashflow', { method: 'POST', body: JSON.stringify(data) }),
+  updateCashflowItem: (id, data) =>
+    request(`/api/cashflow/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  deleteCashflowItem: (id) =>
+    request(`/api/cashflow/${id}`, { method: 'DELETE' }),
+  updateCashflowSettings: (data) =>
+    request('/api/cashflow/settings', { method: 'PUT', body: JSON.stringify(data) }),
+
   listAgreements: () => request('/api/tenant-agreements'),
   createAgreement: (data) =>
     request('/api/tenant-agreements', {

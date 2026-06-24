@@ -29,6 +29,9 @@ class Settings(BaseSettings):
     public_base_url: str = "https://energy-dd.newavera.co.il"
     auth_db_path: str = str(PROJECT_ROOT / "database" / "auth.db")
 
+    # זריעת תזרים ראשונית — JSON על ה-volume (לא ב-git). נטען רק אם טבלת התזרים ריקה.
+    cashflow_seed_path: str = str(PROJECT_ROOT / "database" / "cashflow_seed.json")
+
     # CORS — שרת הפיתוח של Vite
     cors_origins: list[str] = [
         "http://localhost:5173",

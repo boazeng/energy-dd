@@ -6,12 +6,14 @@ import Tasks from './pages/Tasks.jsx'
 import TenantAgreements from './pages/TenantAgreements.jsx'
 import Projects from './pages/Projects.jsx'
 import Financials from './pages/Financials.jsx'
+import Cashflow from './pages/Cashflow.jsx'
 import { api } from './api/client.js'
 
 const TABS = [
   { key: 'home', label: 'בית', icon: 'dashboard' },
   { key: 'projects', label: 'סטטוס פרויקטים', icon: 'bolt' },
   { key: 'financials', label: 'ניתוח כספי', icon: 'reports' },
+  { key: 'cashflow', label: 'תזרים', icon: 'trending' },
   { key: 'tasks', label: 'רשימת מטלות', icon: 'workflow' },
   { key: 'agreements', label: 'הסכמי דיירים', icon: 'document' },
 ]
@@ -80,6 +82,7 @@ export default function App() {
         {tab === 'home' && <Home tasks={tasks} loading={loading} />}
         {tab === 'projects' && <Projects data={projects} loading={loading} />}
         {tab === 'financials' && <Financials data={financials} loading={loading} />}
+        {tab === 'cashflow' && <Cashflow loading={loading} />}
         {tab === 'tasks' && (
           <Tasks tasks={tasks} loading={loading} onChange={refresh} />
         )}

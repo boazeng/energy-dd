@@ -264,3 +264,48 @@
 .fin-sev-med .fin-sev-badge { background: rgba(217, 164, 65, 0.15); color: #b8860b; }
 .fin-sev-low { border-right-color: #6b8cae; }
 .fin-sev-low .fin-sev-badge { background: var(--color-primary-soft); color: var(--color-primary); }
+
+/* ---- תזרים ---- */
+.cf-open {
+  display: flex; flex-wrap: wrap; gap: 16px; margin: 8px 0 28px;
+  background: var(--color-bg-white); border: 1px solid var(--color-border);
+  border-radius: var(--radius-md); padding: 16px 18px;
+}
+.cf-open label { display: flex; flex-direction: column; gap: 5px; font-size: var(--font-size-sm); }
+.cf-open label > span { color: var(--color-text-light); font-weight: 600; }
+.cf-open input, .cf-open select {
+  font: inherit; padding: 8px 12px; border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border); background: var(--color-bg); color: var(--color-text);
+}
+.cf-open input:focus, .cf-open select:focus {
+  outline: none; border-color: var(--color-primary); box-shadow: 0 0 0 3px var(--color-primary-soft);
+}
+
+.cf-chart {
+  background: var(--color-bg-white); border: 1px solid var(--color-border);
+  border-radius: var(--radius-md); padding: 16px 12px 8px; margin-bottom: 36px;
+}
+
+.cf-fc-row { cursor: pointer; }
+.cf-fc-row:hover { background: var(--color-bg); }
+.cf-fc-row.open { background: var(--color-primary-soft); }
+
+.cf-items-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin: 36px 0 14px; }
+.cf-items-head .tact-btn { display: inline-flex; align-items: center; gap: 6px; }
+
+.cf-items td { padding: 6px 8px; }
+.cf-in {
+  font: inherit; font-size: var(--font-size-sm); width: 100%;
+  padding: 6px 8px; border-radius: var(--radius-sm);
+  border: 1px solid var(--color-border); background: var(--color-bg-white); color: var(--color-text);
+}
+.cf-in:focus { outline: none; border-color: var(--color-primary); box-shadow: 0 0 0 2px var(--color-primary-soft); }
+.cf-in-lg { min-width: 160px; }
+.cf-in-num { min-width: 90px; text-align: left; }
+.cf-in-xs { width: 56px; text-align: center; }
+.cf-in-mo { min-width: 130px; }
+.cf-del {
+  border: none; background: transparent; color: var(--color-accent);
+  font-size: 1rem; cursor: pointer; padding: 4px 8px; border-radius: var(--radius-sm);
+}
+.cf-del:hover { background: rgba(214, 74, 46, 0.1); }
