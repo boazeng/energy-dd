@@ -29,6 +29,13 @@ npm run dev
 
 נפתח בדפדפן: http://localhost:5173
 
+## פריסה (Mac mini + Cloudflare Tunnel)
+
+האתר חי ב‑`https://energy-dd.newavera.co.il` (Docker על ה‑Mac, פורט 8100, מאחורי
+התחברות Google). **auto-deploy:** כל `git push origin main` מפעיל webhook
+(`deploy.newavera.co.il`) שמושך את הקוד ובונה מחדש את הקונטיינר — תוך ~30 שניות,
+ללא צעדים ידניים.
+
 ## מבנה
 
 ```
