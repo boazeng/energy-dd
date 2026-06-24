@@ -8,5 +8,7 @@ services:
     environment:
       - DATABASE_URL=sqlite:////app/database/enery_dd.db
       - TZ=Asia/Jerusalem
+    env_file:
+      - .env          # סודות: Google OAuth + AUTH_* + רשימת מורשים (לא ב-git)
     volumes:
-      - ./database:/app/database   # שורד restart/rebuild (ה-SQLite db)
+      - ./database:/app/database   # שורד restart/rebuild (ה-SQLite db + auth.db)

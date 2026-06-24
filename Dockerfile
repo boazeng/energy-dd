@@ -16,6 +16,7 @@ COPY backend/requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt tzdata
 
 COPY backend/app ./app
+COPY backend/shared_auth ./shared_auth
 COPY --from=frontend /frontend/dist ./static
 RUN mkdir -p /app/database
 

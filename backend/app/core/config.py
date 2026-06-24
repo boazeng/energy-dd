@@ -24,6 +24,11 @@ class Settings(BaseSettings):
     # ניתוח כספי (מתוך הדוחות המבוקרים ומאזני הבוחן) — JSON על ה-volume, לא ב-git.
     financials_data_path: str = str(PROJECT_ROOT / "database" / "financials.json")
 
+    # אימות (shared-auth / Google) — כתובת הבסיס הציבורית ל-redirect של OAuth,
+    # ונתיב מסד המשתמשים (auth.db) על ה-volume.
+    public_base_url: str = "https://energy-dd.newavera.co.il"
+    auth_db_path: str = str(PROJECT_ROOT / "database" / "auth.db")
+
     # CORS — שרת הפיתוח של Vite
     cors_origins: list[str] = [
         "http://localhost:5173",

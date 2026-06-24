@@ -5,6 +5,11 @@ async function request(path, options) {
     headers: { 'Content-Type': 'application/json' },
     ...options,
   })
+  // session פג / לא מחובר — הפניה למסך ההתחברות של Google
+  if (res.status === 401) {
+    window.location.href = '/login'
+    throw new Error('לא מחובר')
+  }
   if (!res.ok) throw new Error(`שגיאת רשת (${res.status})`)
   return res.status === 204 ? null : res.json()
 }
