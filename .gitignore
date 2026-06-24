@@ -1,0 +1,17 @@
+# Python
+backend/.venv/
+__pycache__/
+*.pyc
+
+# מסד נתונים מקומי
+*.db
+
+# Node
+frontend/node_modules/
+frontend/dist/
+
+# סביבה
+.env
+
+# קבצים שהועלו (שלב מאוחר יותר)
+backend/storage/
