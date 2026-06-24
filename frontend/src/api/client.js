@@ -17,6 +17,7 @@ export const api = {
     request(`/api/tasks/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
 
   getProjects: () => request('/api/projects'),
+  getFinancials: () => request('/api/financials'),
 
   listAgreements: () => request('/api/tenant-agreements'),
   createAgreement: (data) =>

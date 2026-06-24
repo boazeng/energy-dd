@@ -21,6 +21,9 @@ class Settings(BaseSettings):
     # לא ב-git (מכיל שמות לקוחות). בפרודקשן: /app/database/projects.json
     projects_data_path: str = str(PROJECT_ROOT / "database" / "projects.json")
 
+    # ניתוח כספי (מתוך הדוחות המבוקרים ומאזני הבוחן) — JSON על ה-volume, לא ב-git.
+    financials_data_path: str = str(PROJECT_ROOT / "database" / "financials.json")
+
     # CORS — שרת הפיתוח של Vite
     cors_origins: list[str] = [
         "http://localhost:5173",

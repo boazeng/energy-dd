@@ -5,11 +5,13 @@ import Home from './pages/Home.jsx'
 import Tasks from './pages/Tasks.jsx'
 import TenantAgreements from './pages/TenantAgreements.jsx'
 import Projects from './pages/Projects.jsx'
+import Financials from './pages/Financials.jsx'
 import { api } from './api/client.js'
 
 const TABS = [
   { key: 'home', label: 'בית', icon: 'dashboard' },
   { key: 'projects', label: 'סטטוס פרויקטים', icon: 'bolt' },
+  { key: 'financials', label: 'ניתוח כספי', icon: 'reports' },
   { key: 'tasks', label: 'רשימת מטלות', icon: 'workflow' },
   { key: 'agreements', label: 'הסכמי דיירים', icon: 'document' },
 ]
@@ -26,19 +28,22 @@ export default function App() {
   const [tasks, setTasks] = useState([])
   const [agreements, setAgreements] = useState([])
   const [projects, setProjects] = useState(null)
+  const [financials, setFinancials] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
   async function refresh() {
     try {
-      const [t, a, p] = await Promise.all([
+      const [t, a, p, f] = await Promise.all([
         api.listTasks(),
         api.listAgreements(),
         api.getProjects(),
+        api.getFinancials(),
       ])
       setTasks(t)
       setAgreements(a)
       setProjects(p)
+      setFinancials(f)
       setError('')
     } catch (e) {
       setError(e.message)
@@ -74,6 +79,7 @@ export default function App() {
         {error && <div className="app-error">שגיאה בטעינת הנתונים: {error}</div>}
         {tab === 'home' && <Home tasks={tasks} loading={loading} />}
         {tab === 'projects' && <Projects data={projects} loading={loading} />}
+        {tab === 'financials' && <Financials data={financials} loading={loading} />}
         {tab === 'tasks' && (
           <Tasks tasks={tasks} loading={loading} onChange={refresh} />
         )}
