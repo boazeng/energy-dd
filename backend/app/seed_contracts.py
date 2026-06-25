@@ -481,9 +481,27 @@ CONTRACTS = [
 
 
 def seed_contracts(db: Session) -> int:
-    if db.scalar(select(TenantAgreement.id).limit(1)) is not None:
-        return 0
+    if db.scalar(select(TenantAgreement.id).limit(1)) is None:
+        for c in CONTRACTS:
+            db.add(TenantAgreement(**c))
+        db.commit()
+        return len(CONTRACTS)
+
+    # טבלה קיימת — עדכן שדות שנוספו לאחר ה-seed הראשוני
+    updated = 0
     for c in CONTRACTS:
-        db.add(TenantAgreement(**c))
-    db.commit()
-    return len(CONTRACTS)
+        row = db.scalar(select(TenantAgreement).where(TenantAgreement.building == c["building"]))
+        if row is None:
+            continue
+        changed = False
+        if not row.charger_cost and c.get("charger_cost"):
+            row.charger_cost = c["charger_cost"]
+            changed = True
+        if not row.notes and c.get("notes"):
+            row.notes = c["notes"]
+            changed = True
+        if changed:
+            updated += 1
+    if updated:
+        db.commit()
+    return 0
