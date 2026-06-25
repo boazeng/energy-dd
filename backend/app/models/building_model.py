@@ -36,6 +36,12 @@ class BuildingModel(Base):
     charger_purchase_cost: Mapped[float] = mapped_column(Float, default=0)  # עלות רכישה ₪
     charger_install_cost: Mapped[float] = mapped_column(Float, default=0)   # עלות התקנה ₪
 
+    # הוצאות תפעוליות שנתיות (OPEX)
+    chargers_no_rcd: Mapped[int] = mapped_column(Integer, default=0)           # מטענים ללא פחת (מסונכרן מהאקסל)
+    cost_rcd_per_charger: Mapped[float] = mapped_column(Float, default=300)    # עלות שנתית למטען ללא פחת ₪
+    cost_internet_per_charger: Mapped[float] = mapped_column(Float, default=400)   # אינטרנט ₪/שנה למטען
+    cost_inspector_per_charger: Mapped[float] = mapped_column(Float, default=250)  # אישור בודק ₪/שנה למטען
+
     # פרמטרי תחזית
     start_year: Mapped[int] = mapped_column(Integer, default=2025)
     forecast_years: Mapped[int] = mapped_column(Integer, default=5)

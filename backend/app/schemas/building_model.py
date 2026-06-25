@@ -13,6 +13,10 @@ class BuildingModelCreate(BaseModel):
     subscription_fee_per_charger: float = 0
     charger_purchase_cost: float = 0
     charger_install_cost: float = 0
+    chargers_no_rcd: int = 0
+    cost_rcd_per_charger: float = 300
+    cost_internet_per_charger: float = 400
+    cost_inspector_per_charger: float = 250
     start_year: int = Field(default=2025, ge=2000, le=2100)
     forecast_years: int = Field(default=5, ge=1, le=30)
 
@@ -28,6 +32,10 @@ class BuildingModelUpdate(BaseModel):
     subscription_fee_per_charger: float | None = None
     charger_purchase_cost: float | None = None
     charger_install_cost: float | None = None
+    chargers_no_rcd: int | None = None
+    cost_rcd_per_charger: float | None = None
+    cost_internet_per_charger: float | None = None
+    cost_inspector_per_charger: float | None = None
     start_year: int | None = Field(default=None, ge=2000, le=2100)
     forecast_years: int | None = Field(default=None, ge=1, le=30)
 
@@ -46,6 +54,10 @@ class BuildingModelOut(BaseModel):
     subscription_fee_per_charger: float
     charger_purchase_cost: float
     charger_install_cost: float
+    chargers_no_rcd: int
+    cost_rcd_per_charger: float
+    cost_internet_per_charger: float
+    cost_inspector_per_charger: float
     start_year: int
     forecast_years: int
 
@@ -56,6 +68,7 @@ class YearForecast(BaseModel):
     total_chargers: int
     annual_income: float
     capex: float
+    annual_opex: float
     profit: float
 
 
@@ -64,6 +77,7 @@ class BuildingForecastOut(BaseModel):
     years: list[YearForecast]
     total_income: float
     total_capex: float
+    total_opex: float
     total_profit: float
 
 
@@ -72,4 +86,5 @@ class CombinedForecastYear(BaseModel):
     buildings: dict[str, YearForecast]
     total_income: float
     total_capex: float
+    total_opex: float
     total_profit: float

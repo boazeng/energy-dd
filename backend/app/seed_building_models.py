@@ -138,8 +138,19 @@ def _match_project(building_name: str, projects: list[dict]) -> dict | None:
     return None
 
 
+def _count_no_rcd(chargers: list[dict], proj_name: str) -> int:
+    """סופר מטענים ללא פחת (has_rcd falsy) לפרויקט נתון."""
+    norm = _normalize(proj_name)
+    count = 0
+    for c in chargers:
+        if _normalize(c.get("project", "")) == norm or norm in _normalize(c.get("project", "")):
+            if not c.get("has_rcd"):
+                count += 1
+    return count
+
+
 def sync_projects_data(db: Session, projects_path: str) -> int:
-    """מעדכן current_chargers ו-potential_spots מ-projects.json בכל הפעלה."""
+    """מעדכן current_chargers, potential_spots ו-chargers_no_rcd מ-projects.json."""
     path = Path(projects_path)
     if not path.is_file():
         return 0
@@ -150,6 +161,7 @@ def sync_projects_data(db: Session, projects_path: str) -> int:
         return 0
 
     projects = data.get("buildings", [])
+    all_chargers = data.get("chargers", [])
     if not projects:
         return 0
 
@@ -159,12 +171,13 @@ def sync_projects_data(db: Session, projects_path: str) -> int:
         proj = _match_project(bm.building_name, projects)
         if proj is None:
             continue
-        chargers = proj.get("chargers_installed") or 0
+        chargers_installed = proj.get("chargers_installed") or 0
         park_total = proj.get("park_total") or 0
-        if chargers or park_total:
-            bm.current_chargers = int(chargers) if chargers else bm.current_chargers
-            bm.potential_spots = int(park_total) if park_total else bm.potential_spots
-            updated += 1
+        no_rcd = _count_no_rcd(all_chargers, proj.get("project", ""))
+        bm.current_chargers = int(chargers_installed) if chargers_installed else bm.current_chargers
+        bm.potential_spots = int(park_total) if park_total else bm.potential_spots
+        bm.chargers_no_rcd = no_rcd
+        updated += 1
 
     if updated:
         db.commit()

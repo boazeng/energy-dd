@@ -22,7 +22,7 @@ router = APIRouter(prefix="/api/building-models", tags=["building-models"])
 
 
 def _calc_forecast(bm: BuildingModel) -> list[YearForecast]:
-    """מחשב תחזית שנתית לבניין — גידול מטענים, הכנסות ו-CAPEX."""
+    """מחשב תחזית שנתית לבניין — גידול מטענים, הכנסות, CAPEX ו-OPEX."""
     monthly_income_per_charger = (
         bm.mgmt_fee_per_charger
         + (bm.electricity_rate_agorot / 100) * bm.avg_kwh_per_charger_monthly
@@ -30,6 +30,10 @@ def _calc_forecast(bm: BuildingModel) -> list[YearForecast]:
     )
     unit_cost = bm.charger_purchase_cost + bm.charger_install_cost
     new_per_year = math.floor(bm.potential_spots * bm.annual_growth_rate / 100) if bm.potential_spots > 0 else 0
+
+    # עלות תפעול שנתית קבועה (OPEX):
+    # פחת — חל רק על מטענים ללא RCD (לא גדל עם הוספת מטענים חדשים שמגיעים עם פחת)
+    rcd_opex_fixed = bm.chargers_no_rcd * bm.cost_rcd_per_charger
 
     total = bm.current_chargers
     years: list[YearForecast] = []
@@ -40,13 +44,20 @@ def _calc_forecast(bm: BuildingModel) -> list[YearForecast]:
         total += added
         capex = added * unit_cost
         annual_income = total * monthly_income_per_charger * 12
+        # אינטרנט + בודק — על כלל המטענים; פחת — רק על הישנים ללא RCD
+        annual_opex = (
+            total * (bm.cost_internet_per_charger + bm.cost_inspector_per_charger)
+            + rcd_opex_fixed
+        )
+        profit = annual_income - capex - annual_opex
         years.append(YearForecast(
             year=bm.start_year + i,
             chargers_added=added,
             total_chargers=total,
             annual_income=round(annual_income, 2),
             capex=round(capex, 2),
-            profit=round(annual_income - capex, 2),
+            annual_opex=round(annual_opex, 2),
+            profit=round(profit, 2),
         ))
 
     return years
@@ -121,6 +132,7 @@ def combined_forecast(db: Session = Depends(get_db)):
     for year in range(min_year, max_year + 1):
         total_income = 0.0
         total_capex = 0.0
+        total_opex = 0.0
         total_profit = 0.0
         bldg_map: dict[str, YearForecast] = {}
         for bm in buildings:
@@ -129,12 +141,14 @@ def combined_forecast(db: Session = Depends(get_db)):
                 bldg_map[bm.building_name] = yf
                 total_income += yf.annual_income
                 total_capex += yf.capex
+                total_opex += yf.annual_opex
                 total_profit += yf.profit
         result.append(CombinedForecastYear(
             year=year,
             buildings=bldg_map,
             total_income=round(total_income, 2),
             total_capex=round(total_capex, 2),
+            total_opex=round(total_opex, 2),
             total_profit=round(total_profit, 2),
         ))
 
@@ -152,5 +166,6 @@ def building_forecast(bm_id: int, db: Session = Depends(get_db)):
         years=years,
         total_income=round(sum(y.annual_income for y in years), 2),
         total_capex=round(sum(y.capex for y in years), 2),
+        total_opex=round(sum(y.annual_opex for y in years), 2),
         total_profit=round(sum(y.profit for y in years), 2),
     )

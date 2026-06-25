@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
-  Bar, BarChart, CartesianGrid, Cell, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis,
+  Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts'
 import TactIcon from '../components/TactIcon.jsx'
 import { api } from '../api/client.js'
@@ -17,18 +17,27 @@ const fmtK = (v) => {
 
 const COLORS = ['#6c8ebf', '#82ca9d', '#ffc658', '#ff7c7c', '#a29bfe', '#fd79a8', '#00cec9', '#fdcb6e']
 
-const FIELD_DEFS = [
-  { key: 'current_chargers',            label: 'מטענים נוכחיים',         unit: '',       step: 1,    type: 'int' },
-  { key: 'potential_spots',             label: 'חניות פוטנציאליות',      unit: '',       step: 1,    type: 'int' },
-  { key: 'annual_growth_rate',          label: 'גידול שנתי',             unit: '%',      step: 1,    type: 'float' },
-  { key: 'mgmt_fee_per_charger',        label: 'עמלת ניהול למטען',       unit: '₪/חודש', step: 0.1,  type: 'float' },
-  { key: 'avg_kwh_per_charger_monthly', label: 'צריכה ממוצעת למטען',     unit: 'kWh/חודש', step: 1, type: 'float' },
-  { key: 'electricity_rate_agorot',     label: 'עמלת חשמל',              unit: 'אג\'/kWh', step: 0.1, type: 'float' },
-  { key: 'subscription_fee_per_charger',label: 'דמי מנוי למטען',         unit: '₪/חודש', step: 0.1,  type: 'float' },
-  { key: 'charger_purchase_cost',       label: 'עלות רכישת מטען',        unit: '₪',      step: 100,  type: 'float' },
-  { key: 'charger_install_cost',        label: 'עלות התקנת מטען',        unit: '₪',      step: 100,  type: 'float' },
-  { key: 'start_year',                  label: 'שנת התחלה',              unit: '',       step: 1,    type: 'int' },
-  { key: 'forecast_years',              label: 'שנות תחזית',             unit: '',       step: 1,    type: 'int' },
+// הכנסות + עלויות מטען חדש
+const INCOME_FIELDS = [
+  { key: 'current_chargers',             label: 'מטענים נוכחיים',       unit: '',          step: 1,   type: 'int' },
+  { key: 'potential_spots',              label: 'חניות פוטנציאליות',    unit: '',          step: 1,   type: 'int' },
+  { key: 'annual_growth_rate',           label: 'גידול שנתי',           unit: '%',         step: 1,   type: 'float' },
+  { key: 'mgmt_fee_per_charger',         label: 'עמלת ניהול למטען',     unit: '₪/חודש',   step: 0.1, type: 'float' },
+  { key: 'avg_kwh_per_charger_monthly',  label: 'צריכה ממוצעת למטען',   unit: 'kWh/חודש', step: 1,   type: 'float' },
+  { key: 'electricity_rate_agorot',      label: 'עמלת חשמל',            unit: "אג'/kWh",  step: 0.1, type: 'float' },
+  { key: 'subscription_fee_per_charger', label: 'דמי מנוי למטען',       unit: '₪/חודש',   step: 0.1, type: 'float' },
+  { key: 'charger_purchase_cost',        label: 'עלות רכישת מטען חדש',  unit: '₪',         step: 100, type: 'float' },
+  { key: 'charger_install_cost',         label: 'עלות התקנת מטען חדש',  unit: '₪',         step: 100, type: 'float' },
+  { key: 'start_year',                   label: 'שנת התחלה',             unit: '',          step: 1,   type: 'int' },
+  { key: 'forecast_years',              label: 'שנות תחזית',             unit: '',          step: 1,   type: 'int' },
+]
+
+// הוצאות תפעוליות שנתיות
+const OPEX_FIELDS = [
+  { key: 'chargers_no_rcd',             label: 'מטענים ללא פחת',      unit: '',       step: 1,  type: 'int',   note: 'מסונכרן מהאקסל' },
+  { key: 'cost_rcd_per_charger',        label: 'עלות פחת חסר',        unit: '₪/שנה', step: 10, type: 'float', note: 'למטען ללא פחת' },
+  { key: 'cost_internet_per_charger',   label: 'עלות אינטרנט',        unit: '₪/שנה', step: 10, type: 'float', note: 'לכל מטען' },
+  { key: 'cost_inspector_per_charger',  label: 'עלות אישור בודק',     unit: '₪/שנה', step: 10, type: 'float', note: 'לכל מטען' },
 ]
 
 function monthlyIncome(bm) {
@@ -36,6 +45,13 @@ function monthlyIncome(bm) {
     (bm.mgmt_fee_per_charger || 0) +
     ((bm.electricity_rate_agorot || 0) / 100) * (bm.avg_kwh_per_charger_monthly || 0) +
     (bm.subscription_fee_per_charger || 0)
+  )
+}
+
+function annualOpex(bm, totalChargers) {
+  return (
+    totalChargers * ((bm.cost_internet_per_charger || 0) + (bm.cost_inspector_per_charger || 0)) +
+    (bm.chargers_no_rcd || 0) * (bm.cost_rcd_per_charger || 0)
   )
 }
 
@@ -55,7 +71,7 @@ function ForecastTable({ years }) {
   if (!years?.length) return <p className="dim-text" style={{ padding: '1rem' }}>אין נתונים</p>
   return (
     <div className="table-wrap" style={{ overflowX: 'auto' }}>
-      <table className="tact-table" style={{ minWidth: 600 }}>
+      <table className="tact-table" style={{ minWidth: 700 }}>
         <thead>
           <tr>
             <th>שנה</th>
@@ -63,6 +79,7 @@ function ForecastTable({ years }) {
             <th>סה"כ מטענים</th>
             <th>הכנסה שנתית</th>
             <th>CAPEX</th>
+            <th>OPEX</th>
             <th>רווח שנתי</th>
           </tr>
         </thead>
@@ -73,10 +90,13 @@ function ForecastTable({ years }) {
               <td>{y.chargers_added > 0 ? `+${y.chargers_added}` : '—'}</td>
               <td>{y.total_chargers}</td>
               <td style={{ color: 'var(--tact-green)' }}>{ils(y.annual_income)}</td>
-              <td style={{ color: y.capex > 0 ? 'var(--tact-red, #e74c3c)' : 'inherit' }}>
+              <td style={{ color: y.capex > 0 ? 'var(--tact-red,#e74c3c)' : 'inherit' }}>
                 {y.capex > 0 ? ils(-y.capex) : '—'}
               </td>
-              <td style={{ fontWeight: 600, color: y.profit >= 0 ? 'var(--tact-green)' : 'var(--tact-red, #e74c3c)' }}>
+              <td style={{ color: 'var(--tact-orange,#e67e22)' }}>
+                {y.annual_opex > 0 ? ils(-y.annual_opex) : '—'}
+              </td>
+              <td style={{ fontWeight: 600, color: y.profit >= 0 ? 'var(--tact-green)' : 'var(--tact-red,#e74c3c)' }}>
                 {ils(y.profit)}
               </td>
             </tr>
@@ -95,25 +115,50 @@ function ForecastChart({ years }) {
     name: String(y.year),
     הכנסה: y.annual_income,
     CAPEX: y.capex,
+    OPEX: y.annual_opex,
     רווח: y.profit,
   }))
   return (
     <ResponsiveContainer width="100%" height={260}>
       <BarChart data={data} margin={{ top: 8, right: 16, left: 8, bottom: 4 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,.1)" />
-        <XAxis dataKey="name" tick={{ fill: 'var(--tact-text-dim, #888)', fontSize: 12 }} />
-        <YAxis tickFormatter={fmtK} tick={{ fill: 'var(--tact-text-dim, #888)', fontSize: 11 }} width={72} />
+        <XAxis dataKey="name" tick={{ fill: 'var(--tact-text-dim,#888)', fontSize: 12 }} />
+        <YAxis tickFormatter={fmtK} tick={{ fill: 'var(--tact-text-dim,#888)', fontSize: 11 }} width={72} />
         <Tooltip formatter={(v) => ils(v)} labelStyle={{ color: '#222' }} />
         <Legend />
-        <Bar dataKey="הכנסה" fill="#82ca9d" radius={[3, 3, 0, 0]} />
-        <Bar dataKey="CAPEX" fill="#ff7c7c" radius={[3, 3, 0, 0]} />
-        <Bar dataKey="רווח" fill="#6c8ebf" radius={[3, 3, 0, 0]} />
+        <Bar dataKey="הכנסה"  fill="#82ca9d" radius={[3,3,0,0]} />
+        <Bar dataKey="CAPEX"  fill="#ff7c7c" radius={[3,3,0,0]} />
+        <Bar dataKey="OPEX"   fill="#ffc658" radius={[3,3,0,0]} />
+        <Bar dataKey="רווח"   fill="#6c8ebf" radius={[3,3,0,0]} />
       </BarChart>
     </ResponsiveContainer>
   )
 }
 
 // ─── פאנל עריכת הגדרות בניין ─────────────────────────────────────────────────
+
+function FieldRow({ fieldDef, value, onChange }) {
+  const { key, label, unit, step, note } = fieldDef
+  return (
+    <label className="setting-row">
+      <span className="setting-label">
+        {label}
+        {note && <span className="setting-note"> ({note})</span>}
+      </span>
+      <span className="setting-input-wrap">
+        <input
+          type="number"
+          step={step}
+          min={0}
+          value={value ?? 0}
+          onChange={(e) => onChange(key, e.target.value)}
+          className="tact-input setting-input"
+        />
+        {unit && <span className="setting-unit">{unit}</span>}
+      </span>
+    </label>
+  )
+}
 
 function BuildingSettings({ bm, onChange }) {
   const [local, setLocal] = useState({ ...bm })
@@ -126,7 +171,7 @@ function BuildingSettings({ bm, onChange }) {
   })
 
   function handle(key, raw) {
-    const def = FIELD_DEFS.find((f) => f.key === key)
+    const def = [...INCOME_FIELDS, ...OPEX_FIELDS].find((f) => f.key === key)
     const value = def?.type === 'int' ? parseInt(raw, 10) || 0 : parseFloat(raw) || 0
     const next = { ...local, [key]: value }
     setLocal(next)
@@ -134,33 +179,39 @@ function BuildingSettings({ bm, onChange }) {
   }
 
   const incomePerCharger = monthlyIncome(local)
+  const opexCurrent = annualOpex(local, local.current_chargers || 0)
 
   return (
     <div className="building-settings">
+      <div className="settings-section-title">הכנסות וגידול</div>
       <div className="settings-grid">
-        {FIELD_DEFS.map(({ key, label, unit, step }) => (
-          <label key={key} className="setting-row">
-            <span className="setting-label">{label}</span>
-            <span className="setting-input-wrap">
-              <input
-                type="number"
-                step={step}
-                min={0}
-                value={local[key] ?? 0}
-                onChange={(e) => handle(key, e.target.value)}
-                className="tact-input setting-input"
-              />
-              {unit && <span className="setting-unit">{unit}</span>}
-            </span>
-          </label>
+        {INCOME_FIELDS.map((f) => (
+          <FieldRow key={f.key} fieldDef={f} value={local[f.key]} onChange={handle} />
         ))}
       </div>
+
+      <div className="settings-section-title" style={{ marginTop: 16 }}>הוצאות תפעוליות (OPEX)</div>
+      <div className="settings-grid">
+        {OPEX_FIELDS.map((f) => (
+          <FieldRow key={f.key} fieldDef={f} value={local[f.key]} onChange={handle} />
+        ))}
+      </div>
+
       <div className="income-summary">
-        <span>הכנסה חודשית למטען:</span>
-        <strong style={{ color: 'var(--tact-green)' }}>{ils(incomePerCharger)}</strong>
-        <span className="dim-text">
-          (ניהול {ils(local.mgmt_fee_per_charger)} + חשמל {ils((local.electricity_rate_agorot / 100) * local.avg_kwh_per_charger_monthly)} + מנוי {ils(local.subscription_fee_per_charger)})
-        </span>
+        <div>
+          <span>הכנסה חודשית למטען: </span>
+          <strong style={{ color: 'var(--tact-green)' }}>{ils(incomePerCharger)}</strong>
+          <span className="dim-text" style={{ fontSize: 11 }}>
+            {' '}(ניהול {ils(local.mgmt_fee_per_charger)} + חשמל {ils((local.electricity_rate_agorot / 100) * local.avg_kwh_per_charger_monthly)} + מנוי {ils(local.subscription_fee_per_charger)})
+          </span>
+        </div>
+        <div style={{ marginTop: 4 }}>
+          <span>OPEX שנתי נוכחי: </span>
+          <strong style={{ color: 'var(--tact-orange,#e67e22)' }}>{ils(opexCurrent)}</strong>
+          <span className="dim-text" style={{ fontSize: 11 }}>
+            {' '}(אינטרנט+בודק {ils((local.current_chargers || 0) * ((local.cost_internet_per_charger || 0) + (local.cost_inspector_per_charger || 0)))} + פחת {ils((local.chargers_no_rcd || 0) * (local.cost_rcd_per_charger || 0))})
+          </span>
+        </div>
       </div>
     </div>
   )
@@ -202,9 +253,7 @@ function CombinedChart({ combined, buildings }) {
     const entry = { name: String(row.year) }
     for (const name of names) {
       entry[name] = row.buildings[name]?.annual_income || 0
-      entry[`${name}_capex`] = row.buildings[name]?.capex || 0
     }
-    entry['סה"כ רווח'] = row.total_profit
     return entry
   })
 
@@ -212,12 +261,18 @@ function CombinedChart({ combined, buildings }) {
     <ResponsiveContainer width="100%" height={300}>
       <BarChart data={data} margin={{ top: 8, right: 16, left: 8, bottom: 4 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,.1)" />
-        <XAxis dataKey="name" tick={{ fill: 'var(--tact-text-dim, #888)', fontSize: 12 }} />
-        <YAxis tickFormatter={fmtK} tick={{ fill: 'var(--tact-text-dim, #888)', fontSize: 11 }} width={72} />
+        <XAxis dataKey="name" tick={{ fill: 'var(--tact-text-dim,#888)', fontSize: 12 }} />
+        <YAxis tickFormatter={fmtK} tick={{ fill: 'var(--tact-text-dim,#888)', fontSize: 11 }} width={72} />
         <Tooltip formatter={(v) => ils(v)} labelStyle={{ color: '#222' }} />
         <Legend />
         {names.map((name, i) => (
-          <Bar key={name} dataKey={name} stackId="income" fill={COLORS[i % COLORS.length]} radius={i === names.length - 1 ? [3, 3, 0, 0] : [0, 0, 0, 0]} />
+          <Bar
+            key={name}
+            dataKey={name}
+            stackId="income"
+            fill={COLORS[i % COLORS.length]}
+            radius={i === names.length - 1 ? [3,3,0,0] : [0,0,0,0]}
+          />
         ))}
       </BarChart>
     </ResponsiveContainer>
@@ -238,6 +293,7 @@ function CombinedTable({ combined, buildings }) {
             {names.map((n) => <th key={n}>{n}</th>)}
             <th>סה"כ הכנסה</th>
             <th>סה"כ CAPEX</th>
+            <th>סה"כ OPEX</th>
             <th>סה"כ רווח</th>
           </tr>
         </thead>
@@ -249,10 +305,13 @@ function CombinedTable({ combined, buildings }) {
                 <td key={n}>{row.buildings[n] ? ils(row.buildings[n].annual_income) : '—'}</td>
               ))}
               <td style={{ color: 'var(--tact-green)' }}>{ils(row.total_income)}</td>
-              <td style={{ color: row.total_capex > 0 ? 'var(--tact-red, #e74c3c)' : 'inherit' }}>
+              <td style={{ color: row.total_capex > 0 ? 'var(--tact-red,#e74c3c)' : 'inherit' }}>
                 {row.total_capex > 0 ? ils(-row.total_capex) : '—'}
               </td>
-              <td style={{ fontWeight: 600, color: row.total_profit >= 0 ? 'var(--tact-green)' : 'var(--tact-red, #e74c3c)' }}>
+              <td style={{ color: 'var(--tact-orange,#e67e22)' }}>
+                {row.total_opex > 0 ? ils(-row.total_opex) : '—'}
+              </td>
+              <td style={{ fontWeight: 600, color: row.total_profit >= 0 ? 'var(--tact-green)' : 'var(--tact-red,#e74c3c)' }}>
                 {ils(row.total_profit)}
               </td>
             </tr>
@@ -267,7 +326,7 @@ function CombinedTable({ combined, buildings }) {
 
 export default function BuildingCashflow({ loading: appLoading }) {
   const [buildings, setBuildings] = useState([])
-  const [selectedId, setSelectedId] = useState(null)  // null = תצוגה כוללת
+  const [selectedId, setSelectedId] = useState(null)
   const [forecast, setForecast] = useState(null)
   const [combined, setCombined] = useState([])
   const [loading, setLoading] = useState(true)
@@ -290,7 +349,6 @@ export default function BuildingCashflow({ loading: appLoading }) {
 
   useEffect(() => { load() }, [])
 
-  // טעינת תחזית לבניין נבחר
   useEffect(() => {
     if (selectedId == null) { setForecast(null); return }
     api.getBuildingForecast(selectedId).then(setForecast).catch(() => setForecast(null))
@@ -328,10 +386,10 @@ export default function BuildingCashflow({ loading: appLoading }) {
 
   const selected = buildings.find((b) => b.id === selectedId)
 
-  // KPI לתצוגה כוללת
-  const totalIncome5yr = combined.reduce((s, r) => s + r.total_income, 0)
-  const totalCapex5yr = combined.reduce((s, r) => s + r.total_capex, 0)
-  const totalProfit5yr = combined.reduce((s, r) => s + r.total_profit, 0)
+  const totalIncome5yr  = combined.reduce((s, r) => s + r.total_income, 0)
+  const totalCapex5yr   = combined.reduce((s, r) => s + r.total_capex, 0)
+  const totalOpex5yr    = combined.reduce((s, r) => s + r.total_opex, 0)
+  const totalProfit5yr  = combined.reduce((s, r) => s + r.total_profit, 0)
 
   return (
     <div className="building-cashflow-page">
@@ -376,7 +434,7 @@ export default function BuildingCashflow({ loading: appLoading }) {
               <div className="building-card-name">כל הבניינים</div>
               <div className="building-card-meta">{buildings.length} בניינים</div>
             </div>
-            {buildings.map((bm, i) => (
+            {buildings.map((bm) => (
               <BuildingCard
                 key={bm.id}
                 bm={bm}
@@ -396,12 +454,16 @@ export default function BuildingCashflow({ loading: appLoading }) {
                   <div className="tact-kpi-value" style={{ color: 'var(--tact-green)' }}>{ils(totalIncome5yr)}</div>
                 </div>
                 <div className="tact-kpi">
-                  <div className="tact-kpi-label">סה"כ CAPEX (תחזית)</div>
-                  <div className="tact-kpi-value" style={{ color: 'var(--tact-red, #e74c3c)' }}>{ils(totalCapex5yr)}</div>
+                  <div className="tact-kpi-label">סה"כ CAPEX</div>
+                  <div className="tact-kpi-value" style={{ color: 'var(--tact-red,#e74c3c)' }}>{ils(totalCapex5yr)}</div>
+                </div>
+                <div className="tact-kpi">
+                  <div className="tact-kpi-label">סה"כ OPEX</div>
+                  <div className="tact-kpi-value" style={{ color: 'var(--tact-orange,#e67e22)' }}>{ils(totalOpex5yr)}</div>
                 </div>
                 <div className="tact-kpi">
                   <div className="tact-kpi-label">סה"כ רווח (תחזית)</div>
-                  <div className="tact-kpi-value" style={{ color: totalProfit5yr >= 0 ? 'var(--tact-green)' : 'var(--tact-red, #e74c3c)' }}>
+                  <div className="tact-kpi-value" style={{ color: totalProfit5yr >= 0 ? 'var(--tact-green)' : 'var(--tact-red,#e74c3c)' }}>
                     {ils(totalProfit5yr)}
                   </div>
                 </div>
@@ -435,11 +497,15 @@ export default function BuildingCashflow({ loading: appLoading }) {
                   </div>
                   <div className="tact-kpi">
                     <div className="tact-kpi-label">סה"כ CAPEX</div>
-                    <div className="tact-kpi-value" style={{ color: 'var(--tact-red, #e74c3c)' }}>{ils(forecast.total_capex)}</div>
+                    <div className="tact-kpi-value" style={{ color: 'var(--tact-red,#e74c3c)' }}>{ils(forecast.total_capex)}</div>
+                  </div>
+                  <div className="tact-kpi">
+                    <div className="tact-kpi-label">סה"כ OPEX</div>
+                    <div className="tact-kpi-value" style={{ color: 'var(--tact-orange,#e67e22)' }}>{ils(forecast.total_opex)}</div>
                   </div>
                   <div className="tact-kpi">
                     <div className="tact-kpi-label">סה"כ רווח</div>
-                    <div className="tact-kpi-value" style={{ color: forecast.total_profit >= 0 ? 'var(--tact-green)' : 'var(--tact-red, #e74c3c)' }}>
+                    <div className="tact-kpi-value" style={{ color: forecast.total_profit >= 0 ? 'var(--tact-green)' : 'var(--tact-red,#e74c3c)' }}>
                       {ils(forecast.total_profit)}
                     </div>
                   </div>
@@ -448,7 +514,6 @@ export default function BuildingCashflow({ loading: appLoading }) {
 
               <div className="building-layout">
                 <div className="building-settings-panel">
-                  <h4 style={{ marginTop: 0 }}>הגדרות</h4>
                   <BuildingSettings bm={selected} onChange={handleRefresh} />
                 </div>
                 <div className="building-chart-panel">
@@ -485,25 +550,19 @@ export default function BuildingCashflow({ loading: appLoading }) {
           transition: border-color .15s, background .15s;
         }
         .building-card:hover { border-color: rgba(255,255,255,.3); }
-        .building-card.selected { border-color: var(--tact-accent, #6c8ebf); background: rgba(108,142,191,.15); }
+        .building-card.selected { border-color: var(--tact-accent,#6c8ebf); background: rgba(108,142,191,.15); }
 
         .building-card-name { font-weight: 600; font-size: 14px; margin-bottom: 4px; }
-        .building-card-meta { font-size: 12px; color: var(--tact-text-dim, #888); line-height: 1.5; }
+        .building-card-meta { font-size: 12px; color: var(--tact-text-dim,#888); line-height: 1.5; }
 
         .building-card-delete {
-          position: absolute;
-          top: 8px;
-          left: 8px;
-          background: none;
-          border: none;
-          cursor: pointer;
-          color: var(--tact-text-dim, #888);
-          padding: 2px;
-          opacity: 0;
-          transition: opacity .15s;
+          position: absolute; top: 8px; left: 8px;
+          background: none; border: none; cursor: pointer;
+          color: var(--tact-text-dim,#888); padding: 2px;
+          opacity: 0; transition: opacity .15s;
         }
         .building-card:hover .building-card-delete { opacity: 1; }
-        .building-card-delete:hover { color: var(--tact-red, #e74c3c); }
+        .building-card-delete:hover { color: var(--tact-red,#e74c3c); }
 
         .building-detail {
           background: var(--tact-surface, rgba(255,255,255,.04));
@@ -514,70 +573,41 @@ export default function BuildingCashflow({ loading: appLoading }) {
 
         .building-layout {
           display: grid;
-          grid-template-columns: 340px 1fr;
+          grid-template-columns: 360px 1fr;
           gap: 24px;
           margin-bottom: 24px;
         }
-        @media (max-width: 860px) {
-          .building-layout { grid-template-columns: 1fr; }
+        @media (max-width: 860px) { .building-layout { grid-template-columns: 1fr; } }
+
+        .settings-section-title {
+          font-size: 12px;
+          font-weight: 600;
+          color: var(--tact-text-dim,#aaa);
+          text-transform: uppercase;
+          letter-spacing: .05em;
+          margin-bottom: 8px;
         }
 
-        .settings-grid {
-          display: flex;
-          flex-direction: column;
-          gap: 8px;
-        }
+        .settings-grid { display: flex; flex-direction: column; gap: 7px; }
 
         .setting-row {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          gap: 8px;
+          display: flex; align-items: center;
+          justify-content: space-between; gap: 8px;
         }
-
-        .setting-label {
-          font-size: 13px;
-          color: var(--tact-text-dim, #aaa);
-          flex: 1;
-        }
-
-        .setting-input-wrap {
-          display: flex;
-          align-items: center;
-          gap: 4px;
-        }
-
-        .setting-input {
-          width: 90px;
-          text-align: left;
-          font-size: 13px;
-          padding: 4px 8px;
-        }
-
-        .setting-unit {
-          font-size: 11px;
-          color: var(--tact-text-dim, #888);
-          white-space: nowrap;
-        }
+        .setting-label { font-size: 13px; color: var(--tact-text-dim,#aaa); flex: 1; }
+        .setting-note  { font-size: 11px; opacity: .7; }
+        .setting-input-wrap { display: flex; align-items: center; gap: 4px; }
+        .setting-input { width: 90px; text-align: left; font-size: 13px; padding: 4px 8px; }
+        .setting-unit  { font-size: 11px; color: var(--tact-text-dim,#888); white-space: nowrap; }
 
         .income-summary {
-          margin-top: 14px;
-          padding: 10px 12px;
-          background: rgba(130,202,157,.1);
-          border-radius: 8px;
-          font-size: 13px;
-          display: flex;
-          flex-direction: column;
-          gap: 4px;
+          margin-top: 14px; padding: 10px 12px;
+          background: rgba(130,202,157,.1); border-radius: 8px; font-size: 13px;
         }
 
-        .dim-text { color: var(--tact-text-dim, #888); font-size: 13px; }
+        .dim-text { color: var(--tact-text-dim,#888); font-size: 13px; }
 
-        .empty-state {
-          text-align: center;
-          padding: 3rem;
-          color: var(--tact-text-dim, #888);
-        }
+        .empty-state { text-align: center; padding: 3rem; color: var(--tact-text-dim,#888); }
       `}</style>
     </div>
   )
