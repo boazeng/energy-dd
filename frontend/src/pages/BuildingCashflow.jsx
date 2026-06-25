@@ -234,11 +234,14 @@ function BuildingSettings({ bm, onChange }) {
           </span>
         </div>
         <div style={{ marginTop: 4 }}>
-          <span>OPEX שנתי: </span>
+          <span>OPEX שנתי (מטענים נוכחיים): </span>
           <strong style={{ color: 'var(--tact-orange,#e67e22)' }}>{ils(opexCurrent)}</strong>
           <span className="dim-text" style={{ fontSize: 11 }}>
             {' '}(אינטרנט+בודק {ils((local.current_chargers||0)*((local.cost_internet_per_charger||0)+(local.cost_inspector_per_charger||0)))} + פחת {ils((local.chargers_no_rcd||0)*(local.cost_rcd_per_charger||0))})
           </span>
+          <div className="dim-text" style={{ fontSize: 11, marginTop: 2 }}>
+            גדל עם כל מטען חדש ({ils((local.cost_internet_per_charger||0)+(local.cost_inspector_per_charger||0))}/שנה למטען)
+          </div>
         </div>
       </div>
     </div>
