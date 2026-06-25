@@ -8,7 +8,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from app.api import building_models, cashflow, financials, projects, supplier_balances, supplier_ledger, tasks, tenant_agreements
+from app.api import building_models, cashflow, financials, projects, questions, supplier_balances, supplier_ledger, tasks, tenant_agreements
 from app.core.config import settings
 from app.core.db import SessionLocal, init_db
 from app.seed import seed_tasks
@@ -51,6 +51,7 @@ app.add_middleware(
 )
 
 app.include_router(tasks.router)
+app.include_router(questions.router)
 app.include_router(tenant_agreements.router)
 app.include_router(projects.router)
 app.include_router(financials.router)
