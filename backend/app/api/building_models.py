@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.db import get_db
 from app.models.building_model import BuildingModel
+from app.models.cashflow import CashflowLoan
 from app.schemas.building_model import (
     BuildingForecastOut,
     BuildingModelCreate,
@@ -129,14 +130,34 @@ def delete_building(bm_id: int, db: Session = Depends(get_db)):
     db.commit()
 
 
+# ─── עזר: שפיצר ─────────────────────────────────────────────────────────────
+
+def _shpitzer_annual(loan: CashflowLoan) -> float:
+    """תשלום שנתי קבוע לפי לוח שפיצר."""
+    r = (loan.prime + loan.margin) / 100 / 12  # ריבית חודשית
+    n = loan.years * 12                          # מספר תשלומים חודשיים
+    if r == 0 or n == 0:
+        return loan.amount / max(1, loan.years)
+    pmt = loan.amount * r / (1 - (1 + r) ** (-n))
+    return pmt * 12
+
+
 # ─── תחזית ───────────────────────────────────────────────────────────────────
 
 @router.get("/forecast/combined", response_model=list[CombinedForecastYear])
 def combined_forecast(db: Session = Depends(get_db)):
-    """תחזית מאוחדת לכל הבניינים — לפי שנה."""
+    """תחזית מאוחדת לכל הבניינים — לפי שנה, כולל החזר הלוואה."""
     buildings = list(db.scalars(select(BuildingModel)))
     if not buildings:
         return []
+
+    # פרמטרי הלוואה
+    loan = db.get(CashflowLoan, 1)
+    if loan is None:
+        loan = CashflowLoan(id=1)
+    annual_loan = _shpitzer_annual(loan)
+    loan_start_year = int(loan.start_month[:4]) if loan.start_month else min(b.start_year for b in buildings)
+    loan_end_year = loan_start_year + loan.years - 1
 
     # מציאת טווח שנים מקסימלי
     min_year = min(b.start_year for b in buildings)
@@ -163,13 +184,16 @@ def combined_forecast(db: Session = Depends(get_db)):
                 total_capex += yf.capex
                 total_opex += yf.annual_opex
                 total_profit += yf.profit
+
+        loan_repay = round(annual_loan, 2) if loan_start_year <= year <= loan_end_year else 0.0
         result.append(CombinedForecastYear(
             year=year,
             buildings=bldg_map,
             total_income=round(total_income, 2),
             total_capex=round(total_capex, 2),
             total_opex=round(total_opex, 2),
-            total_profit=round(total_profit, 2),
+            loan_repayment=loan_repay,
+            total_profit=round(total_profit - loan_repay, 2),
         ))
 
     return result

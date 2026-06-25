@@ -391,6 +391,7 @@ function CumulativeChart({ combined }) {
     return {
       name: String(row.year),
       'רווח שנתי': row.total_profit,
+      'החזר הלוואה': row.loan_repayment > 0 ? -row.loan_repayment : null,
       'מצטבר': cum,
     }
   })
@@ -404,6 +405,7 @@ function CumulativeChart({ combined }) {
         <Tooltip formatter={(v) => ils(v)} labelStyle={{ color: '#222' }} />
         <Legend />
         <Bar dataKey="רווח שנתי" fill="#6c8ebf" radius={[3,3,0,0]} />
+        <Bar dataKey="החזר הלוואה" fill="#e74c3c" radius={[3,3,0,0]} />
         <Line
           type="monotone"
           dataKey="מצטבר"
@@ -441,6 +443,7 @@ function CombinedTable({ combined, buildings }) {
             <th>מטענים חדשים</th>
             <th>CAPEX (התקנה)</th>
             <th>OPEX (חד-פעמי)</th>
+            <th>החזר הלוואה</th>
             <th>רווח שנתי</th>
             <th>תזרים מצטבר</th>
           </tr>
@@ -461,6 +464,9 @@ function CombinedTable({ combined, buildings }) {
               </td>
               <td style={{ color: 'var(--tact-orange,#e67e22)' }}>
                 {row.total_opex > 0 ? ils(-row.total_opex) : '—'}
+              </td>
+              <td style={{ color: 'var(--tact-red,#e74c3c)' }}>
+                {row.loan_repayment > 0 ? ils(-row.loan_repayment) : '—'}
               </td>
               <td style={{ fontWeight: 600, color: row.total_profit >= 0 ? 'var(--tact-green)' : 'var(--tact-red,#e74c3c)' }}>
                 {ils(row.total_profit)}
