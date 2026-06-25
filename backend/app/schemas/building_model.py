@@ -11,8 +11,14 @@ class BuildingModelCreate(BaseModel):
     electricity_rate_agorot: float = 0
     avg_kwh_per_charger_monthly: float = 0
     subscription_fee_per_charger: float = 0
-    charger_purchase_cost: float = 0
-    charger_install_cost: float = 0
+    # CAPEX
+    cost_charger_unit: float = 800
+    cost_infra_per_charger: float = 1200
+    cost_install_per_charger: float = 1300
+    cost_elec_panel: float = 6000
+    cost_comm_panel: float = 1000
+    chargers_per_panel: int = 10
+    # OPEX
     chargers_no_rcd: int = 0
     cost_rcd_per_charger: float = 300
     cost_internet_per_charger: float = 400
@@ -30,8 +36,14 @@ class BuildingModelUpdate(BaseModel):
     electricity_rate_agorot: float | None = None
     avg_kwh_per_charger_monthly: float | None = None
     subscription_fee_per_charger: float | None = None
-    charger_purchase_cost: float | None = None
-    charger_install_cost: float | None = None
+    # CAPEX
+    cost_charger_unit: float | None = None
+    cost_infra_per_charger: float | None = None
+    cost_install_per_charger: float | None = None
+    cost_elec_panel: float | None = None
+    cost_comm_panel: float | None = None
+    chargers_per_panel: int | None = None
+    # OPEX
     chargers_no_rcd: int | None = None
     cost_rcd_per_charger: float | None = None
     cost_internet_per_charger: float | None = None
@@ -52,8 +64,12 @@ class BuildingModelOut(BaseModel):
     electricity_rate_agorot: float
     avg_kwh_per_charger_monthly: float
     subscription_fee_per_charger: float
-    charger_purchase_cost: float
-    charger_install_cost: float
+    cost_charger_unit: float
+    cost_infra_per_charger: float
+    cost_install_per_charger: float
+    cost_elec_panel: float
+    cost_comm_panel: float
+    chargers_per_panel: int
     chargers_no_rcd: int
     cost_rcd_per_charger: float
     cost_internet_per_charger: float

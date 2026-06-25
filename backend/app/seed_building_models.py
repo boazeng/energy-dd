@@ -197,8 +197,13 @@ def seed_building_models(db: Session) -> int:
             electricity_rate_agorot=b["elec_rate"],
             avg_kwh_per_charger_monthly=b["avg_kwh"],
             subscription_fee_per_charger=0,
-            charger_purchase_cost=b["purchase"],
-            charger_install_cost=b["install"],
+            # CAPEX — ברירות מחדל אחידות לכל הבניינים (ניתנות לשינוי בממשק)
+            cost_charger_unit=800,
+            cost_infra_per_charger=1200,
+            cost_install_per_charger=1300,
+            cost_elec_panel=6000,
+            cost_comm_panel=1000,
+            chargers_per_panel=10,
             start_year=2025,
             forecast_years=5,
         ))

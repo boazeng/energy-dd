@@ -27,20 +27,24 @@ class BuildingModel(Base):
     annual_growth_rate: Mapped[float] = mapped_column(Float, default=0)  # % מהחניות הפוטנציאליות
 
     # הכנסה למטען (חודשית)
-    mgmt_fee_per_charger: Mapped[float] = mapped_column(Float, default=0)         # עמלת ניהול ₪
-    electricity_rate_agorot: Mapped[float] = mapped_column(Float, default=0)      # עמלת חשמל אג'/kWh
-    avg_kwh_per_charger_monthly: Mapped[float] = mapped_column(Float, default=0)  # צריכה ממוצעת kWh/חודש
-    subscription_fee_per_charger: Mapped[float] = mapped_column(Float, default=0) # דמי מנוי ₪
+    mgmt_fee_per_charger: Mapped[float] = mapped_column(Float, default=0)
+    electricity_rate_agorot: Mapped[float] = mapped_column(Float, default=0)      # אג'/kWh
+    avg_kwh_per_charger_monthly: Mapped[float] = mapped_column(Float, default=0)  # kWh/חודש
+    subscription_fee_per_charger: Mapped[float] = mapped_column(Float, default=0)
 
-    # עלות מטען חדש (חד-פעמי)
-    charger_purchase_cost: Mapped[float] = mapped_column(Float, default=0)  # עלות רכישה ₪
-    charger_install_cost: Mapped[float] = mapped_column(Float, default=0)   # עלות התקנה ₪
+    # CAPEX — עלויות מטען חדש (ניתנות לשינוי)
+    cost_charger_unit: Mapped[float] = mapped_column(Float, default=800)          # עלות מטען ₪
+    cost_infra_per_charger: Mapped[float] = mapped_column(Float, default=1200)    # תשתית חשמל+תקשורת ₪
+    cost_install_per_charger: Mapped[float] = mapped_column(Float, default=1300)  # התקנה+בודק ₪
+    cost_elec_panel: Mapped[float] = mapped_column(Float, default=6000)           # ארון חשמל ₪
+    cost_comm_panel: Mapped[float] = mapped_column(Float, default=1000)           # ארון תקשורת ₪
+    chargers_per_panel: Mapped[int] = mapped_column(Integer, default=10)          # מטענים לארון
 
-    # הוצאות תפעוליות שנתיות (OPEX)
-    chargers_no_rcd: Mapped[int] = mapped_column(Integer, default=0)           # מטענים ללא פחת (מסונכרן מהאקסל)
-    cost_rcd_per_charger: Mapped[float] = mapped_column(Float, default=300)    # עלות שנתית למטען ללא פחת ₪
-    cost_internet_per_charger: Mapped[float] = mapped_column(Float, default=400)   # אינטרנט ₪/שנה למטען
-    cost_inspector_per_charger: Mapped[float] = mapped_column(Float, default=250)  # אישור בודק ₪/שנה למטען
+    # OPEX — הוצאות תפעוליות שנתיות (רק על מטענים קיימים)
+    chargers_no_rcd: Mapped[int] = mapped_column(Integer, default=0)              # מסונכרן מהאקסל
+    cost_rcd_per_charger: Mapped[float] = mapped_column(Float, default=300)       # פחת חסר ₪/שנה
+    cost_internet_per_charger: Mapped[float] = mapped_column(Float, default=400)  # אינטרנט ₪/שנה
+    cost_inspector_per_charger: Mapped[float] = mapped_column(Float, default=250) # בודק ₪/שנה
 
     # פרמטרי תחזית
     start_year: Mapped[int] = mapped_column(Integer, default=2025)

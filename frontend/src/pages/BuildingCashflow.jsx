@@ -17,19 +17,27 @@ const fmtK = (v) => {
 
 const COLORS = ['#6c8ebf', '#82ca9d', '#ffc658', '#ff7c7c', '#a29bfe', '#fd79a8', '#00cec9', '#fdcb6e']
 
-// הכנסות + עלויות מטען חדש
+// הכנסות
 const INCOME_FIELDS = [
-  { key: 'current_chargers',             label: 'מטענים נוכחיים',       unit: '',          step: 1,   type: 'int' },
-  { key: 'potential_spots',              label: 'חניות פוטנציאליות',    unit: '',          step: 1,   type: 'int' },
-  { key: 'annual_growth_rate',           label: 'גידול שנתי',           unit: '%',         step: 1,   type: 'float' },
-  { key: 'mgmt_fee_per_charger',         label: 'עמלת ניהול למטען',     unit: '₪/חודש',   step: 0.1, type: 'float' },
-  { key: 'avg_kwh_per_charger_monthly',  label: 'צריכה ממוצעת למטען',   unit: 'kWh/חודש', step: 1,   type: 'float' },
-  { key: 'electricity_rate_agorot',      label: 'עמלת חשמל',            unit: "אג'/kWh",  step: 0.1, type: 'float' },
-  { key: 'subscription_fee_per_charger', label: 'דמי מנוי למטען',       unit: '₪/חודש',   step: 0.1, type: 'float' },
-  { key: 'charger_purchase_cost',        label: 'עלות רכישת מטען חדש',  unit: '₪',         step: 100, type: 'float' },
-  { key: 'charger_install_cost',         label: 'עלות התקנת מטען חדש',  unit: '₪',         step: 100, type: 'float' },
-  { key: 'start_year',                   label: 'שנת התחלה',             unit: '',          step: 1,   type: 'int' },
-  { key: 'forecast_years',              label: 'שנות תחזית',             unit: '',          step: 1,   type: 'int' },
+  { key: 'current_chargers',             label: 'מטענים נוכחיים',      unit: '',          step: 1,   type: 'int' },
+  { key: 'potential_spots',              label: 'חניות פוטנציאליות',   unit: '',          step: 1,   type: 'int' },
+  { key: 'annual_growth_rate',           label: 'גידול שנתי',          unit: '%',         step: 1,   type: 'float' },
+  { key: 'mgmt_fee_per_charger',         label: 'עמלת ניהול למטען',    unit: '₪/חודש',   step: 0.1, type: 'float' },
+  { key: 'avg_kwh_per_charger_monthly',  label: 'צריכה ממוצעת למטען',  unit: 'kWh/חודש', step: 1,   type: 'float' },
+  { key: 'electricity_rate_agorot',      label: 'עמלת חשמל',           unit: "אג'/kWh",  step: 0.1, type: 'float' },
+  { key: 'subscription_fee_per_charger', label: 'דמי מנוי למטען',      unit: '₪/חודש',   step: 0.1, type: 'float' },
+  { key: 'start_year',                   label: 'שנת התחלה',            unit: '',          step: 1,   type: 'int' },
+  { key: 'forecast_years',               label: 'שנות תחזית',           unit: '',          step: 1,   type: 'int' },
+]
+
+// CAPEX — עלויות מטען חדש (ניתן לשינוי)
+const CAPEX_FIELDS = [
+  { key: 'cost_charger_unit',        label: 'עלות מטען',                    unit: '₪',     step: 100, type: 'float' },
+  { key: 'cost_infra_per_charger',   label: 'תשתית חשמל+תקשורת (50מ\')',   unit: '₪',     step: 100, type: 'float' },
+  { key: 'cost_install_per_charger', label: 'התקנה כולל בודק',              unit: '₪',     step: 100, type: 'float' },
+  { key: 'cost_elec_panel',          label: 'ארון חשמל',                    unit: '₪/ארון', step: 100, type: 'float' },
+  { key: 'cost_comm_panel',          label: 'ארון תקשורת',                  unit: '₪/ארון', step: 100, type: 'float' },
+  { key: 'chargers_per_panel',       label: 'מטענים לארון',                 unit: '',       step: 1,   type: 'int',   note: 'ברירת מחדל 10' },
 ]
 
 // הוצאות תפעוליות שנתיות
@@ -48,11 +56,17 @@ function monthlyIncome(bm) {
   )
 }
 
-function annualOpex(bm, totalChargers) {
+function annualOpex(bm) {
   return (
-    totalChargers * ((bm.cost_internet_per_charger || 0) + (bm.cost_inspector_per_charger || 0)) +
+    (bm.current_chargers || 0) * ((bm.cost_internet_per_charger || 0) + (bm.cost_inspector_per_charger || 0)) +
     (bm.chargers_no_rcd || 0) * (bm.cost_rcd_per_charger || 0)
   )
+}
+
+function capexPerCharger(bm) {
+  const direct = (bm.cost_charger_unit || 0) + (bm.cost_infra_per_charger || 0) + (bm.cost_install_per_charger || 0)
+  const panelPer = ((bm.cost_elec_panel || 0) + (bm.cost_comm_panel || 0)) / Math.max(1, bm.chargers_per_panel || 10)
+  return direct + panelPer
 }
 
 // ─── Hook: debounced save ─────────────────────────────────────────────────────
@@ -171,7 +185,7 @@ function BuildingSettings({ bm, onChange }) {
   })
 
   function handle(key, raw) {
-    const def = [...INCOME_FIELDS, ...OPEX_FIELDS].find((f) => f.key === key)
+    const def = [...INCOME_FIELDS, ...CAPEX_FIELDS, ...OPEX_FIELDS].find((f) => f.key === key)
     const value = def?.type === 'int' ? parseInt(raw, 10) || 0 : parseFloat(raw) || 0
     const next = { ...local, [key]: value }
     setLocal(next)
@@ -179,7 +193,8 @@ function BuildingSettings({ bm, onChange }) {
   }
 
   const incomePerCharger = monthlyIncome(local)
-  const opexCurrent = annualOpex(local, local.current_chargers || 0)
+  const opexCurrent = annualOpex(local)
+  const capexEach = capexPerCharger(local)
 
   return (
     <div className="building-settings">
@@ -190,7 +205,20 @@ function BuildingSettings({ bm, onChange }) {
         ))}
       </div>
 
-      <div className="settings-section-title" style={{ marginTop: 16 }}>הוצאות תפעוליות (OPEX)</div>
+      <div className="settings-section-title" style={{ marginTop: 16 }}>עלויות מטען חדש (CAPEX)</div>
+      <div className="settings-grid">
+        {CAPEX_FIELDS.map((f) => (
+          <FieldRow key={f.key} fieldDef={f} value={local[f.key]} onChange={handle} />
+        ))}
+      </div>
+      <div className="capex-summary">
+        סה"כ CAPEX למטען חדש: <strong>{ils(capexEach)}</strong>
+        <span className="dim-text" style={{ fontSize: 11 }}>
+          {' '}(מטען {ils(local.cost_charger_unit)} + תשתית {ils(local.cost_infra_per_charger)} + התקנה {ils(local.cost_install_per_charger)} + ארונות {ils(((local.cost_elec_panel||0)+(local.cost_comm_panel||0))/Math.max(1,local.chargers_per_panel||10))})
+        </span>
+      </div>
+
+      <div className="settings-section-title" style={{ marginTop: 16 }}>הוצאות תפעוליות שנתיות (OPEX — מטענים קיימים בלבד)</div>
       <div className="settings-grid">
         {OPEX_FIELDS.map((f) => (
           <FieldRow key={f.key} fieldDef={f} value={local[f.key]} onChange={handle} />
@@ -206,10 +234,10 @@ function BuildingSettings({ bm, onChange }) {
           </span>
         </div>
         <div style={{ marginTop: 4 }}>
-          <span>OPEX שנתי נוכחי: </span>
+          <span>OPEX שנתי: </span>
           <strong style={{ color: 'var(--tact-orange,#e67e22)' }}>{ils(opexCurrent)}</strong>
           <span className="dim-text" style={{ fontSize: 11 }}>
-            {' '}(אינטרנט+בודק {ils((local.current_chargers || 0) * ((local.cost_internet_per_charger || 0) + (local.cost_inspector_per_charger || 0)))} + פחת {ils((local.chargers_no_rcd || 0) * (local.cost_rcd_per_charger || 0))})
+            {' '}(אינטרנט+בודק {ils((local.current_chargers||0)*((local.cost_internet_per_charger||0)+(local.cost_inspector_per_charger||0)))} + פחת {ils((local.chargers_no_rcd||0)*(local.cost_rcd_per_charger||0))})
           </span>
         </div>
       </div>
@@ -599,6 +627,11 @@ export default function BuildingCashflow({ loading: appLoading }) {
         .setting-input-wrap { display: flex; align-items: center; gap: 4px; }
         .setting-input { width: 90px; text-align: left; font-size: 13px; padding: 4px 8px; }
         .setting-unit  { font-size: 11px; color: var(--tact-text-dim,#888); white-space: nowrap; }
+
+        .capex-summary {
+          margin-top: 8px; padding: 8px 12px;
+          background: rgba(255,198,88,.08); border-radius: 8px; font-size: 13px;
+        }
 
         .income-summary {
           margin-top: 14px; padding: 10px 12px;
