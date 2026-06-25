@@ -224,12 +224,14 @@ function CompletionCell({ row, onChange }) {
 function SupplierLedgerTable({ rows, onChange }) {
   const [name, setName] = useState('')
   const [acc, setAcc] = useState('')
+  const [opening, setOpening] = useState('')
   const [debit, setDebit] = useState('')
   const [credit, setCredit] = useState('')
   const [saving, setSaving] = useState(false)
 
-  const totalDebit = rows.reduce((s, r) => s + r.debit, 0)
-  const totalCredit = rows.reduce((s, r) => s + r.credit, 0)
+  const totalOpening = rows.reduce((s, r) => s + r.opening_balance, 0)
+  const totalDebit   = rows.reduce((s, r) => s + r.debit, 0)
+  const totalCredit  = rows.reduce((s, r) => s + r.credit, 0)
   const totalBalance = rows.reduce((s, r) => s + r.balance, 0)
 
   async function handleAdd(e) {
@@ -237,16 +239,18 @@ function SupplierLedgerTable({ rows, onChange }) {
     if (!name.trim()) return
     setSaving(true)
     try {
+      const o = parseFloat(opening) || 0
       const d = parseFloat(debit) || 0
       const c = parseFloat(credit) || 0
       await api.createSupplierLedgerRow({
         supplier_name: name.trim(),
         account_number: acc.trim(),
+        opening_balance: o,
         debit: d,
         credit: c,
-        balance: c - d,
+        balance: o - c + d,
       })
-      setName(''); setAcc(''); setDebit(''); setCredit('')
+      setName(''); setAcc(''); setOpening(''); setDebit(''); setCredit('')
       onChange()
     } finally {
       setSaving(false)
@@ -258,6 +262,16 @@ function SupplierLedgerTable({ rows, onChange }) {
     onChange()
   }
 
+  function balanceClass(b) {
+    return b < 0 ? 'fin-neg' : b > 0 ? 'fin-pos' : ''
+  }
+
+  function balanceFmt(b) {
+    if (b < 0) return `(₪${nf.format(Math.abs(b))})`
+    if (b > 0) return `₪${nf.format(b)}`
+    return '—'
+  }
+
   return (
     <div className="sup-section">
       <h2 className="block-title">
@@ -265,14 +279,15 @@ function SupplierLedgerTable({ rows, onChange }) {
         כרטסת ספקים — 1-5/2026
       </h2>
       <p className="home-sub" style={{ marginBottom: 20 }}>
-        סיכום תנועות חובה וזכות לכל ספק. עמודת "השלמות" — רשום שאלה ולחץ "→ מטלה" כדי להוסיף לרשימת המטלות.
+        יתרת סגירה שלילית (אדום) = החברה חייבת לספק. חיובית (ירוק) = הספק חייב לחברה.
       </p>
 
       <form className="add-form" onSubmit={handleAdd}>
         <input placeholder="שם ספק" value={name} onChange={(e) => setName(e.target.value)} style={{ flex: 2 }} />
-        <input placeholder="חשבון" value={acc} onChange={(e) => setAcc(e.target.value)} style={{ flex: 0.6, minWidth: 70 }} />
-        <input type="number" placeholder="חובה ₪" value={debit} onChange={(e) => setDebit(e.target.value)} min="0" step="0.01" style={{ flex: 1, minWidth: 110, textAlign: 'left' }} />
-        <input type="number" placeholder="זכות ₪" value={credit} onChange={(e) => setCredit(e.target.value)} min="0" step="0.01" style={{ flex: 1, minWidth: 110, textAlign: 'left' }} />
+        <input placeholder="חשבון" value={acc} onChange={(e) => setAcc(e.target.value)} style={{ flex: 0.5, minWidth: 65 }} />
+        <input type="number" placeholder="יתרת פתיחה ₪" value={opening} onChange={(e) => setOpening(e.target.value)} step="0.01" style={{ flex: 1, minWidth: 110, textAlign: 'left' }} />
+        <input type="number" placeholder="חובה ₪" value={debit} onChange={(e) => setDebit(e.target.value)} min="0" step="0.01" style={{ flex: 1, minWidth: 100, textAlign: 'left' }} />
+        <input type="number" placeholder="זכות ₪" value={credit} onChange={(e) => setCredit(e.target.value)} min="0" step="0.01" style={{ flex: 1, minWidth: 100, textAlign: 'left' }} />
         <button className="tact-btn tact-btn-primary" type="submit" disabled={saving}>+ הוסף</button>
       </form>
 
@@ -287,10 +302,11 @@ function SupplierLedgerTable({ rows, onChange }) {
             <thead>
               <tr>
                 <th className="fin-rowlabel">שם ספק</th>
-                <th style={{ width: 70 }}>חשבון</th>
-                <th>סה&quot;כ חובה</th>
-                <th>סה&quot;כ זכות</th>
-                <th>יתרה</th>
+                <th style={{ width: 65 }}>חשבון</th>
+                <th>יתרת פתיחה</th>
+                <th>חובה</th>
+                <th>זכות</th>
+                <th>יתרת סגירה</th>
                 <th style={{ minWidth: 200 }}>השלמות מול החברה</th>
                 <th style={{ width: 50 }} />
               </tr>
@@ -300,15 +316,10 @@ function SupplierLedgerTable({ rows, onChange }) {
                 <tr key={r.id}>
                   <td className="fin-rowlabel">{r.supplier_name}</td>
                   <td className="muted" style={{ fontSize: '0.85em' }}>{r.account_number}</td>
+                  <td className={balanceClass(r.opening_balance)}>{balanceFmt(r.opening_balance)}</td>
                   <td>{r.debit > 0 ? `₪${nf.format(r.debit)}` : <span className="muted">—</span>}</td>
                   <td>{r.credit > 0 ? `₪${nf.format(r.credit)}` : <span className="muted">—</span>}</td>
-                  <td className={r.credit > r.debit ? 'fin-neg' : r.debit > r.credit ? 'fin-pos' : ''}>
-                    {r.credit > r.debit
-                      ? `(₪${nf.format(Math.abs(r.credit - r.debit))})`
-                      : r.debit > r.credit
-                        ? `₪${nf.format(Math.abs(r.debit - r.credit))}`
-                        : '—'}
-                  </td>
+                  <td className={balanceClass(r.balance)}>{balanceFmt(r.balance)}</td>
                   <td><CompletionCell row={r} onChange={onChange} /></td>
                   <td>
                     <button className="cf-del" title="מחק" onClick={() => handleDelete(r.id)}>✕</button>
@@ -319,15 +330,10 @@ function SupplierLedgerTable({ rows, onChange }) {
             <tfoot>
               <tr className="fin-total sup-total-row">
                 <td className="fin-rowlabel" colSpan={2}>סה&quot;כ</td>
+                <td className={balanceClass(totalOpening)}>{balanceFmt(totalOpening)}</td>
                 <td>₪{nf.format(totalDebit)}</td>
                 <td>₪{nf.format(totalCredit)}</td>
-                <td className={totalCredit > totalDebit ? 'fin-neg' : totalDebit > totalCredit ? 'fin-pos' : ''}>
-                  {totalCredit > totalDebit
-                    ? `(₪${nf.format(Math.abs(totalCredit - totalDebit))})`
-                    : totalDebit > totalCredit
-                      ? `₪${nf.format(Math.abs(totalDebit - totalCredit))}`
-                      : '—'}
-                </td>
+                <td className={balanceClass(totalBalance)}>{balanceFmt(totalBalance)}</td>
                 <td colSpan={2} />
               </tr>
             </tfoot>
