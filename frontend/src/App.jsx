@@ -63,12 +63,14 @@ export default function App() {
   }
 
   async function refreshSuppliers() {
-    const [sb, sl] = await Promise.all([
+    const [sb, sl, t] = await Promise.all([
       api.listSupplierBalances(),
       api.listSupplierLedger(),
+      api.listTasks(),
     ])
     setSupplierBalances(sb)
     setSupplierLedger(sl)
+    setTasks(t)
   }
 
   useEffect(() => {
