@@ -1,7 +1,7 @@
 """מודל כרטסת ספקים — תנועות חובה/זכות 2026."""
 from datetime import datetime, timezone
 
-from sqlalchemy import DateTime, Float, Integer, String
+from sqlalchemy import DateTime, Float, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.db import Base
