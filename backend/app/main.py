@@ -15,6 +15,7 @@ from app.seed import seed_tasks
 from app.seed_cashflow import seed_cashflow
 from app.seed_contracts import seed_contracts
 from app.seed_supplier_balances import seed_supplier_balances
+from app.seed_building_models import seed_building_models
 from app.seed_supplier_ledger import seed_supplier_ledger
 
 logger = logging.getLogger("energy-dd")
@@ -32,6 +33,7 @@ async def lifespan(_: FastAPI):
         seed_contracts(db)
         seed_supplier_balances(db)
         seed_supplier_ledger(db)
+        seed_building_models(db)
     yield
 
 
