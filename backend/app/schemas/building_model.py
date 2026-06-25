@@ -1,0 +1,75 @@
+"""סכמות Pydantic לתזרים פר-בניין."""
+from pydantic import BaseModel, ConfigDict, Field
+
+
+class BuildingModelCreate(BaseModel):
+    building_name: str
+    current_chargers: int = 0
+    potential_spots: int = 0
+    annual_growth_rate: float = 0
+    mgmt_fee_per_charger: float = 0
+    electricity_rate_agorot: float = 0
+    avg_kwh_per_charger_monthly: float = 0
+    subscription_fee_per_charger: float = 0
+    charger_purchase_cost: float = 0
+    charger_install_cost: float = 0
+    start_year: int = Field(default=2025, ge=2000, le=2100)
+    forecast_years: int = Field(default=5, ge=1, le=30)
+
+
+class BuildingModelUpdate(BaseModel):
+    building_name: str | None = None
+    current_chargers: int | None = None
+    potential_spots: int | None = None
+    annual_growth_rate: float | None = None
+    mgmt_fee_per_charger: float | None = None
+    electricity_rate_agorot: float | None = None
+    avg_kwh_per_charger_monthly: float | None = None
+    subscription_fee_per_charger: float | None = None
+    charger_purchase_cost: float | None = None
+    charger_install_cost: float | None = None
+    start_year: int | None = Field(default=None, ge=2000, le=2100)
+    forecast_years: int | None = Field(default=None, ge=1, le=30)
+
+
+class BuildingModelOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    building_name: str
+    current_chargers: int
+    potential_spots: int
+    annual_growth_rate: float
+    mgmt_fee_per_charger: float
+    electricity_rate_agorot: float
+    avg_kwh_per_charger_monthly: float
+    subscription_fee_per_charger: float
+    charger_purchase_cost: float
+    charger_install_cost: float
+    start_year: int
+    forecast_years: int
+
+
+class YearForecast(BaseModel):
+    year: int
+    chargers_added: int
+    total_chargers: int
+    annual_income: float
+    capex: float
+    profit: float
+
+
+class BuildingForecastOut(BaseModel):
+    building: BuildingModelOut
+    years: list[YearForecast]
+    total_income: float
+    total_capex: float
+    total_profit: float
+
+
+class CombinedForecastYear(BaseModel):
+    year: int
+    buildings: dict[str, YearForecast]
+    total_income: float
+    total_capex: float
+    total_profit: float

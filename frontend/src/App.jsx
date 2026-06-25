@@ -7,6 +7,7 @@ import TenantAgreements from './pages/TenantAgreements.jsx'
 import Projects from './pages/Projects.jsx'
 import Financials from './pages/Financials.jsx'
 import Cashflow from './pages/Cashflow.jsx'
+import BuildingCashflow from './pages/BuildingCashflow.jsx'
 import { api } from './api/client.js'
 
 const TABS = [
@@ -14,6 +15,7 @@ const TABS = [
   { key: 'projects', label: 'סטטוס פרויקטים', icon: 'bolt' },
   { key: 'financials', label: 'ניתוח כספי', icon: 'reports' },
   { key: 'cashflow', label: 'תזרים', icon: 'trending' },
+  { key: 'building-cashflow', label: 'תזרים בניינים', icon: 'bolt' },
   { key: 'tasks', label: 'רשימת מטלות', icon: 'workflow' },
   { key: 'agreements', label: 'הסכמי דיירים', icon: 'document' },
 ]
@@ -106,6 +108,7 @@ export default function App() {
           />
         )}
         {tab === 'cashflow' && <Cashflow loading={loading} />}
+        {tab === 'building-cashflow' && <BuildingCashflow loading={loading} />}
         {tab === 'tasks' && (
           <Tasks tasks={tasks} loading={loading} onChange={refresh} />
         )}

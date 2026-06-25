@@ -59,4 +59,15 @@ export const api = {
     request('/api/supplier-ledger', { method: 'POST', body: JSON.stringify(data) }),
   deleteSupplierLedgerRow: (id) =>
     request(`/api/supplier-ledger/${id}`, { method: 'DELETE' }),
+
+  // תזרים פר-בניין
+  listBuildingModels: () => request('/api/building-models'),
+  createBuildingModel: (data) =>
+    request('/api/building-models', { method: 'POST', body: JSON.stringify(data) }),
+  updateBuildingModel: (id, data) =>
+    request(`/api/building-models/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  deleteBuildingModel: (id) =>
+    request(`/api/building-models/${id}`, { method: 'DELETE' }),
+  getBuildingForecast: (id) => request(`/api/building-models/${id}/forecast`),
+  getCombinedForecast: () => request('/api/building-models/forecast/combined'),
 }
