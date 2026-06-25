@@ -323,30 +323,37 @@ function CombinedTable({ combined, buildings }) {
             <th>שנה</th>
             {names.map((n) => <th key={n}>{n}</th>)}
             <th>סה"כ הכנסה</th>
-            <th>סה"כ CAPEX</th>
-            <th>סה"כ OPEX</th>
+            <th>מטענים חדשים</th>
+            <th>CAPEX (התקנה)</th>
+            <th>OPEX (חד-פעמי)</th>
             <th>סה"כ רווח</th>
           </tr>
         </thead>
         <tbody>
-          {combined.map((row) => (
-            <tr key={row.year}>
-              <td><strong>{row.year}</strong></td>
-              {names.map((n) => (
-                <td key={n}>{row.buildings[n] ? ils(row.buildings[n].annual_income) : '—'}</td>
-              ))}
-              <td style={{ color: 'var(--tact-green)' }}>{ils(row.total_income)}</td>
-              <td style={{ color: row.total_capex > 0 ? 'var(--tact-red,#e74c3c)' : 'inherit' }}>
-                {row.total_capex > 0 ? ils(-row.total_capex) : '—'}
-              </td>
-              <td style={{ color: 'var(--tact-orange,#e67e22)' }}>
-                {row.total_opex > 0 ? ils(-row.total_opex) : '—'}
-              </td>
-              <td style={{ fontWeight: 600, color: row.total_profit >= 0 ? 'var(--tact-green)' : 'var(--tact-red,#e74c3c)' }}>
-                {ils(row.total_profit)}
-              </td>
-            </tr>
-          ))}
+          {combined.map((row) => {
+            const totalAdded = Object.values(row.buildings).reduce((s, b) => s + (b.chargers_added || 0), 0)
+            return (
+              <tr key={row.year}>
+                <td><strong>{row.year}</strong></td>
+                {names.map((n) => (
+                  <td key={n}>{row.buildings[n] ? ils(row.buildings[n].annual_income) : '—'}</td>
+                ))}
+                <td style={{ color: 'var(--tact-green)' }}>{ils(row.total_income)}</td>
+                <td style={{ color: 'var(--tact-text-dim,#888)', fontSize: 13 }}>
+                  {totalAdded > 0 ? `+${totalAdded} מטענים` : '—'}
+                </td>
+                <td style={{ color: row.total_capex > 0 ? 'var(--tact-red,#e74c3c)' : 'inherit' }}>
+                  {row.total_capex > 0 ? ils(-row.total_capex) : '—'}
+                </td>
+                <td style={{ color: 'var(--tact-orange,#e67e22)' }}>
+                  {row.total_opex > 0 ? ils(-row.total_opex) : '—'}
+                </td>
+                <td style={{ fontWeight: 600, color: row.total_profit >= 0 ? 'var(--tact-green)' : 'var(--tact-red,#e74c3c)' }}>
+                  {ils(row.total_profit)}
+                </td>
+              </tr>
+            )
+          })}
         </tbody>
       </table>
     </div>
