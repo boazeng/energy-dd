@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.config import settings
 from app.core.db import get_db
 from app.models.building_model import BuildingModel
 from app.schemas.building_model import (
@@ -15,6 +16,7 @@ from app.schemas.building_model import (
     CombinedForecastYear,
     YearForecast,
 )
+from app.seed_building_models import sync_projects_data
 
 router = APIRouter(prefix="/api/building-models", tags=["building-models"])
 
@@ -48,6 +50,15 @@ def _calc_forecast(bm: BuildingModel) -> list[YearForecast]:
         ))
 
     return years
+
+
+# ─── סנכרון מפרויקטים ────────────────────────────────────────────────────────
+
+@router.post("/sync-projects", status_code=200)
+def sync_from_projects(db: Session = Depends(get_db)):
+    """מעדכן current_chargers ו-potential_spots מ-projects.json."""
+    updated = sync_projects_data(db, settings.projects_data_path)
+    return {"updated": updated}
 
 
 # ─── CRUD ────────────────────────────────────────────────────────────────────

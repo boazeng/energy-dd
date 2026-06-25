@@ -1,4 +1,10 @@
-"""Seed building models from the 19 signed contracts — runs once if table is empty."""
+"""Seed building models from the 19 signed contracts — runs once if table is empty.
+   sync_projects_data runs on every startup to refresh current_chargers + potential_spots.
+"""
+import json
+import re
+from pathlib import Path
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -109,15 +115,71 @@ BUILDING_SEEDS = [
 ]
 
 
+def _normalize(s: str) -> str:
+    """נרמול שם לצורך השוואה: הסרת ספרות, סימנים ורווחים מיותרים."""
+    s = re.sub(r"[0-9]", "", s or "")
+    s = re.sub(r"[+\-/,\"׳׳'״]", " ", s)
+    return re.sub(r"\s+", " ", s).strip()
+
+
+def _match_project(building_name: str, projects: list[dict]) -> dict | None:
+    """מוצא פרויקט תואם ב-projects.json לפי שם מנורמל."""
+    # שם הבניין: "אייזנברג 1+3, רחובות"  →  street_part = "אייזנברג 1+3"
+    street_part = building_name.split(",")[0].strip()
+    norm_street = _normalize(street_part)
+
+    for p in projects:
+        # פרויקט: project="אייזנברג 1+3", city="רחובות"
+        norm_proj = _normalize(p.get("project", ""))
+        # התאמה: שם הרחוב המנורמל מופיע בשם הפרויקט המנורמל (או להפך)
+        if norm_proj and (norm_proj in norm_street or norm_street in norm_proj):
+            return p
+
+    return None
+
+
+def sync_projects_data(db: Session, projects_path: str) -> int:
+    """מעדכן current_chargers ו-potential_spots מ-projects.json בכל הפעלה."""
+    path = Path(projects_path)
+    if not path.is_file():
+        return 0
+
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return 0
+
+    projects = data.get("buildings", [])
+    if not projects:
+        return 0
+
+    models = list(db.scalars(select(BuildingModel)))
+    updated = 0
+    for bm in models:
+        proj = _match_project(bm.building_name, projects)
+        if proj is None:
+            continue
+        chargers = proj.get("chargers_installed") or 0
+        park_total = proj.get("park_total") or 0
+        if chargers or park_total:
+            bm.current_chargers = int(chargers) if chargers else bm.current_chargers
+            bm.potential_spots = int(park_total) if park_total else bm.potential_spots
+            updated += 1
+
+    if updated:
+        db.commit()
+    return updated
+
+
 def seed_building_models(db: Session) -> int:
     if db.scalar(select(BuildingModel.id).limit(1)) is not None:
         return 0
     for b in BUILDING_SEEDS:
         db.add(BuildingModel(
             building_name=b["building_name"],
-            current_chargers=1,       # לעדכון ידני — מטען אחד כנקודת התחלה
-            potential_spots=50,        # לעדכון ידני — ברירת מחדל לדיור
-            annual_growth_rate=10.0,   # 10% מהפוטנציאל לשנה (ברירת מחדל)
+            current_chargers=0,
+            potential_spots=0,
+            annual_growth_rate=10.0,
             mgmt_fee_per_charger=b["mgmt_fee"],
             electricity_rate_agorot=b["elec_rate"],
             avg_kwh_per_charger_monthly=b["avg_kwh"],
