@@ -84,9 +84,11 @@ function useDebounce(fn, delay = 600) {
 
 function ForecastTable({ years }) {
   if (!years?.length) return <p className="dim-text" style={{ padding: '1rem' }}>אין נתונים</p>
+  let cum = 0
+  const rows = years.map((y) => { cum += y.profit; return { ...y, cumulative: cum } })
   return (
     <div className="table-wrap" style={{ overflowX: 'auto' }}>
-      <table className="tact-table" style={{ minWidth: 700 }}>
+      <table className="tact-table" style={{ minWidth: 780 }}>
         <thead>
           <tr>
             <th>שנה</th>
@@ -96,10 +98,11 @@ function ForecastTable({ years }) {
             <th>CAPEX</th>
             <th>OPEX</th>
             <th>רווח שנתי</th>
+            <th>רווח מצטבר</th>
           </tr>
         </thead>
         <tbody>
-          {years.map((y) => (
+          {rows.map((y) => (
             <tr key={y.year}>
               <td><strong>{y.year}</strong></td>
               <td>{y.chargers_added > 0 ? `+${y.chargers_added}` : '—'}</td>
@@ -113,6 +116,9 @@ function ForecastTable({ years }) {
               </td>
               <td style={{ fontWeight: 600, color: y.profit >= 0 ? 'var(--tact-green)' : 'var(--tact-red,#e74c3c)' }}>
                 {ils(y.profit)}
+              </td>
+              <td style={{ fontWeight: 700, color: y.cumulative >= 0 ? 'var(--tact-green)' : 'var(--tact-red,#e74c3c)' }}>
+                {ils(y.cumulative)}
               </td>
             </tr>
           ))}
