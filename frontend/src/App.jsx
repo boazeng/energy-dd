@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import TactLogo from './components/TactLogo.jsx'
 import TactIcon from './components/TactIcon.jsx'
+import QuestionCapture from './components/QuestionCapture.jsx'
 import Home from './pages/Home.jsx'
 import Tasks from './pages/Tasks.jsx'
 import TenantAgreements from './pages/TenantAgreements.jsx'
@@ -30,6 +31,7 @@ function initialTab() {
 export default function App() {
   const [tab, setTab] = useState(initialTab)
   const [tasks, setTasks] = useState([])
+  const [questions, setQuestions] = useState([])
   const [agreements, setAgreements] = useState([])
   const [projects, setProjects] = useState(null)
   const [financials, setFinancials] = useState(null)
@@ -40,8 +42,9 @@ export default function App() {
 
   async function refresh() {
     try {
-      const [t, a, p, f, sb, sl] = await Promise.all([
+      const [t, q, a, p, f, sb, sl] = await Promise.all([
         api.listTasks(),
+        api.listQuestions(),
         api.listAgreements(),
         api.getProjects(),
         api.getFinancials(),
@@ -49,6 +52,7 @@ export default function App() {
         api.listSupplierLedger(),
       ])
       setTasks(t)
+      setQuestions(q)
       setAgreements(a)
       setProjects(p)
       setFinancials(f)
@@ -60,6 +64,11 @@ export default function App() {
     } finally {
       setLoading(false)
     }
+  }
+
+  async function refreshQuestions() {
+    const q = await api.listQuestions()
+    setQuestions(q)
   }
 
   async function refreshSuppliers() {
@@ -112,12 +121,20 @@ export default function App() {
         {tab === 'cashflow' && <Cashflow loading={loading} />}
         {tab === 'building-cashflow' && <BuildingCashflow loading={loading} />}
         {tab === 'tasks' && (
-          <Tasks tasks={tasks} loading={loading} onChange={refresh} />
+          <Tasks
+            tasks={tasks}
+            questions={questions}
+            loading={loading}
+            onChange={refresh}
+            onQuestionsChange={refreshQuestions}
+          />
         )}
         {tab === 'agreements' && (
           <TenantAgreements agreements={agreements} loading={loading} />
         )}
       </main>
+
+      <QuestionCapture currentPage={tab} onAdded={refreshQuestions} />
 
       <footer className="tact-footer">
         <TactLogo tone="dark" word={false} size={0.8} />

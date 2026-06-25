@@ -62,6 +62,15 @@ export const api = {
   deleteSupplierLedgerRow: (id) =>
     request(`/api/supplier-ledger/${id}`, { method: 'DELETE' }),
 
+  // שאלות לבירור
+  listQuestions: () => request('/api/questions'),
+  createQuestion: (data) =>
+    request('/api/questions', { method: 'POST', body: JSON.stringify(data) }),
+  updateQuestion: (id, data) =>
+    request(`/api/questions/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  deleteQuestion: (id) =>
+    request(`/api/questions/${id}`, { method: 'DELETE' }),
+
   // תזרים פר-בניין
   listBuildingModels: () => request('/api/building-models'),
   createBuildingModel: (data) =>
