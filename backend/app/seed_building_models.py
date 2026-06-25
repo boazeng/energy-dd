@@ -204,7 +204,7 @@ def seed_building_models(db: Session) -> int:
             cost_elec_panel=6000,
             cost_comm_panel=1000,
             chargers_per_panel=10,
-            start_year=2025,
+            start_year=2026,
             forecast_years=5,
         ))
     db.commit()
