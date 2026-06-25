@@ -248,7 +248,7 @@ function SupplierLedgerTable({ rows, onChange }) {
         opening_balance: o,
         debit: d,
         credit: c,
-        balance: o - c + d,
+        balance: o + d - c,
       })
       setName(''); setAcc(''); setOpening(''); setDebit(''); setCredit('')
       onChange()
