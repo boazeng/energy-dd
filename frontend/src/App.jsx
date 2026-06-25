@@ -32,23 +32,26 @@ export default function App() {
   const [projects, setProjects] = useState(null)
   const [financials, setFinancials] = useState(null)
   const [supplierBalances, setSupplierBalances] = useState([])
+  const [supplierLedger, setSupplierLedger] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
   async function refresh() {
     try {
-      const [t, a, p, f, sb] = await Promise.all([
+      const [t, a, p, f, sb, sl] = await Promise.all([
         api.listTasks(),
         api.listAgreements(),
         api.getProjects(),
         api.getFinancials(),
         api.listSupplierBalances(),
+        api.listSupplierLedger(),
       ])
       setTasks(t)
       setAgreements(a)
       setProjects(p)
       setFinancials(f)
       setSupplierBalances(sb)
+      setSupplierLedger(sl)
       setError('')
     } catch (e) {
       setError(e.message)
@@ -58,8 +61,12 @@ export default function App() {
   }
 
   async function refreshSuppliers() {
-    const sb = await api.listSupplierBalances()
+    const [sb, sl] = await Promise.all([
+      api.listSupplierBalances(),
+      api.listSupplierLedger(),
+    ])
     setSupplierBalances(sb)
+    setSupplierLedger(sl)
   }
 
   useEffect(() => {
@@ -94,6 +101,7 @@ export default function App() {
             data={financials}
             loading={loading}
             supplierBalances={supplierBalances}
+            supplierLedger={supplierLedger}
             onSupplierChange={refreshSuppliers}
           />
         )}

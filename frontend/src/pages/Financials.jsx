@@ -165,7 +165,120 @@ function SupplierCredits({ rows, onChange }) {
   )
 }
 
-export default function Financials({ data, loading, supplierBalances = [], onSupplierChange }) {
+function SupplierLedgerTable({ rows, onChange }) {
+  const [name, setName] = useState('')
+  const [acc, setAcc] = useState('')
+  const [debit, setDebit] = useState('')
+  const [credit, setCredit] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  const totalDebit = rows.reduce((s, r) => s + r.debit, 0)
+  const totalCredit = rows.reduce((s, r) => s + r.credit, 0)
+  const totalBalance = rows.reduce((s, r) => s + r.balance, 0)
+
+  async function handleAdd(e) {
+    e.preventDefault()
+    if (!name.trim()) return
+    setSaving(true)
+    try {
+      const d = parseFloat(debit) || 0
+      const c = parseFloat(credit) || 0
+      await api.createSupplierLedgerRow({
+        supplier_name: name.trim(),
+        account_number: acc.trim(),
+        debit: d,
+        credit: c,
+        balance: c - d,
+      })
+      setName(''); setAcc(''); setDebit(''); setCredit('')
+      onChange()
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function handleDelete(id) {
+    await api.deleteSupplierLedgerRow(id)
+    onChange()
+  }
+
+  return (
+    <div className="sup-section">
+      <h2 className="block-title">
+        <TactIcon name="reports" size={18} style={{ marginInlineEnd: 6 }} />
+        כרטסת ספקים — 1-5/2026
+      </h2>
+      <p className="home-sub" style={{ marginBottom: 20 }}>
+        סיכום תנועות חובה וזכות לכל ספק מתוך כרטסת הספקים. יתרה שלילית = החברה חייבת לספק.
+      </p>
+
+      <form className="add-form" onSubmit={handleAdd}>
+        <input placeholder="שם ספק" value={name} onChange={(e) => setName(e.target.value)} style={{ flex: 2 }} />
+        <input placeholder="חשבון" value={acc} onChange={(e) => setAcc(e.target.value)} style={{ flex: 0.6, minWidth: 70 }} />
+        <input type="number" placeholder="חובה ₪" value={debit} onChange={(e) => setDebit(e.target.value)} min="0" step="0.01" style={{ flex: 1, minWidth: 110, textAlign: 'left' }} />
+        <input type="number" placeholder="זכות ₪" value={credit} onChange={(e) => setCredit(e.target.value)} min="0" step="0.01" style={{ flex: 1, minWidth: 110, textAlign: 'left' }} />
+        <button className="tact-btn tact-btn-primary" type="submit" disabled={saving}>+ הוסף</button>
+      </form>
+
+      {rows.length === 0 ? (
+        <div className="ta-empty">
+          <TactIcon name="reports" size={24} />
+          <p>אין נתוני כרטסת. הוסף ספק מהטופס למעלה.</p>
+        </div>
+      ) : (
+        <div className="fin-table-wrap">
+          <table className="fin-table sup-table">
+            <thead>
+              <tr>
+                <th className="fin-rowlabel">שם ספק</th>
+                <th style={{ width: 70 }}>חשבון</th>
+                <th>סה&quot;כ חובה</th>
+                <th>סה&quot;כ זכות</th>
+                <th>יתרה</th>
+                <th style={{ width: 50 }} />
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.id}>
+                  <td className="fin-rowlabel">{r.supplier_name}</td>
+                  <td className="muted" style={{ fontSize: '0.85em' }}>{r.account_number}</td>
+                  <td>{r.debit > 0 ? `₪${nf.format(r.debit)}` : <span className="muted">—</span>}</td>
+                  <td>{r.credit > 0 ? `₪${nf.format(r.credit)}` : <span className="muted">—</span>}</td>
+                  <td className={r.balance < 0 ? 'fin-neg' : r.balance > 0 ? 'fin-pos' : ''}>
+                    {r.balance < 0
+                      ? `(₪${nf.format(Math.abs(r.balance))})`
+                      : r.balance > 0
+                        ? `₪${nf.format(r.balance)}`
+                        : '—'}
+                  </td>
+                  <td>
+                    <button className="cf-del" title="מחק" onClick={() => handleDelete(r.id)}>✕</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr className="fin-total sup-total-row">
+                <td className="fin-rowlabel" colSpan={2}>סה&quot;כ</td>
+                <td>₪{nf.format(totalDebit)}</td>
+                <td>₪{nf.format(totalCredit)}</td>
+                <td className={totalBalance < 0 ? 'fin-neg' : 'fin-pos'}>
+                  {totalBalance < 0
+                    ? `(₪${nf.format(Math.abs(totalBalance))})`
+                    : `₪${nf.format(totalBalance)}`}
+                </td>
+                <td />
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      )}
+    </div>
+  )
+}
+
+export default function Financials({ data, loading, supplierBalances = [], supplierLedger = [], onSupplierChange }) {
   if (loading) return <p className="muted">טוען…</p>
 
   const years = data?.years || []
@@ -183,6 +296,7 @@ export default function Financials({ data, loading, supplierBalances = [], onSup
           <p>אין עדיין נתונים כספיים. יש להעלות את קובץ הניתוח לשרת.</p>
         </div>
         <SupplierCredits rows={supplierBalances} onChange={onSupplierChange} />
+        <SupplierLedgerTable rows={supplierLedger} onChange={onSupplierChange} />
       </section>
     )
 
@@ -265,6 +379,7 @@ export default function Financials({ data, loading, supplierBalances = [], onSup
       )}
 
       <SupplierCredits rows={supplierBalances} onChange={onSupplierChange} />
+      <SupplierLedgerTable rows={supplierLedger} onChange={onSupplierChange} />
     </section>
   )
 }

@@ -53,4 +53,10 @@ export const api = {
     request('/api/supplier-balances', { method: 'POST', body: JSON.stringify(data) }),
   deleteSupplierBalance: (id) =>
     request(`/api/supplier-balances/${id}`, { method: 'DELETE' }),
+
+  listSupplierLedger: () => request('/api/supplier-ledger'),
+  createSupplierLedgerRow: (data) =>
+    request('/api/supplier-ledger', { method: 'POST', body: JSON.stringify(data) }),
+  deleteSupplierLedgerRow: (id) =>
+    request(`/api/supplier-ledger/${id}`, { method: 'DELETE' }),
 }

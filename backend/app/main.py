@@ -8,12 +8,13 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from app.api import cashflow, financials, projects, supplier_balances, tasks, tenant_agreements
+from app.api import cashflow, financials, projects, supplier_balances, supplier_ledger, tasks, tenant_agreements
 from app.core.config import settings
 from app.core.db import SessionLocal, init_db
 from app.seed import seed_tasks
 from app.seed_cashflow import seed_cashflow
 from app.seed_supplier_balances import seed_supplier_balances
+from app.seed_supplier_ledger import seed_supplier_ledger
 
 logger = logging.getLogger("energy-dd")
 
@@ -28,6 +29,7 @@ async def lifespan(_: FastAPI):
         seed_tasks(db)
         seed_cashflow(db)
         seed_supplier_balances(db)
+        seed_supplier_ledger(db)
     yield
 
 
@@ -46,6 +48,7 @@ app.include_router(projects.router)
 app.include_router(financials.router)
 app.include_router(cashflow.router)
 app.include_router(supplier_balances.router)
+app.include_router(supplier_ledger.router)
 
 
 @app.get("/health")
