@@ -1,7 +1,7 @@
 """מודל תזרים פר-בניין — הגדרות גידול ועלויות מטענים."""
 from datetime import datetime, timezone
 
-from sqlalchemy import DateTime, Float, Integer, String
+from sqlalchemy import DateTime, Float, Integer, JSON, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.db import Base
@@ -45,6 +45,9 @@ class BuildingModel(Base):
     cost_rcd_per_charger: Mapped[float] = mapped_column(Float, default=300)       # פחת חסר ₪/שנה
     cost_internet_per_charger: Mapped[float] = mapped_column(Float, default=400)  # אינטרנט ₪/שנה
     cost_inspector_per_charger: Mapped[float] = mapped_column(Float, default=250) # בודק ₪/שנה
+
+    # עלויות נוספות — רשימה גמישה: [{"name": "...", "cost_per_charger": 100}, ...]
+    extra_costs: Mapped[list] = mapped_column(JSON, default=list, nullable=True)
 
     # פרמטרי תחזית
     start_year: Mapped[int] = mapped_column(Integer, default=2025)

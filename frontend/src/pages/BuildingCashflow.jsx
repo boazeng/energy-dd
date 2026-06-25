@@ -181,9 +181,9 @@ function FieldRow({ fieldDef, value, onChange }) {
 }
 
 function BuildingSettings({ bm, onChange }) {
-  const [local, setLocal] = useState({ ...bm })
+  const [local, setLocal] = useState({ ...bm, extra_costs: bm.extra_costs || [] })
 
-  useEffect(() => { setLocal({ ...bm }) }, [bm.id])
+  useEffect(() => { setLocal({ ...bm, extra_costs: bm.extra_costs || [] }) }, [bm.id])
 
   const save = useDebounce(async (patch) => {
     try { await api.updateBuildingModel(bm.id, patch) } catch { /* ignore */ }
@@ -198,13 +198,35 @@ function BuildingSettings({ bm, onChange }) {
     save({ [key]: value })
   }
 
+  function saveExtraCosts(costs) {
+    const next = { ...local, extra_costs: costs }
+    setLocal(next)
+    save({ extra_costs: costs })
+  }
+
+  function addExtraCost() {
+    saveExtraCosts([...local.extra_costs, { name: '', cost_per_charger: 0 }])
+  }
+
+  function removeExtraCost(i) {
+    saveExtraCosts(local.extra_costs.filter((_, idx) => idx !== i))
+  }
+
+  function updateExtraCost(i, field, val) {
+    const updated = local.extra_costs.map((c, idx) =>
+      idx === i ? { ...c, [field]: field === 'cost_per_charger' ? (parseFloat(val) || 0) : val } : c
+    )
+    saveExtraCosts(updated)
+  }
+
   const incomePerCharger = monthlyIncome(local)
   const opexCurrent = annualOpex(local)
   const capexEach = capexPerCharger(local)
+  const extraTotal = (local.extra_costs || []).reduce((s, c) => s + (c.cost_per_charger || 0), 0)
 
   return (
     <div className="building-settings">
-      <div className="settings-section-title">הכנסות וגידול</div>
+      <div className="settings-section-title">הכנסות</div>
       <div className="settings-grid">
         {INCOME_FIELDS.map((f) => (
           <FieldRow key={f.key} fieldDef={f} value={local[f.key]} onChange={handle} />
@@ -224,12 +246,57 @@ function BuildingSettings({ bm, onChange }) {
         </span>
       </div>
 
-      <div className="settings-section-title" style={{ marginTop: 16 }}>הוצאות חד-פעמיות (OPEX שנה ראשונה בלבד — מטענים קיימים)</div>
+      <div className="settings-section-title" style={{ marginTop: 16 }}>הוצאות חד-פעמיות (OPEX שנה ראשונה — מטענים קיימים)</div>
       <div className="settings-grid">
         {OPEX_FIELDS.map((f) => (
           <FieldRow key={f.key} fieldDef={f} value={local[f.key]} onChange={handle} />
         ))}
       </div>
+
+      <div className="settings-section-title" style={{ marginTop: 16 }}>
+        עלויות נוספות פר מטען
+        <button
+          className="tact-btn tact-btn-secondary"
+          style={{ fontSize: 11, padding: '2px 10px', marginInlineStart: 10 }}
+          onClick={addExtraCost}
+        >+ הוסף</button>
+      </div>
+      {(local.extra_costs || []).length === 0 && (
+        <div className="dim-text" style={{ fontSize: 12, padding: '4px 0' }}>אין עלויות נוספות</div>
+      )}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+        {(local.extra_costs || []).map((item, i) => (
+          <div key={i} style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <input
+              className="tact-input"
+              style={{ flex: 1, minWidth: 0 }}
+              placeholder="שם העלות"
+              value={item.name}
+              onChange={(e) => updateExtraCost(i, 'name', e.target.value)}
+            />
+            <input
+              type="number"
+              className="tact-input setting-input"
+              style={{ width: 90 }}
+              min={0}
+              step={10}
+              value={item.cost_per_charger}
+              onChange={(e) => updateExtraCost(i, 'cost_per_charger', e.target.value)}
+            />
+            <span style={{ fontSize: 12, color: 'var(--tact-text-dim,#aaa)', whiteSpace: 'nowrap' }}>₪/מטען</span>
+            <button
+              onClick={() => removeExtraCost(i)}
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--tact-red,#e74c3c)', fontSize: 16, lineHeight: 1, padding: '0 4px' }}
+              title="הסר"
+            >×</button>
+          </div>
+        ))}
+      </div>
+      {extraTotal > 0 && (
+        <div className="dim-text" style={{ fontSize: 12, marginTop: 4 }}>
+          סה"כ עלויות נוספות: <strong style={{ color: 'var(--tact-orange,#e67e22)' }}>{ils(extraTotal)}</strong>/מטען · {ils(extraTotal * (local.current_chargers || 0))} לכלל {local.current_chargers || 0} מטענים
+        </div>
+      )}
 
       <div className="income-summary">
         <div>
@@ -240,11 +307,8 @@ function BuildingSettings({ bm, onChange }) {
           </span>
         </div>
         <div style={{ marginTop: 4 }}>
-          <span>OPEX שנתי (מטענים נוכחיים): </span>
+          <span>OPEX (שנה ראשונה): </span>
           <strong style={{ color: 'var(--tact-orange,#e67e22)' }}>{ils(opexCurrent)}</strong>
-          <span className="dim-text" style={{ fontSize: 11 }}>
-            {' '}(אינטרנט+בודק {ils((local.current_chargers||0)*((local.cost_internet_per_charger||0)+(local.cost_inspector_per_charger||0)))} + פחת {ils((local.chargers_no_rcd||0)*(local.cost_rcd_per_charger||0))})
-          </span>
           <div className="dim-text" style={{ fontSize: 11, marginTop: 2 }}>
             חד-פעמי בשנת {local.start_year || 2026} בלבד — מ-{(local.start_year || 2026) + 1} ואילך עלות OPEX = 0
           </div>

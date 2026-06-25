@@ -2,6 +2,11 @@
 from pydantic import BaseModel, ConfigDict, Field
 
 
+class ExtraCostItem(BaseModel):
+    name: str = ""
+    cost_per_charger: float = 0
+
+
 class BuildingModelCreate(BaseModel):
     building_name: str
     current_chargers: int = 0
@@ -23,6 +28,7 @@ class BuildingModelCreate(BaseModel):
     cost_rcd_per_charger: float = 300
     cost_internet_per_charger: float = 400
     cost_inspector_per_charger: float = 250
+    extra_costs: list[ExtraCostItem] = []
     start_year: int = Field(default=2025, ge=2000, le=2100)
     forecast_years: int = Field(default=5, ge=1, le=30)
 
@@ -48,6 +54,7 @@ class BuildingModelUpdate(BaseModel):
     cost_rcd_per_charger: float | None = None
     cost_internet_per_charger: float | None = None
     cost_inspector_per_charger: float | None = None
+    extra_costs: list[ExtraCostItem] | None = None
     start_year: int | None = Field(default=None, ge=2000, le=2100)
     forecast_years: int | None = Field(default=None, ge=1, le=30)
 
@@ -74,6 +81,7 @@ class BuildingModelOut(BaseModel):
     cost_rcd_per_charger: float
     cost_internet_per_charger: float
     cost_inspector_per_charger: float
+    extra_costs: list[ExtraCostItem] = []
     start_year: int
     forecast_years: int
 

@@ -36,9 +36,16 @@ def _calc_forecast(bm: BuildingModel) -> list[YearForecast]:
     panel_cost_total = bm.cost_elec_panel + bm.cost_comm_panel
     chargers_per_panel = max(1, bm.chargers_per_panel)
 
+    # עלויות נוספות פר מטען
+    extra_costs = bm.extra_costs or []
+    if isinstance(extra_costs, str):
+        import json as _json
+        extra_costs = _json.loads(extra_costs)
+    extra_per_charger = sum(float(c.get("cost_per_charger", 0)) for c in extra_costs)
+
     # OPEX חד-פעמי בשנה הראשונה בלבד — עלות קיום למטענים שקיימים היום
     opex_year_one = (
-        bm.current_chargers * (bm.cost_internet_per_charger + bm.cost_inspector_per_charger)
+        bm.current_chargers * (bm.cost_internet_per_charger + bm.cost_inspector_per_charger + extra_per_charger)
         + bm.chargers_no_rcd * bm.cost_rcd_per_charger
     )
 
