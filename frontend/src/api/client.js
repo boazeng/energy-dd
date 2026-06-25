@@ -57,6 +57,8 @@ export const api = {
   listSupplierLedger: () => request('/api/supplier-ledger'),
   createSupplierLedgerRow: (data) =>
     request('/api/supplier-ledger', { method: 'POST', body: JSON.stringify(data) }),
+  updateSupplierLedgerRow: (id, data) =>
+    request(`/api/supplier-ledger/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   deleteSupplierLedgerRow: (id) =>
     request(`/api/supplier-ledger/${id}`, { method: 'DELETE' }),
 

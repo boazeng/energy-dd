@@ -165,6 +165,62 @@ function SupplierCredits({ rows, onChange }) {
   )
 }
 
+function CompletionCell({ row, onChange }) {
+  const [val, setVal] = useState(row.completion || '')
+  const [busy, setBusy] = useState(false)
+  const [taskDone, setTaskDone] = useState(false)
+
+  async function save(v) {
+    if (v === (row.completion || '')) return
+    setBusy(true)
+    try {
+      await api.updateSupplierLedgerRow(row.id, { completion: v })
+      onChange()
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  async function createTask() {
+    const text = val.trim()
+    if (!text) return
+    setBusy(true)
+    try {
+      await api.createTask({
+        category: 'supplier_ledger',
+        title: `${row.supplier_name}: ${text}`,
+      })
+      setTaskDone(true)
+      setTimeout(() => setTaskDone(false), 2500)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div style={{ display: 'flex', gap: 6, alignItems: 'flex-start' }}>
+      <textarea
+        value={val}
+        onChange={(e) => setVal(e.target.value)}
+        onBlur={(e) => save(e.target.value)}
+        placeholder="הזן שאלה / השלמה…"
+        rows={2}
+        style={{ flex: 1, fontSize: '0.82em', resize: 'vertical', minWidth: 140 }}
+        disabled={busy}
+      />
+      <button
+        className="tact-btn"
+        title="שכפל כמטלה ברשימת המטלות"
+        onClick={createTask}
+        disabled={busy || !val.trim()}
+        style={{ fontSize: '0.78em', whiteSpace: 'nowrap', padding: '3px 7px' }}
+      >
+        {taskDone ? '✓' : '→ מטלה'}
+      </button>
+    </div>
+  )
+}
+
 function SupplierLedgerTable({ rows, onChange }) {
   const [name, setName] = useState('')
   const [acc, setAcc] = useState('')
@@ -209,7 +265,7 @@ function SupplierLedgerTable({ rows, onChange }) {
         כרטסת ספקים — 1-5/2026
       </h2>
       <p className="home-sub" style={{ marginBottom: 20 }}>
-        סיכום תנועות חובה וזכות לכל ספק מתוך כרטסת הספקים. יתרה שלילית = החברה חייבת לספק.
+        סיכום תנועות חובה וזכות לכל ספק. עמודת "השלמות" — רשום שאלה ולחץ "→ מטלה" כדי להוסיף לרשימת המטלות.
       </p>
 
       <form className="add-form" onSubmit={handleAdd}>
@@ -235,6 +291,7 @@ function SupplierLedgerTable({ rows, onChange }) {
                 <th>סה&quot;כ חובה</th>
                 <th>סה&quot;כ זכות</th>
                 <th>יתרה</th>
+                <th style={{ minWidth: 200 }}>השלמות מול החברה</th>
                 <th style={{ width: 50 }} />
               </tr>
             </thead>
@@ -252,6 +309,7 @@ function SupplierLedgerTable({ rows, onChange }) {
                         ? `₪${nf.format(r.balance)}`
                         : '—'}
                   </td>
+                  <td><CompletionCell row={r} onChange={onChange} /></td>
                   <td>
                     <button className="cf-del" title="מחק" onClick={() => handleDelete(r.id)}>✕</button>
                   </td>
@@ -268,7 +326,7 @@ function SupplierLedgerTable({ rows, onChange }) {
                     ? `(₪${nf.format(Math.abs(totalBalance))})`
                     : `₪${nf.format(totalBalance)}`}
                 </td>
-                <td />
+                <td colSpan={2} />
               </tr>
             </tfoot>
           </table>
