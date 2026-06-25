@@ -13,6 +13,7 @@ from app.core.config import settings
 from app.core.db import SessionLocal, init_db
 from app.seed import seed_tasks
 from app.seed_cashflow import seed_cashflow
+from app.seed_contracts import seed_contracts
 from app.seed_supplier_balances import seed_supplier_balances
 from app.seed_supplier_ledger import seed_supplier_ledger
 
@@ -28,6 +29,7 @@ async def lifespan(_: FastAPI):
     with SessionLocal() as db:
         seed_tasks(db)
         seed_cashflow(db)
+        seed_contracts(db)
         seed_supplier_balances(db)
         seed_supplier_ledger(db)
     yield
