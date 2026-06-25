@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import {
-  Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis,
+  Bar, BarChart, CartesianGrid, ComposedChart, Legend, Line,
+  ResponsiveContainer, Tooltip, XAxis, YAxis,
 } from 'recharts'
 import TactIcon from '../components/TactIcon.jsx'
 import { api } from '../api/client.js'
@@ -274,7 +275,7 @@ function BuildingCard({ bm, selected, onSelect, onDelete }) {
   )
 }
 
-// ─── גרף כולל (stacked) ──────────────────────────────────────────────────────
+// ─── גרף הכנסות stacked ──────────────────────────────────────────────────────
 
 function CombinedChart({ combined, buildings }) {
   if (!combined?.length) return <p className="dim-text" style={{ padding: '1rem' }}>אין נתונים</p>
@@ -310,11 +311,56 @@ function CombinedChart({ combined, buildings }) {
   )
 }
 
+// ─── גרף רווח מצטבר ──────────────────────────────────────────────────────────
+
+function CumulativeChart({ combined }) {
+  if (!combined?.length) return null
+
+  let cum = 0
+  const data = combined.map((row) => {
+    cum += row.total_profit
+    return {
+      name: String(row.year),
+      'רווח שנתי': row.total_profit,
+      'מצטבר': cum,
+    }
+  })
+
+  return (
+    <ResponsiveContainer width="100%" height={260}>
+      <ComposedChart data={data} margin={{ top: 8, right: 16, left: 8, bottom: 4 }}>
+        <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,.1)" />
+        <XAxis dataKey="name" tick={{ fill: 'var(--tact-text-dim,#888)', fontSize: 12 }} />
+        <YAxis tickFormatter={fmtK} tick={{ fill: 'var(--tact-text-dim,#888)', fontSize: 11 }} width={80} />
+        <Tooltip formatter={(v) => ils(v)} labelStyle={{ color: '#222' }} />
+        <Legend />
+        <Bar dataKey="רווח שנתי" fill="#6c8ebf" radius={[3,3,0,0]} />
+        <Line
+          type="monotone"
+          dataKey="מצטבר"
+          stroke="#82ca9d"
+          strokeWidth={2.5}
+          dot={{ fill: '#82ca9d', r: 4 }}
+        />
+      </ComposedChart>
+    </ResponsiveContainer>
+  )
+}
+
 // ─── טבלת כולל ───────────────────────────────────────────────────────────────
 
 function CombinedTable({ combined, buildings }) {
   if (!combined?.length) return null
   const names = buildings.map((b) => b.building_name)
+
+  // תזרים מצטבר
+  let cumulative = 0
+  const rows = combined.map((row) => {
+    cumulative += row.total_profit
+    const totalAdded = Object.values(row.buildings).reduce((s, b) => s + (b.chargers_added || 0), 0)
+    return { ...row, totalAdded, cumulative }
+  })
+
   return (
     <div className="table-wrap" style={{ overflowX: 'auto' }}>
       <table className="tact-table" style={{ minWidth: 500 + names.length * 130 }}>
@@ -326,34 +372,35 @@ function CombinedTable({ combined, buildings }) {
             <th>מטענים חדשים</th>
             <th>CAPEX (התקנה)</th>
             <th>OPEX (חד-פעמי)</th>
-            <th>סה"כ רווח</th>
+            <th>רווח שנתי</th>
+            <th>תזרים מצטבר</th>
           </tr>
         </thead>
         <tbody>
-          {combined.map((row) => {
-            const totalAdded = Object.values(row.buildings).reduce((s, b) => s + (b.chargers_added || 0), 0)
-            return (
-              <tr key={row.year}>
-                <td><strong>{row.year}</strong></td>
-                {names.map((n) => (
-                  <td key={n}>{row.buildings[n] ? ils(row.buildings[n].annual_income) : '—'}</td>
-                ))}
-                <td style={{ color: 'var(--tact-green)' }}>{ils(row.total_income)}</td>
-                <td style={{ color: 'var(--tact-text-dim,#888)', fontSize: 13 }}>
-                  {totalAdded > 0 ? `+${totalAdded} מטענים` : '—'}
-                </td>
-                <td style={{ color: row.total_capex > 0 ? 'var(--tact-red,#e74c3c)' : 'inherit' }}>
-                  {row.total_capex > 0 ? ils(-row.total_capex) : '—'}
-                </td>
-                <td style={{ color: 'var(--tact-orange,#e67e22)' }}>
-                  {row.total_opex > 0 ? ils(-row.total_opex) : '—'}
-                </td>
-                <td style={{ fontWeight: 600, color: row.total_profit >= 0 ? 'var(--tact-green)' : 'var(--tact-red,#e74c3c)' }}>
-                  {ils(row.total_profit)}
-                </td>
-              </tr>
-            )
-          })}
+          {rows.map((row) => (
+            <tr key={row.year}>
+              <td><strong>{row.year}</strong></td>
+              {names.map((n) => (
+                <td key={n}>{row.buildings[n] ? ils(row.buildings[n].annual_income) : '—'}</td>
+              ))}
+              <td style={{ color: 'var(--tact-green)' }}>{ils(row.total_income)}</td>
+              <td style={{ color: 'var(--tact-text-dim,#888)', fontSize: 13 }}>
+                {row.totalAdded > 0 ? `+${row.totalAdded} מטענים` : '—'}
+              </td>
+              <td style={{ color: row.total_capex > 0 ? 'var(--tact-red,#e74c3c)' : 'inherit' }}>
+                {row.total_capex > 0 ? ils(-row.total_capex) : '—'}
+              </td>
+              <td style={{ color: 'var(--tact-orange,#e67e22)' }}>
+                {row.total_opex > 0 ? ils(-row.total_opex) : '—'}
+              </td>
+              <td style={{ fontWeight: 600, color: row.total_profit >= 0 ? 'var(--tact-green)' : 'var(--tact-red,#e74c3c)' }}>
+                {ils(row.total_profit)}
+              </td>
+              <td style={{ fontWeight: 700, color: row.cumulative >= 0 ? 'var(--tact-green)' : 'var(--tact-red,#e74c3c)', borderRight: '2px solid var(--tact-green)' }}>
+                {ils(row.cumulative)}
+              </td>
+            </tr>
+          ))}
         </tbody>
       </table>
     </div>
@@ -515,6 +562,8 @@ export default function BuildingCashflow({ loading: appLoading }) {
                 <>
                   <h3>הכנסות לפי בניין ושנה</h3>
                   <CombinedChart combined={combined} buildings={buildings} />
+                  <h3 style={{ marginTop: 24 }}>רווח שנתי ומצטבר</h3>
+                  <CumulativeChart combined={combined} />
                   <h3 style={{ marginTop: 24 }}>טבלת תחזית כוללת</h3>
                   <CombinedTable combined={combined} buildings={buildings} />
                 </>
