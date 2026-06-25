@@ -302,11 +302,11 @@ function SupplierLedgerTable({ rows, onChange }) {
                   <td className="muted" style={{ fontSize: '0.85em' }}>{r.account_number}</td>
                   <td>{r.debit > 0 ? `₪${nf.format(r.debit)}` : <span className="muted">—</span>}</td>
                   <td>{r.credit > 0 ? `₪${nf.format(r.credit)}` : <span className="muted">—</span>}</td>
-                  <td className={r.balance < 0 ? 'fin-neg' : r.balance > 0 ? 'fin-pos' : ''}>
-                    {r.balance < 0
-                      ? `(₪${nf.format(Math.abs(r.balance))})`
-                      : r.balance > 0
-                        ? `₪${nf.format(r.balance)}`
+                  <td className={r.credit > r.debit ? 'fin-neg' : r.debit > r.credit ? 'fin-pos' : ''}>
+                    {r.credit > r.debit
+                      ? `(₪${nf.format(Math.abs(r.credit - r.debit))})`
+                      : r.debit > r.credit
+                        ? `₪${nf.format(Math.abs(r.debit - r.credit))}`
                         : '—'}
                   </td>
                   <td><CompletionCell row={r} onChange={onChange} /></td>
@@ -321,11 +321,11 @@ function SupplierLedgerTable({ rows, onChange }) {
                 <td className="fin-rowlabel" colSpan={2}>סה&quot;כ</td>
                 <td>₪{nf.format(totalDebit)}</td>
                 <td>₪{nf.format(totalCredit)}</td>
-                <td className={totalBalance < 0 ? 'fin-neg' : totalBalance > 0 ? 'fin-pos' : ''}>
-                  {totalBalance < 0
-                    ? `(₪${nf.format(Math.abs(totalBalance))})`
-                    : totalBalance > 0
-                      ? `₪${nf.format(totalBalance)}`
+                <td className={totalCredit > totalDebit ? 'fin-neg' : totalDebit > totalCredit ? 'fin-pos' : ''}>
+                  {totalCredit > totalDebit
+                    ? `(₪${nf.format(Math.abs(totalCredit - totalDebit))})`
+                    : totalDebit > totalCredit
+                      ? `₪${nf.format(Math.abs(totalDebit - totalCredit))}`
                       : '—'}
                 </td>
                 <td colSpan={2} />
