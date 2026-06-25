@@ -20,4 +20,5 @@ class SupplierLedgerRow(Base):
     debit: Mapped[float] = mapped_column(Float, default=0.0)   # סה"כ חובה
     credit: Mapped[float] = mapped_column(Float, default=0.0)  # סה"כ זכות
     balance: Mapped[float] = mapped_column(Float, default=0.0) # יתרה סופית
+    completion: Mapped[str] = mapped_column(Text, default="")  # השלמות מול החברה
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)

@@ -18,6 +18,7 @@ class SupplierLedgerUpdate(BaseModel):
     debit: float | None = Field(default=None, ge=0)
     credit: float | None = Field(default=None, ge=0)
     balance: float | None = None
+    completion: str | None = None
 
 
 class SupplierLedgerOut(BaseModel):
@@ -29,4 +30,5 @@ class SupplierLedgerOut(BaseModel):
     debit: float
     credit: float
     balance: float
+    completion: str
     created_at: datetime

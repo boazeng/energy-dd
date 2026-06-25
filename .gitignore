@@ -18,3 +18,10 @@ frontend/dist/
 
 # קבצים שהועלו (שלב מאוחר יותר)
 backend/storage/
+
+# קבצים זמניים / עבודה מקומית
+contracts_temp/
+node_modules/
+package.json
+package-lock.json
+parse_pdf_tmp.cjs
