@@ -218,7 +218,7 @@ function BuildingSettings({ bm, onChange }) {
         </span>
       </div>
 
-      <div className="settings-section-title" style={{ marginTop: 16 }}>הוצאות תפעוליות שנתיות (OPEX — קבוע, על מטענים קיימים בלבד)</div>
+      <div className="settings-section-title" style={{ marginTop: 16 }}>הוצאות חד-פעמיות (OPEX שנה ראשונה בלבד — מטענים קיימים)</div>
       <div className="settings-grid">
         {OPEX_FIELDS.map((f) => (
           <FieldRow key={f.key} fieldDef={f} value={local[f.key]} onChange={handle} />
@@ -240,7 +240,7 @@ function BuildingSettings({ bm, onChange }) {
             {' '}(אינטרנט+בודק {ils((local.current_chargers||0)*((local.cost_internet_per_charger||0)+(local.cost_inspector_per_charger||0)))} + פחת {ils((local.chargers_no_rcd||0)*(local.cost_rcd_per_charger||0))})
           </span>
           <div className="dim-text" style={{ fontSize: 11, marginTop: 2 }}>
-            קבוע לכל שנות התחזית — מטענים חדשים מותקנים טוב, ללא עלות שוטפת
+            חד-פעמי בשנת {local.start_year || 2026} בלבד — מ-{(local.start_year || 2026) + 1} ואילך עלות OPEX = 0
           </div>
         </div>
       </div>

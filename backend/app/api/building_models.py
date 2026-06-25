@@ -36,8 +36,8 @@ def _calc_forecast(bm: BuildingModel) -> list[YearForecast]:
     panel_cost_total = bm.cost_elec_panel + bm.cost_comm_panel
     chargers_per_panel = max(1, bm.chargers_per_panel)
 
-    # OPEX קבוע לנצח — רק מטענים קיימים (חדשים מותקנים טוב, אין עלות שוטפת)
-    fixed_annual_opex = (
+    # OPEX חד-פעמי בשנה הראשונה בלבד — עלות קיום למטענים שקיימים היום
+    opex_year_one = (
         bm.current_chargers * (bm.cost_internet_per_charger + bm.cost_inspector_per_charger)
         + bm.chargers_no_rcd * bm.cost_rcd_per_charger
     )
@@ -48,26 +48,28 @@ def _calc_forecast(bm: BuildingModel) -> list[YearForecast]:
     years: list[YearForecast] = []
 
     for i in range(bm.forecast_years):
-        # שנה ראשונה = מצב קיים בלבד; גידול מתחיל משנה שנייה
+        # שנה ראשונה = מצב קיים, OPEX חד-פעמי; שנים הבאות = גידול, OPEX=0
         if i == 0:
             added = 0
+            annual_opex = opex_year_one
         else:
             remaining = max(0, bm.potential_spots - total)
             added = min(new_per_year, remaining)
+            annual_opex = 0
         total += added
 
         panels_needed = math.ceil(added / chargers_per_panel) if added > 0 else 0
         capex = added * direct_per_charger + panels_needed * panel_cost_total
 
         annual_income = total * monthly_income_per_charger * 12
-        profit = annual_income - capex - fixed_annual_opex
+        profit = annual_income - capex - annual_opex
         years.append(YearForecast(
             year=bm.start_year + i,
             chargers_added=added,
             total_chargers=total,
             annual_income=round(annual_income, 2),
             capex=round(capex, 2),
-            annual_opex=round(fixed_annual_opex, 2),
+            annual_opex=round(annual_opex, 2),
             profit=round(profit, 2),
         ))
 
