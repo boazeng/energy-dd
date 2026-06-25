@@ -18,11 +18,10 @@ const fmtK = (v) => {
 
 const COLORS = ['#6c8ebf', '#82ca9d', '#ffc658', '#ff7c7c', '#a29bfe', '#fd79a8', '#00cec9', '#fdcb6e']
 
-// הכנסות
+// הכנסות (גידול שנתי מוגדר גלובלית בראש העמוד)
 const INCOME_FIELDS = [
   { key: 'current_chargers',             label: 'מטענים נוכחיים',      unit: '',          step: 1,   type: 'int' },
   { key: 'potential_spots',              label: 'חניות פוטנציאליות',   unit: '',          step: 1,   type: 'int' },
-  { key: 'annual_growth_rate',           label: 'גידול שנתי',          unit: '%',         step: 1,   type: 'float' },
   { key: 'mgmt_fee_per_charger',         label: 'עמלת ניהול למטען',    unit: '₪/חודש',   step: 0.1, type: 'float' },
   { key: 'avg_kwh_per_charger_monthly',  label: 'צריכה ממוצעת למטען',  unit: 'kWh/חודש', step: 1,   type: 'float' },
   { key: 'electricity_rate_agorot',      label: 'עמלת חשמל',           unit: "אג'/kWh",  step: 0.1, type: 'float' },
@@ -423,6 +422,19 @@ export default function BuildingCashflow({ loading: appLoading }) {
   const [loading, setLoading] = useState(true)
   const [newName, setNewName] = useState('')
   const [adding, setAdding] = useState(false)
+  const [globalGrowth, setGlobalGrowth] = useState(10)
+  const growthTimer = useRef(null)
+
+  async function applyGlobalGrowth(rate) {
+    setGlobalGrowth(rate)
+    clearTimeout(growthTimer.current)
+    growthTimer.current = setTimeout(async () => {
+      await Promise.all(
+        buildings.map((b) => api.updateBuildingModel(b.id, { annual_growth_rate: rate }))
+      )
+      await load()
+    }, 600)
+  }
 
   async function load() {
     setLoading(true)
@@ -433,6 +445,7 @@ export default function BuildingCashflow({ loading: appLoading }) {
       ])
       setBuildings(bms)
       setCombined(comb)
+      if (bms.length > 0) setGlobalGrowth(bms[0].annual_growth_rate ?? 10)
     } finally {
       setLoading(false)
     }
@@ -487,6 +500,20 @@ export default function BuildingCashflow({ loading: appLoading }) {
       {/* ─── כותרת ─── */}
       <div className="page-header" style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
         <h2 style={{ margin: 0 }}>תזרים פר-בניין</h2>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,.06)', borderRadius: 8, padding: '6px 14px', border: '1px solid rgba(255,255,255,.12)' }}>
+          <label style={{ fontSize: 13, color: 'var(--tact-text-dim,#aaa)', whiteSpace: 'nowrap' }}>גידול שנתי לכל הבניינים:</label>
+          <input
+            type="number"
+            className="tact-input"
+            style={{ width: 70, textAlign: 'center', fontWeight: 600 }}
+            value={globalGrowth}
+            step={1}
+            min={0}
+            max={100}
+            onChange={(e) => applyGlobalGrowth(parseFloat(e.target.value) || 0)}
+          />
+          <span style={{ fontSize: 13 }}>%</span>
+        </div>
         <button
           className="tact-btn tact-btn-secondary"
           style={{ fontSize: 13 }}
