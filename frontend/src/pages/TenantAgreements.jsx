@@ -1,21 +1,13 @@
 import { Fragment, useState } from 'react'
 import TactIcon from '../components/TactIcon.jsx'
 
-function chargerCost(a) {
-  const sections = a.details || []
-  const purchase = sections.find((s) => s.title === 'עלות עמדה')
-  const install = sections.find((s) => s.title === 'עלות התקנה')
-  const parts = [purchase?.content, install?.content].filter(Boolean)
-  return parts.join(' | ') || '—'
-}
-
 const COLUMNS = [
-  { key: 'building',       label: 'בניין' },
-  { key: 'term',           label: 'תקופה' },
-  { key: 'payment',        label: 'עלות מנוי' },
-  { key: 'pricing_model',  label: 'עלות חשמל' },
-  { key: '_charger',       label: 'עלות רכישה והתקנת מטען', render: chargerCost },
-  { key: 'notes',          label: 'הערות / אי-התאמות' },
+  { key: 'building',      label: 'בניין' },
+  { key: 'term',          label: 'תקופה' },
+  { key: 'payment',       label: 'עלות מנוי' },
+  { key: 'pricing_model', label: 'עלות חשמל' },
+  { key: 'charger_cost',  label: 'רכישה והתקנת מטען' },
+  { key: 'notes',         label: 'הערות / אי-התאמות' },
 ]
 
 function ExpandedRow({ a }) {
@@ -123,7 +115,7 @@ export default function TenantAgreements({ agreements, loading }) {
                       <span className={`ta-chevron ${isOpen ? 'open' : ''}`}>▸</span>
                     </td>
                     {COLUMNS.map((c) => {
-                      const val = c.render ? c.render(a) : (a[c.key] || '—')
+                      const val = a[c.key] || '—'
                       const isNote = c.key === 'notes' && val && val !== '—'
                       return (
                         <td key={c.key} className={isNote ? 'ta-cell-warn' : ''}>

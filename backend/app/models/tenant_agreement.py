@@ -33,6 +33,9 @@ class TenantAgreement(Base):
     # --- הרחבה: מערך סעיפים [{"title":..,"content":..}] כ-JSON ---
     details_json: Mapped[str] = mapped_column(Text, default="[]")
 
+    # --- עלות רכישה/התקנה לדייר (₪0 כשע"ח היזם) ---
+    charger_cost: Mapped[str] = mapped_column(Text, default="")
+
     # --- הערות / אי-התאמות מול נתוני החברה ---
     notes: Mapped[str] = mapped_column(Text, default="")
 
