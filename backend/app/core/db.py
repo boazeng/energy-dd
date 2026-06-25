@@ -37,6 +37,7 @@ def init_db() -> None:
 def _run_migrations() -> None:
     """ALTER TABLE לעמודות שנוספו לאחר יצירת הטבלה."""
     _add_column_if_missing("supplier_ledger", "completion", "TEXT DEFAULT ''")
+    _add_column_if_missing("tenant_agreements", "notes", "TEXT DEFAULT ''")
 
 
 def _add_column_if_missing(table: str, column: str, col_def: str) -> None:

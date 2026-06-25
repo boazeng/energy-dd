@@ -1,25 +1,31 @@
 import { Fragment, useState } from 'react'
 import TactIcon from '../components/TactIcon.jsx'
 
-// עמודות הסיכום המרכזיות בטבלה
+function chargerCost(a) {
+  const sections = a.details || []
+  const purchase = sections.find((s) => s.title === 'עלות עמדה')
+  const install = sections.find((s) => s.title === 'עלות התקנה')
+  const parts = [purchase?.content, install?.content].filter(Boolean)
+  return parts.join(' | ') || '—'
+}
+
 const COLUMNS = [
-  { key: 'tenant_name', label: 'דייר / חברה' },
-  { key: 'building', label: 'בניין' },
-  { key: 'units', label: 'יחידות / עמדות' },
-  { key: 'term', label: 'תקופת ההסכם' },
-  { key: 'payment', label: 'תשלום' },
-  { key: 'pricing_model', label: 'מנגנון תמחור' },
+  { key: 'building',       label: 'בניין' },
+  { key: 'term',           label: 'תקופה' },
+  { key: 'payment',        label: 'עלות מנוי' },
+  { key: 'pricing_model',  label: 'עלות חשמל' },
+  { key: '_charger',       label: 'עלות רכישה והתקנת מטען', render: chargerCost },
+  { key: 'notes',          label: 'הערות / אי-התאמות' },
 ]
 
 function ExpandedRow({ a }) {
   return (
     <div className="ta-detail">
-      {a.summary && (
-        <p className="ta-summary">{a.summary}</p>
-      )}
+      {a.summary && <p className="ta-summary">{a.summary}</p>}
       <div className="ta-detail-grid">
-        {a.address && <Field label="כתובת" value={a.address} />}
+        {a.address    && <Field label="כתובת"       value={a.address} />}
         {a.termination && <Field label="סיום / חידוש" value={a.termination} />}
+        {a.tenant_name && <Field label="נציג / חותם"  value={a.tenant_name} />}
       </div>
       {a.flags && (
         <div className="ta-flags">
@@ -114,13 +120,17 @@ export default function TenantAgreements({ agreements, loading }) {
                     onClick={() => setOpen(isOpen ? null : a.id)}
                   >
                     <td className="ta-expander">
-                      <span className={`ta-chevron ${isOpen ? 'open' : ''}`}>
-                        ▸
-                      </span>
+                      <span className={`ta-chevron ${isOpen ? 'open' : ''}`}>▸</span>
                     </td>
-                    {COLUMNS.map((c) => (
-                      <td key={c.key}>{a[c.key] || '—'}</td>
-                    ))}
+                    {COLUMNS.map((c) => {
+                      const val = c.render ? c.render(a) : (a[c.key] || '—')
+                      const isNote = c.key === 'notes' && val && val !== '—'
+                      return (
+                        <td key={c.key} className={isNote ? 'ta-cell-warn' : ''}>
+                          {val}
+                        </td>
+                      )
+                    })}
                   </tr>
                   {isOpen && (
                     <tr className="ta-detail-row">

@@ -24,6 +24,7 @@ class TenantAgreementBase(BaseModel):
     termination: str = ""
     summary: str = ""
     flags: str = ""
+    notes: str = ""
     details: list[DetailSection] = Field(default_factory=list)
     source_file: str = ""
     source_url: str = ""
@@ -46,6 +47,7 @@ class TenantAgreementUpdate(BaseModel):
     termination: str | None = None
     summary: str | None = None
     flags: str | None = None
+    notes: str | None = None
     details: list[DetailSection] | None = None
     source_file: str | None = None
     source_url: str | None = None
