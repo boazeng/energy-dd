@@ -31,27 +31,35 @@ export default function App() {
   const [agreements, setAgreements] = useState([])
   const [projects, setProjects] = useState(null)
   const [financials, setFinancials] = useState(null)
+  const [supplierBalances, setSupplierBalances] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
   async function refresh() {
     try {
-      const [t, a, p, f] = await Promise.all([
+      const [t, a, p, f, sb] = await Promise.all([
         api.listTasks(),
         api.listAgreements(),
         api.getProjects(),
         api.getFinancials(),
+        api.listSupplierBalances(),
       ])
       setTasks(t)
       setAgreements(a)
       setProjects(p)
       setFinancials(f)
+      setSupplierBalances(sb)
       setError('')
     } catch (e) {
       setError(e.message)
     } finally {
       setLoading(false)
     }
+  }
+
+  async function refreshSuppliers() {
+    const sb = await api.listSupplierBalances()
+    setSupplierBalances(sb)
   }
 
   useEffect(() => {
@@ -81,7 +89,14 @@ export default function App() {
         {error && <div className="app-error">שגיאה בטעינת הנתונים: {error}</div>}
         {tab === 'home' && <Home tasks={tasks} loading={loading} />}
         {tab === 'projects' && <Projects data={projects} loading={loading} />}
-        {tab === 'financials' && <Financials data={financials} loading={loading} />}
+        {tab === 'financials' && (
+          <Financials
+            data={financials}
+            loading={loading}
+            supplierBalances={supplierBalances}
+            onSupplierChange={refreshSuppliers}
+          />
+        )}
         {tab === 'cashflow' && <Cashflow loading={loading} />}
         {tab === 'tasks' && (
           <Tasks tasks={tasks} loading={loading} onChange={refresh} />

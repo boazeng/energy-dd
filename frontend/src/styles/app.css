@@ -265,6 +265,10 @@
 .fin-sev-low { border-right-color: #6b8cae; }
 .fin-sev-low .fin-sev-badge { background: var(--color-primary-soft); color: var(--color-primary); }
 
+/* ---- ספקי זכות ---- */
+.sup-section { margin-top: 44px; padding-top: 32px; border-top: 1px solid var(--color-border); }
+.sup-table tfoot .sup-total-row td { background: rgba(214,74,46,0.07); font-weight: 700; }
+
 /* ---- תזרים ---- */
 .cf-open {
   display: flex; flex-wrap: wrap; gap: 16px; margin: 8px 0 28px;

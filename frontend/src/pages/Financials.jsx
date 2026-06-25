@@ -1,4 +1,6 @@
+import { useState } from 'react'
 import TactIcon from '../components/TactIcon.jsx'
+import { api } from '../api/client.js'
 
 const nf = new Intl.NumberFormat('he-IL')
 
@@ -59,7 +61,111 @@ const SEV = {
   low: { cls: 'fin-sev-low', label: 'נמוך' },
 }
 
-export default function Financials({ data, loading }) {
+function SupplierCredits({ rows, onChange }) {
+  const [name, setName] = useState('')
+  const [amount, setAmount] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  const total = rows.reduce((s, r) => s + r.balance, 0)
+
+  async function handleAdd(e) {
+    e.preventDefault()
+    if (!name.trim() || !amount) return
+    setSaving(true)
+    try {
+      await api.createSupplierBalance({ supplier_name: name.trim(), balance: parseFloat(amount) })
+      setName('')
+      setAmount('')
+      onChange()
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  async function handleDelete(id) {
+    await api.deleteSupplierBalance(id)
+    onChange()
+  }
+
+  return (
+    <div className="sup-section">
+      <h2 className="block-title">
+        <TactIcon name="document" size={18} style={{ marginInlineEnd: 6 }} />
+        ספקים ביתרת זכות — 2026
+      </h2>
+      <p className="home-sub" style={{ marginBottom: 20 }}>
+        ספקים שהחברה חייבת להם כסף לפי מאזן הבוחן. יש לוודא ולהתחשב בסכומים אלו בבדיקת הנאותות.
+      </p>
+
+      {/* טופס הוספה */}
+      <form className="add-form" onSubmit={handleAdd}>
+        <input
+          placeholder="שם ספק"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          style={{ flex: 2 }}
+        />
+        <input
+          type="number"
+          placeholder="יתרה (₪)"
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          min="0.01"
+          step="0.01"
+          style={{ flex: 1, minWidth: 130, textAlign: 'left' }}
+        />
+        <button className="tact-btn tact-btn-primary" type="submit" disabled={saving}>
+          + הוסף ספק
+        </button>
+      </form>
+
+      {rows.length === 0 ? (
+        <div className="ta-empty">
+          <TactIcon name="document" size={24} />
+          <p>לא הוזנו ספקים עדיין. הוסף ספק מהטופס למעלה.</p>
+        </div>
+      ) : (
+        <div className="fin-table-wrap">
+          <table className="fin-table sup-table">
+            <thead>
+              <tr>
+                <th className="fin-rowlabel">שם ספק</th>
+                <th>יתרת זכות</th>
+                <th style={{ width: 50 }} />
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r) => (
+                <tr key={r.id}>
+                  <td className="fin-rowlabel">{r.supplier_name}</td>
+                  <td className="fin-neg">₪{nf.format(r.balance)}</td>
+                  <td>
+                    <button
+                      className="cf-del"
+                      title="מחק"
+                      onClick={() => handleDelete(r.id)}
+                    >
+                      ✕
+                    </button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr className="fin-total sup-total-row">
+                <td className="fin-rowlabel">סה״כ חובות לספקים</td>
+                <td className="fin-neg">₪{nf.format(total)}</td>
+                <td />
+              </tr>
+            </tfoot>
+          </table>
+        </div>
+      )}
+    </div>
+  )
+}
+
+export default function Financials({ data, loading, supplierBalances = [], onSupplierChange }) {
   if (loading) return <p className="muted">טוען…</p>
 
   const years = data?.years || []
@@ -76,6 +182,7 @@ export default function Financials({ data, loading }) {
           <TactIcon name="reports" size={28} />
           <p>אין עדיין נתונים כספיים. יש להעלות את קובץ הניתוח לשרת.</p>
         </div>
+        <SupplierCredits rows={supplierBalances} onChange={onSupplierChange} />
       </section>
     )
 
@@ -156,6 +263,8 @@ export default function Financials({ data, loading }) {
           {c.auditor ? ` · רו"ח מבקר: ${c.auditor}` : ''}
         </p>
       )}
+
+      <SupplierCredits rows={supplierBalances} onChange={onSupplierChange} />
     </section>
   )
 }

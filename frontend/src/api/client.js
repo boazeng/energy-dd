@@ -47,4 +47,10 @@ export const api = {
       method: 'PATCH',
       body: JSON.stringify(data),
     }),
+
+  listSupplierBalances: () => request('/api/supplier-balances'),
+  createSupplierBalance: (data) =>
+    request('/api/supplier-balances', { method: 'POST', body: JSON.stringify(data) }),
+  deleteSupplierBalance: (id) =>
+    request(`/api/supplier-balances/${id}`, { method: 'DELETE' }),
 }
