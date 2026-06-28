@@ -9,6 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.models.building_model import BuildingModel
+from app.models.tenant_agreement import TenantAgreement
 
 # נתונים מחולצים מחוזי הבניינים:
 # mgmt_fee  = דמי ניהול חודשיים לעמדה (₪) — נלקח מהמסלול הנמוך / רכב חשמלי
@@ -179,6 +180,35 @@ def sync_projects_data(db: Session, projects_path: str) -> int:
         bm.chargers_no_rcd = no_rcd
         updated += 1
 
+    if updated:
+        db.commit()
+    return updated
+
+
+def _parse_cost(text: str) -> float:
+    """מחלץ מספר מטקסט כגון '₪1,500' או '1500 ש"ח'."""
+    nums = re.findall(r"[\d,]+", str(text or ""))
+    if not nums:
+        return 0.0
+    return float(nums[0].replace(",", ""))
+
+
+def sync_install_income(db: Session) -> int:
+    """מסנכרן charger_install_income מ-tenant_agreements.charger_cost לפי שם בניין."""
+    agreements = list(db.scalars(select(TenantAgreement)))
+    models = list(db.scalars(select(BuildingModel)))
+    updated = 0
+    for bm in models:
+        street_part = bm.building_name.split(",")[0].strip()
+        norm_bm = _normalize(street_part)
+        for agr in agreements:
+            norm_agr = _normalize(agr.building.split(",")[0].strip())
+            if norm_agr and (norm_agr in norm_bm or norm_bm in norm_agr):
+                cost = _parse_cost(agr.charger_cost)
+                if bm.charger_install_income != cost:
+                    bm.charger_install_income = cost
+                    updated += 1
+                break
     if updated:
         db.commit()
     return updated

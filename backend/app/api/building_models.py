@@ -69,7 +69,8 @@ def _calc_forecast(bm: BuildingModel) -> list[YearForecast]:
         panels_needed = math.ceil(added / chargers_per_panel) if added > 0 else 0
         capex = added * direct_per_charger + panels_needed * panel_cost_total
 
-        annual_income = total * monthly_income_per_charger * 12
+        install_income = added * bm.charger_install_income
+        annual_income = total * monthly_income_per_charger * 12 + install_income
         profit = annual_income - capex - annual_opex
         years.append(YearForecast(
             year=bm.start_year + i,

@@ -28,6 +28,9 @@ def migrate_building_models(engine: Engine) -> None:
                 conn.execute(text(
                     f"ALTER TABLE building_models ADD COLUMN {col_name} {col_type} DEFAULT {default}"
                 ))
+        # הכנסה מהתקנת מטען חדש
+        if "charger_install_income" not in existing:
+            conn.execute(text("ALTER TABLE building_models ADD COLUMN charger_install_income REAL DEFAULT 0"))
         # עמודת עלויות נוספות (JSON)
         if "extra_costs" not in existing:
             conn.execute(text("ALTER TABLE building_models ADD COLUMN extra_costs TEXT DEFAULT '[]'"))

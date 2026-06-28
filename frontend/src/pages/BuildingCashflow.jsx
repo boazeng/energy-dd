@@ -26,6 +26,7 @@ const INCOME_FIELDS = [
   { key: 'avg_kwh_per_charger_monthly',  label: 'צריכה ממוצעת למטען',  unit: 'kWh/חודש', step: 1,   type: 'float' },
   { key: 'electricity_rate_agorot',      label: 'עמלת חשמל',           unit: "אג'/kWh",  step: 0.1, type: 'float' },
   { key: 'subscription_fee_per_charger', label: 'דמי מנוי למטען',      unit: '₪/חודש',   step: 0.1, type: 'float' },
+  { key: 'charger_install_income',       label: 'הכנסה מהתקנת מטען',   unit: '₪/מטען',   step: 100, type: 'float', note: 'לפי הסכם דייר' },
   { key: 'start_year',                   label: 'שנת התחלה',            unit: '',          step: 1,   type: 'int' },
   { key: 'forecast_years',               label: 'שנות תחזית',           unit: '',          step: 1,   type: 'int' },
 ]

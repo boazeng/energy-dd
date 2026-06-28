@@ -46,6 +46,9 @@ class BuildingModel(Base):
     cost_internet_per_charger: Mapped[float] = mapped_column(Float, default=400)  # אינטרנט ₪/שנה
     cost_inspector_per_charger: Mapped[float] = mapped_column(Float, default=250) # בודק ₪/שנה
 
+    # הכנסה מהתקנת מטען חדש (לפי הסכם דייר) — מסונכרן מ-tenant_agreements.charger_cost
+    charger_install_income: Mapped[float] = mapped_column(Float, default=0)
+
     # עלויות נוספות — רשימה גמישה: [{"name": "...", "cost_per_charger": 100}, ...]
     extra_costs: Mapped[list] = mapped_column(JSON, default=list, nullable=True)
 

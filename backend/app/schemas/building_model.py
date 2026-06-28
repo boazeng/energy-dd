@@ -28,6 +28,7 @@ class BuildingModelCreate(BaseModel):
     cost_rcd_per_charger: float = 300
     cost_internet_per_charger: float = 400
     cost_inspector_per_charger: float = 250
+    charger_install_income: float = 0
     extra_costs: list[ExtraCostItem] = []
     start_year: int = Field(default=2025, ge=2000, le=2100)
     forecast_years: int = Field(default=5, ge=1, le=30)
@@ -54,6 +55,7 @@ class BuildingModelUpdate(BaseModel):
     cost_rcd_per_charger: float | None = None
     cost_internet_per_charger: float | None = None
     cost_inspector_per_charger: float | None = None
+    charger_install_income: float | None = None
     extra_costs: list[ExtraCostItem] | None = None
     start_year: int | None = Field(default=None, ge=2000, le=2100)
     forecast_years: int | None = Field(default=None, ge=1, le=30)
@@ -81,6 +83,7 @@ class BuildingModelOut(BaseModel):
     cost_rcd_per_charger: float
     cost_internet_per_charger: float
     cost_inspector_per_charger: float
+    charger_install_income: float = 0
     extra_costs: list[ExtraCostItem] = []
     start_year: int
     forecast_years: int
