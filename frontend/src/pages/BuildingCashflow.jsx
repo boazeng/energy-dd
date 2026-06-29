@@ -574,8 +574,17 @@ export default function BuildingCashflow({ loading: appLoading }) {
   const [adding, setAdding] = useState(false)
   const [globalGrowth, setGlobalGrowth] = useState(10)
   const [globalAvgKwh, setGlobalAvgKwh] = useState(100)
+  const [globalCapex, setGlobalCapex] = useState({
+    cost_charger_unit: 800,
+    cost_infra_per_charger: 1200,
+    cost_install_per_charger: 1300,
+    cost_elec_panel: 6000,
+    cost_comm_panel: 1000,
+    chargers_per_panel: 10,
+  })
   const growthTimer = useRef(null)
   const kwhTimer = useRef(null)
+  const capexTimers = useRef({})
 
   async function applyGlobalGrowth(rate) {
     setGlobalGrowth(rate)
@@ -599,6 +608,18 @@ export default function BuildingCashflow({ loading: appLoading }) {
     }, 600)
   }
 
+  async function applyGlobalCapexField(field, raw) {
+    const value = field === 'chargers_per_panel' ? parseInt(raw, 10) || 0 : parseFloat(raw) || 0
+    setGlobalCapex((prev) => ({ ...prev, [field]: value }))
+    clearTimeout(capexTimers.current[field])
+    capexTimers.current[field] = setTimeout(async () => {
+      await Promise.all(
+        buildings.map((b) => api.updateBuildingModel(b.id, { [field]: value }))
+      )
+      await load()
+    }, 600)
+  }
+
   async function load() {
     setLoading(true)
     try {
@@ -609,8 +630,17 @@ export default function BuildingCashflow({ loading: appLoading }) {
       setBuildings(bms)
       setCombined(comb)
       if (bms.length > 0) {
-        setGlobalGrowth(bms[0].annual_growth_rate ?? 10)
-        setGlobalAvgKwh(bms[0].avg_kwh_per_charger_monthly ?? 100)
+        const b0 = bms[0]
+        setGlobalGrowth(b0.annual_growth_rate ?? 10)
+        setGlobalAvgKwh(b0.avg_kwh_per_charger_monthly ?? 100)
+        setGlobalCapex({
+          cost_charger_unit:        b0.cost_charger_unit        ?? 800,
+          cost_infra_per_charger:   b0.cost_infra_per_charger   ?? 1200,
+          cost_install_per_charger: b0.cost_install_per_charger ?? 1300,
+          cost_elec_panel:          b0.cost_elec_panel          ?? 6000,
+          cost_comm_panel:          b0.cost_comm_panel          ?? 1000,
+          chargers_per_panel:       b0.chargers_per_panel       ?? 10,
+        })
       }
     } finally {
       setLoading(false)
@@ -717,6 +747,51 @@ export default function BuildingCashflow({ loading: appLoading }) {
           </div>
         )}
       </div>
+
+      {/* ─── פאנל CAPEX גלובלי ─── */}
+      {!loading && !appLoading && (() => {
+        const panelCpx = globalCapex.cost_charger_unit + globalCapex.cost_infra_per_charger +
+          globalCapex.cost_install_per_charger +
+          (globalCapex.cost_elec_panel + globalCapex.cost_comm_panel) / Math.max(1, globalCapex.chargers_per_panel)
+        const CAPEX_FIELDS_GLOBAL = [
+          { key: 'cost_charger_unit',        label: 'עלות מטען',       unit: '₪', step: 100 },
+          { key: 'cost_infra_per_charger',   label: 'תשתית',           unit: '₪', step: 100 },
+          { key: 'cost_install_per_charger', label: 'התקנה',           unit: '₪', step: 100 },
+          { key: 'cost_elec_panel',          label: 'ארון חשמל',       unit: '₪', step: 100 },
+          { key: 'cost_comm_panel',          label: 'ארון תקשורת',     unit: '₪', step: 100 },
+          { key: 'chargers_per_panel',       label: 'מטענים לארון',    unit: '',  step: 1   },
+        ]
+        return (
+          <div style={{
+            background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.12)',
+            borderRadius: 10, padding: '12px 18px', marginBottom: 20,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--tact-text-dim,#aaa)', whiteSpace: 'nowrap', textTransform: 'uppercase', letterSpacing: '.05em' }}>
+                עלויות התקנת מטען — גלובלי לכל הבניינים
+              </span>
+              {CAPEX_FIELDS_GLOBAL.map(({ key, label, unit, step }) => (
+                <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 13 }}>
+                  <span style={{ color: 'var(--tact-text-dim,#aaa)', whiteSpace: 'nowrap' }}>{label}:</span>
+                  <input
+                    type="number"
+                    className="tact-input"
+                    style={{ width: key === 'chargers_per_panel' ? 52 : 80, textAlign: 'center', fontWeight: 600, padding: '4px 6px', fontSize: 13 }}
+                    value={globalCapex[key]}
+                    step={step}
+                    min={0}
+                    onChange={(e) => applyGlobalCapexField(key, e.target.value)}
+                  />
+                  {unit && <span style={{ fontSize: 12, color: 'var(--tact-text-dim,#888)' }}>{unit}</span>}
+                </label>
+              ))}
+              <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--tact-orange,#e67e22)', whiteSpace: 'nowrap', marginInlineStart: 'auto' }}>
+                סה"כ למטען: {ils(panelCpx)}
+              </span>
+            </div>
+          </div>
+        )
+      })()}
 
       {loading || appLoading ? (
         <div className="dim-text" style={{ padding: '2rem' }}>טוען...</div>
