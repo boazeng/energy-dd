@@ -92,7 +92,7 @@ function ForecastTable({ years }) {
             <th>מטענים חדשים</th>
             <th>סה"כ מטענים</th>
             <th>הכנסה שנתית</th>
-            <th>השקעה</th>
+            <th>עלות התקנת מטענים</th>
             <th>עלות התאמה</th>
             <th>רווח שנתי</th>
             <th>רווח מצטבר</th>
@@ -132,7 +132,7 @@ function ForecastChart({ years }) {
   const data = years.map((y) => ({
     name: String(y.year),
     הכנסה: y.annual_income,
-    השקעה: y.capex,
+    עלות התקנת מטענים: y.capex,
     עלות התאמה: y.annual_opex,
     רווח: y.profit,
   }))
@@ -145,7 +145,7 @@ function ForecastChart({ years }) {
         <Tooltip formatter={(v) => ils(v)} labelStyle={{ color: '#222' }} />
         <Legend />
         <Bar dataKey="הכנסה"  fill="#82ca9d" radius={[3,3,0,0]} />
-        <Bar dataKey="השקעה" fill="#ff7c7c" radius={[3,3,0,0]} />
+        <Bar dataKey="עלות התקנת מטענים" fill="#ff7c7c" radius={[3,3,0,0]} />
         <Bar dataKey="עלות התאמה"  fill="#ffc658" radius={[3,3,0,0]} />
         <Bar dataKey="רווח"   fill="#6c8ebf" radius={[3,3,0,0]} />
       </BarChart>
@@ -431,7 +431,7 @@ function CombinedTable({ combined, buildings }) {
         <tr>
           <th style={{ textAlign: 'right' }}>בניין</th>
           <th style={tdL}>סה"כ הכנסות</th>
-          <th style={tdL}>השקעה</th>
+          <th style={tdL}>עלות התקנת מטענים</th>
           <th style={tdL}>עלות התאמה</th>
           <th style={{ ...tdL, background: 'rgba(130,202,157,.12)' }}>רווח נקי</th>
         </tr>
@@ -831,7 +831,7 @@ export default function BuildingCashflow({ loading: appLoading }) {
                     <div className="tact-kpi-value" style={{ color: 'var(--tact-green)' }}>{ils(totalIncome5yr)}</div>
                   </div>
                   <div className="tact-kpi">
-                    <div className="tact-kpi-label">סה"כ השקעה</div>
+                    <div className="tact-kpi-label">סה"כ עלות התקנת מטענים</div>
                     <div className="tact-kpi-value" style={{ color: 'var(--tact-red,#e74c3c)' }}>{ils(totalCapex5yr)}</div>
                   </div>
                   <div className="tact-kpi">
