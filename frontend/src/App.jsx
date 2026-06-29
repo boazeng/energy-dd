@@ -130,7 +130,7 @@ export default function App() {
           />
         )}
         {tab === 'agreements' && (
-          <TenantAgreements agreements={agreements} loading={loading} onChange={refresh} />
+          <TenantAgreements agreements={agreements} loading={loading} />
         )}
       </main>
 
