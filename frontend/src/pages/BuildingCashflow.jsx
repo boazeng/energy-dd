@@ -790,37 +790,37 @@ export default function BuildingCashflow({ loading: appLoading }) {
             </div>
 
             {/* שלושה עמודות */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(180px,1fr) minmax(380px,2.2fr) minmax(220px,1fr)' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr' }}>
 
-              {/* עמודה 1 — כללי */}
-              <div style={{ padding: '16px 18px', ...colDivider }}>
-                <span style={sLabel}>כללי</span>
+              {/* עמודה 1 — הנחות יסוד */}
+              <div style={{ padding: '16px 20px', background: 'rgba(108,142,191,.05)', ...colDivider }}>
+                <span style={sLabel}>הנחות יסוד</span>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   <label style={fRow}>
-                    <span style={{ ...fDim, minWidth: 90 }}>גידול שנתי:</span>
+                    <span style={{ ...fDim, minWidth: 100 }}>גידול שנתי:</span>
                     {numInp(globalGrowth, 1, 62, (e) => applyGlobalGrowth(parseFloat(e.target.value) || 0))}
                     {unit('%')}
                   </label>
                   <label style={fRow}>
-                    <span style={{ ...fDim, minWidth: 90 }}>צריכה ממוצעת:</span>
+                    <span style={{ ...fDim, minWidth: 100 }}>צריכה ממוצעת:</span>
                     {numInp(globalAvgKwh, 1, 72, (e) => applyGlobalAvgKwh(parseFloat(e.target.value) || 0))}
                     {unit('kWh/חודש')}
                   </label>
                 </div>
               </div>
 
-              {/* עמודה 2 — CAPEX */}
-              <div style={{ padding: '16px 18px', ...colDivider }}>
+              {/* עמודה 2 — עלות התקנת מטען */}
+              <div style={{ padding: '16px 20px', background: 'rgba(255,198,88,.04)', ...colDivider }}>
                 <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 12 }}>
-                  <span style={{ ...sLabel, marginBottom: 0 }}>CAPEX — עלויות התקנה</span>
+                  <span style={{ ...sLabel, marginBottom: 0 }}>עלות התקנת מטען</span>
                   <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--tact-orange,#e67e22)', whiteSpace: 'nowrap' }}>
-                    סה"כ למטען: {ils(panelCpx)}
+                    סה"כ: {ils(panelCpx)}
                   </span>
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 20px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {CAPEX_FIELDS_GLOBAL.map(({ key, label, unit: u, step }) => (
                     <label key={key} style={fRow}>
-                      <span style={{ ...fDim, minWidth: 76 }}>{label}:</span>
+                      <span style={{ ...fDim, minWidth: 90 }}>{label}:</span>
                       {numInp(
                         globalCapex[key], step,
                         key === 'chargers_per_panel' ? 50 : 76,
@@ -832,13 +832,13 @@ export default function BuildingCashflow({ loading: appLoading }) {
                 </div>
               </div>
 
-              {/* עמודה 3 — OPEX */}
-              <div style={{ padding: '16px 18px' }}>
-                <span style={sLabel}>OPEX — עלויות תפעול</span>
+              {/* עמודה 3 — עלויות התאמה למטענים קיימים */}
+              <div style={{ padding: '16px 20px', background: 'rgba(130,202,157,.04)' }}>
+                <span style={sLabel}>עלויות התאמה למטענים קיימים</span>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   {GLOBAL_OPEX_FIELDS.map((f) => (
                     <label key={f.key} style={fRow}>
-                      <span style={{ ...fDim, minWidth: 96 }}>{f.label}:</span>
+                      <span style={{ ...fDim, minWidth: 110 }}>{f.label}:</span>
                       {numInp(
                         globalRates[f.key] ?? 0, f.step, 72,
                         (e) => applyGlobalRateField(f.key, e.target.value),
@@ -859,7 +859,27 @@ export default function BuildingCashflow({ loading: appLoading }) {
       ) : (
         <div className="building-master-detail">
 
-          {/* ─── תוכן שמאל ─── */}
+          {/* ─── רשימת בניינים — שמאל ─── */}
+          <div className="building-list-panel">
+            <div
+              className={`building-row ${selectedId == null ? 'selected' : ''}`}
+              onClick={() => setSelectedId(null)}
+            >
+              <div className="building-row-name">כל הבניינים</div>
+              <div className="building-row-meta">{buildings.length} בניינים</div>
+            </div>
+            {buildings.map((bm) => (
+              <BuildingRow
+                key={bm.id}
+                bm={bm}
+                selected={selectedId === bm.id}
+                onSelect={setSelectedId}
+                onDelete={handleDelete}
+              />
+            ))}
+          </div>
+
+          {/* ─── תוכן ימין ─── */}
           <div className="building-content-area">
 
             {/* תצוגה כוללת */}
@@ -949,25 +969,6 @@ export default function BuildingCashflow({ loading: appLoading }) {
             )}
           </div>
 
-          {/* ─── רשימת בניינים — ימין ─── */}
-          <div className="building-list-panel">
-            <div
-              className={`building-row ${selectedId == null ? 'selected' : ''}`}
-              onClick={() => setSelectedId(null)}
-            >
-              <div className="building-row-name">כל הבניינים</div>
-              <div className="building-row-meta">{buildings.length} בניינים</div>
-            </div>
-            {buildings.map((bm) => (
-              <BuildingRow
-                key={bm.id}
-                bm={bm}
-                selected={selectedId === bm.id}
-                onSelect={setSelectedId}
-                onDelete={handleDelete}
-              />
-            ))}
-          </div>
 
         </div>
       )}
@@ -1029,7 +1030,7 @@ export default function BuildingCashflow({ loading: appLoading }) {
           margin-bottom: 24px;
         }
         @media (max-width: 860px) { .building-layout { grid-template-columns: 1fr; } }
-        @media (max-width: 700px) { .building-master-detail { flex-direction: column-reverse; } .building-list-panel { width: 100%; position: static; } }
+        @media (max-width: 700px) { .building-master-detail { flex-direction: column; } .building-list-panel { width: 100%; position: static; } }
 
         .settings-section-title {
           font-size: 12px;
