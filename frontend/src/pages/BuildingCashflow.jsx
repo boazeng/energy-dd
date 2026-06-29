@@ -93,7 +93,7 @@ function ForecastTable({ years }) {
             <th>סה"כ מטענים</th>
             <th>הכנסה שנתית</th>
             <th>השקעה</th>
-            <th>תפעול</th>
+            <th>עלות התאמה</th>
             <th>רווח שנתי</th>
             <th>רווח מצטבר</th>
           </tr>
@@ -133,7 +133,7 @@ function ForecastChart({ years }) {
     name: String(y.year),
     הכנסה: y.annual_income,
     השקעה: y.capex,
-    תפעול: y.annual_opex,
+    עלות התאמה: y.annual_opex,
     רווח: y.profit,
   }))
   return (
@@ -146,7 +146,7 @@ function ForecastChart({ years }) {
         <Legend />
         <Bar dataKey="הכנסה"  fill="#82ca9d" radius={[3,3,0,0]} />
         <Bar dataKey="השקעה" fill="#ff7c7c" radius={[3,3,0,0]} />
-        <Bar dataKey="תפעול"  fill="#ffc658" radius={[3,3,0,0]} />
+        <Bar dataKey="עלות התאמה"  fill="#ffc658" radius={[3,3,0,0]} />
         <Bar dataKey="רווח"   fill="#6c8ebf" radius={[3,3,0,0]} />
       </BarChart>
     </ResponsiveContainer>
@@ -432,7 +432,7 @@ function CombinedTable({ combined, buildings }) {
           <th style={{ textAlign: 'right' }}>בניין</th>
           <th style={tdL}>סה"כ הכנסות</th>
           <th style={tdL}>השקעה</th>
-          <th style={tdL}>תפעול</th>
+          <th style={tdL}>עלות התאמה</th>
           <th style={{ ...tdL, background: 'rgba(130,202,157,.12)' }}>רווח נקי</th>
         </tr>
       </thead>
@@ -835,7 +835,7 @@ export default function BuildingCashflow({ loading: appLoading }) {
                     <div className="tact-kpi-value" style={{ color: 'var(--tact-red,#e74c3c)' }}>{ils(totalCapex5yr)}</div>
                   </div>
                   <div className="tact-kpi">
-                    <div className="tact-kpi-label">סה"כ תפעול</div>
+                    <div className="tact-kpi-label">סה"כ עלות התאמה</div>
                     <div className="tact-kpi-value" style={{ color: 'var(--tact-orange,#e67e22)' }}>{ils(totalOpex5yr)}</div>
                   </div>
                   <div className="tact-kpi">
@@ -860,29 +860,6 @@ export default function BuildingCashflow({ loading: appLoading }) {
             {selected && (
               <div className="building-detail">
                 <h3 style={{ marginTop: 0 }}>{selected.building_name}</h3>
-
-                {forecast && (
-                  <div className="kpi-row" style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginBottom: 20 }}>
-                    <div className="tact-kpi">
-                      <div className="tact-kpi-label">סה"כ הכנסות ({selected.forecast_years} שנים)</div>
-                      <div className="tact-kpi-value" style={{ color: 'var(--tact-green)' }}>{ils(forecast.total_income)}</div>
-                    </div>
-                    <div className="tact-kpi">
-                      <div className="tact-kpi-label">סה"כ השקעה</div>
-                      <div className="tact-kpi-value" style={{ color: 'var(--tact-red,#e74c3c)' }}>{ils(forecast.total_capex)}</div>
-                    </div>
-                    <div className="tact-kpi">
-                      <div className="tact-kpi-label">סה"כ תפעול</div>
-                      <div className="tact-kpi-value" style={{ color: 'var(--tact-orange,#e67e22)' }}>{ils(forecast.total_opex)}</div>
-                    </div>
-                    <div className="tact-kpi">
-                      <div className="tact-kpi-label">סה"כ רווח</div>
-                      <div className="tact-kpi-value" style={{ color: forecast.total_profit >= 0 ? 'var(--tact-green)' : 'var(--tact-red,#e74c3c)' }}>
-                        {ils(forecast.total_profit)}
-                      </div>
-                    </div>
-                  </div>
-                )}
 
                 <div className="building-layout">
                   <div className="building-settings-panel">
