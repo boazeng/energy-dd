@@ -393,6 +393,7 @@ function CumulativeChart({ combined }) {
 
 function CombinedTable({ combined, buildings }) {
   if (!combined?.length) return null
+  const years = combined.map((r) => r.year)
 
   function buildingSummary(name) {
     return combined.reduce(
@@ -400,13 +401,10 @@ function CombinedTable({ combined, buildings }) {
         const b = r.buildings[name]
         if (!b) return acc
         return {
-          income: acc.income + (b.annual_income || 0),
-          capex:  acc.capex  + (b.capex        || 0),
-          opex:   acc.opex   + (b.annual_opex  || 0),
-          profit: acc.profit + (b.profit        || 0),
+          profit: acc.profit + (b.profit || 0),
         }
       },
-      { income: 0, capex: 0, opex: 0, profit: 0 },
+      { profit: 0 },
     )
   }
 
@@ -415,78 +413,102 @@ function CombinedTable({ combined, buildings }) {
     (a, b) => summaries[b.building_name].profit - summaries[a.building_name].profit
   )
 
-  const totalIncome  = combined.reduce((s, r) => s + r.total_income,  0)
-  const totalCapex   = combined.reduce((s, r) => s + r.total_capex,   0)
-  const totalOpex    = combined.reduce((s, r) => s + r.total_opex,    0)
-  const totalProfit  = combined.reduce((s, r) => s + r.total_profit,  0)
-  const totalLoan    = combined.reduce((s, r) => s + r.loan_repayment, 0)
-  const profitBefore = totalProfit + totalLoan
+  const totalProfit = combined.reduce((s, r) => s + r.total_profit, 0)
+  const totalLoan   = combined.reduce((s, r) => s + r.loan_repayment, 0)
 
+  const thYear  = { textAlign: 'center', borderBottom: '1px solid rgba(255,255,255,.1)', fontSize: 13, fontWeight: 700 }
+  const thSub   = { textAlign: 'left', fontSize: 11, fontWeight: 400, color: 'var(--tact-text-dim,#aaa)', paddingTop: 2 }
   const footerTd = { fontSize: 13, fontWeight: 700 }
-  const tdL = { textAlign: 'left' }
 
   return (
-    <table className="tact-table" style={{ width: '100%' }}>
-      <thead>
-        <tr>
-          <th style={{ textAlign: 'right' }}>בניין</th>
-          <th style={tdL}>סה"כ הכנסות</th>
-          <th style={tdL}>עלות התקנת מטענים</th>
-          <th style={tdL}>עלות התאמה</th>
-          <th style={{ ...tdL, background: 'rgba(130,202,157,.12)' }}>רווח נקי</th>
-        </tr>
-      </thead>
-      <tbody>
-        {sortedBuildings.map((b) => {
-          const s = summaries[b.building_name]
-          return (
-            <tr key={b.id}>
-              <td style={{ fontWeight: 500, textAlign: 'right' }}>{b.building_name}</td>
-              <td style={{ ...tdL, color: 'var(--tact-green)', fontWeight: 600 }}>{ils(s.income)}</td>
-              <td style={{ ...tdL, color: s.capex > 0 ? 'var(--tact-red,#e74c3c)' : 'inherit' }}>
-                {s.capex > 0 ? ils(-s.capex) : '—'}
-              </td>
-              <td style={{ ...tdL, color: s.opex > 0 ? 'var(--tact-orange,#e67e22)' : 'inherit' }}>
-                {s.opex > 0 ? ils(-s.opex) : '—'}
-              </td>
-              <td style={{ ...tdL, fontWeight: 700, background: 'rgba(130,202,157,.08)',
-                color: s.profit >= 0 ? 'var(--tact-green)' : 'var(--tact-red,#e74c3c)' }}>
-                {ils(s.profit)}
-              </td>
-            </tr>
-          )
-        })}
-      </tbody>
-      <tfoot>
-        <tr style={{ borderTop: '2px solid rgba(255,255,255,.2)', background: 'rgba(108,142,191,.08)' }}>
-          <td style={{ textAlign: 'right', ...footerTd }}>סה"כ לפני הלוואה</td>
-          <td style={{ ...tdL, color: 'var(--tact-green)', ...footerTd }}>{ils(totalIncome)}</td>
-          <td style={{ ...tdL, color: 'var(--tact-red,#e74c3c)', ...footerTd }}>{ils(-totalCapex)}</td>
-          <td style={{ ...tdL, color: 'var(--tact-orange,#e67e22)', ...footerTd }}>{ils(-totalOpex)}</td>
-          <td style={{ ...tdL, background: 'rgba(130,202,157,.15)', ...footerTd,
-            color: profitBefore >= 0 ? 'var(--tact-green)' : 'var(--tact-red,#e74c3c)' }}>
-            {ils(profitBefore)}
-          </td>
-        </tr>
-        {totalLoan > 0 && (
-          <tr style={{ background: 'rgba(231,76,60,.06)' }}>
-            <td style={{ textAlign: 'right', ...footerTd }}>החזר הלוואה</td>
-            <td colSpan={3} />
-            <td style={{ ...tdL, background: 'rgba(231,76,60,.1)', ...footerTd, color: 'var(--tact-red,#e74c3c)' }}>
-              {ils(-totalLoan)}
+    <div style={{ overflowX: 'auto' }}>
+      <table className="tact-table combined-pivot-table">
+        <thead>
+          <tr>
+            <th rowSpan={2} style={{ textAlign: 'right', verticalAlign: 'middle' }}>בניין</th>
+            {years.map((y) => (
+              <th key={y} colSpan={2} style={thYear}>{y}</th>
+            ))}
+            <th rowSpan={2} style={{ textAlign: 'left', verticalAlign: 'middle', background: 'rgba(130,202,157,.12)', minWidth: 100 }}>
+              רווח נקי
+            </th>
+          </tr>
+          <tr>
+            {years.flatMap((y) => [
+              <th key={`${y}-inc`} style={{ ...thSub, minWidth: 80 }}>הכנסה</th>,
+              <th key={`${y}-exp`} style={{ ...thSub, minWidth: 80 }}>הוצאה</th>,
+            ])}
+          </tr>
+        </thead>
+        <tbody>
+          {sortedBuildings.map((b) => {
+            const s = summaries[b.building_name]
+            return (
+              <tr key={b.id}>
+                <td style={{ fontWeight: 500, textAlign: 'right' }}>{b.building_name}</td>
+                {combined.flatMap((row) => {
+                  const bd  = row.buildings[b.building_name]
+                  const inc = bd?.annual_income || 0
+                  const exp = (bd?.capex || 0) + (bd?.annual_opex || 0)
+                  return [
+                    <td key={`${row.year}-inc`} style={{ textAlign: 'left', fontSize: 12, color: inc > 0 ? 'var(--tact-green)' : 'var(--tact-text-dim,#888)' }}>
+                      {inc > 0 ? ils(inc) : '—'}
+                    </td>,
+                    <td key={`${row.year}-exp`} style={{ textAlign: 'left', fontSize: 12, color: exp > 0 ? 'var(--tact-red,#e74c3c)' : 'var(--tact-text-dim,#888)' }}>
+                      {exp > 0 ? ils(-exp) : '—'}
+                    </td>,
+                  ]
+                })}
+                <td style={{ textAlign: 'left', fontWeight: 700, background: 'rgba(130,202,157,.08)',
+                  color: s.profit >= 0 ? 'var(--tact-green)' : 'var(--tact-red,#e74c3c)' }}>
+                  {ils(s.profit)}
+                </td>
+              </tr>
+            )
+          })}
+        </tbody>
+        <tfoot>
+          <tr style={{ borderTop: '2px solid rgba(255,255,255,.2)', background: 'rgba(108,142,191,.08)' }}>
+            <td style={{ textAlign: 'right', ...footerTd }}>סה"כ</td>
+            {combined.flatMap((row) => [
+              <td key={`${row.year}-inc`} style={{ textAlign: 'left', color: 'var(--tact-green)', ...footerTd }}>
+                {ils(row.total_income)}
+              </td>,
+              <td key={`${row.year}-exp`} style={{ textAlign: 'left', color: 'var(--tact-red,#e74c3c)', ...footerTd }}>
+                {ils(-(row.total_capex + row.total_opex))}
+              </td>,
+            ])}
+            <td style={{ textAlign: 'left', background: 'rgba(130,202,157,.15)', ...footerTd,
+              color: (totalProfit + totalLoan) >= 0 ? 'var(--tact-green)' : 'var(--tact-red,#e74c3c)' }}>
+              {ils(totalProfit + totalLoan)}
             </td>
           </tr>
-        )}
-        <tr style={{ background: 'rgba(130,202,157,.10)' }}>
-          <td style={{ textAlign: 'right', ...footerTd }}>רווח נקי לאחר החזר הלוואה</td>
-          <td colSpan={3} />
-          <td style={{ ...tdL, background: 'rgba(130,202,157,.2)', fontWeight: 800, fontSize: 14,
-            color: totalProfit >= 0 ? 'var(--tact-green)' : 'var(--tact-red,#e74c3c)' }}>
-            {ils(totalProfit)}
-          </td>
-        </tr>
-      </tfoot>
-    </table>
+          {totalLoan > 0 && (
+            <tr style={{ background: 'rgba(231,76,60,.06)' }}>
+              <td style={{ textAlign: 'right', ...footerTd }}>החזר הלוואה</td>
+              {combined.flatMap((row) => [
+                <td key={`${row.year}-a`} />,
+                <td key={`${row.year}-b`} />,
+              ])}
+              <td style={{ textAlign: 'left', background: 'rgba(231,76,60,.1)', ...footerTd, color: 'var(--tact-red,#e74c3c)' }}>
+                {ils(-totalLoan)}
+              </td>
+            </tr>
+          )}
+          <tr style={{ background: 'rgba(130,202,157,.10)' }}>
+            <td style={{ textAlign: 'right', ...footerTd }}>רווח נקי לאחר החזר הלוואה</td>
+            {combined.flatMap((row) => [
+              <td key={`${row.year}-a`} />,
+              <td key={`${row.year}-b`} />,
+            ])}
+            <td style={{ textAlign: 'left', background: 'rgba(130,202,157,.2)', fontWeight: 800, fontSize: 14,
+              color: totalProfit >= 0 ? 'var(--tact-green)' : 'var(--tact-red,#e74c3c)' }}>
+              {ils(totalProfit)}
+            </td>
+          </tr>
+        </tfoot>
+      </table>
+    </div>
   )
 }
 
