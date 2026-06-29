@@ -292,27 +292,24 @@ function BuildingSettings({ bm, globals, onChange }) {
   )
 }
 
-// ─── כרטיסיית בניין ──────────────────────────────────────────────────────────
+// ─── שורת בניין ──────────────────────────────────────────────────────────────
 
-function BuildingCard({ bm, selected, onSelect, onDelete }) {
+function BuildingRow({ bm, selected, onSelect, onDelete }) {
   return (
     <div
-      className={`building-card ${selected ? 'selected' : ''}`}
+      className={`building-row ${selected ? 'selected' : ''}`}
       onClick={() => onSelect(bm.id)}
     >
-      <div className="building-card-name">{bm.building_name}</div>
-      <div className="building-card-meta">
+      <div className="building-row-name">{bm.building_name}</div>
+      <div className="building-row-meta">
         {bm.current_chargers} מטענים · {bm.potential_spots} פוטנציאל
       </div>
-      <div className="building-card-meta dim-text">
-        גידול: {bm.annual_growth_rate}% · {bm.forecast_years} שנים
-      </div>
       <button
-        className="building-card-delete"
+        className="building-row-delete"
         title="מחק בניין"
         onClick={(e) => { e.stopPropagation(); onDelete(bm.id) }}
       >
-        <TactIcon name="trash" size={14} />
+        <TactIcon name="trash" size={12} />
       </button>
     </div>
   )
@@ -547,30 +544,6 @@ function CombinedTable({ combined, buildings }) {
             </td>
           </tr>
 
-          {/* תזרים מצטבר */}
-          {(() => {
-            let cum = 0
-            return (
-              <tr style={{ borderTop: '1px solid rgba(255,255,255,.12)', background: 'rgba(108,142,191,.06)' }}>
-                <td style={{ textAlign: 'right', fontSize: 12, color: 'var(--tact-text-dim,#aaa)', fontWeight: 600 }}>תזרים מצטבר</td>
-                {combined.map((row) => {
-                  cum += row.total_profit
-                  const c = cum
-                  return (
-                    <td key={row.year} style={{ textAlign: 'left', fontSize: 12, fontWeight: 600,
-                      color: c >= 0 ? 'var(--tact-green)' : 'var(--tact-red,#e74c3c)' }}>
-                      {ils(c)}
-                    </td>
-                  )
-                })}
-                <td colSpan={3} style={sep} />
-                <td style={{ textAlign: 'left', fontSize: 12, fontWeight: 600, ...sep,
-                  color: cum >= 0 ? 'var(--tact-green)' : 'var(--tact-red,#e74c3c)' }}>
-                  {ils(cum)}
-                </td>
-              </tr>
-            )
-          })()}
         </tfoot>
       </table>
     </div>
@@ -739,33 +712,6 @@ export default function BuildingCashflow({ loading: appLoading }) {
       {/* ─── כותרת ─── */}
       <div className="page-header" style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
         <h2 style={{ margin: 0 }}>תזרים פר-בניין</h2>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,.06)', borderRadius: 8, padding: '6px 14px', border: '1px solid rgba(255,255,255,.12)' }}>
-          <label style={{ fontSize: 13, color: 'var(--tact-text-dim,#aaa)', whiteSpace: 'nowrap' }}>גידול שנתי לכל הבניינים:</label>
-          <input
-            type="number"
-            className="tact-input"
-            style={{ width: 70, textAlign: 'center', fontWeight: 600 }}
-            value={globalGrowth}
-            step={1}
-            min={0}
-            max={100}
-            onChange={(e) => applyGlobalGrowth(parseFloat(e.target.value) || 0)}
-          />
-          <span style={{ fontSize: 13 }}>%</span>
-        </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,.06)', borderRadius: 8, padding: '6px 14px', border: '1px solid rgba(255,255,255,.12)' }}>
-          <label style={{ fontSize: 13, color: 'var(--tact-text-dim,#aaa)', whiteSpace: 'nowrap' }}>צריכה ממוצעת למטען:</label>
-          <input
-            type="number"
-            className="tact-input"
-            style={{ width: 80, textAlign: 'center', fontWeight: 600 }}
-            value={globalAvgKwh}
-            step={1}
-            min={0}
-            onChange={(e) => applyGlobalAvgKwh(parseFloat(e.target.value) || 0)}
-          />
-          <span style={{ fontSize: 13 }}>kWh/חודש</span>
-        </div>
         <button
           className="tact-btn tact-btn-secondary"
           style={{ fontSize: 13 }}
@@ -791,84 +737,118 @@ export default function BuildingCashflow({ loading: appLoading }) {
         )}
       </div>
 
-      {/* ─── פאנל הכנסות/OPEX/תחזית גלובלי ─── */}
-      {!loading && !appLoading && (() => {
-        const panelStyle = {
-          background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.12)',
-          borderRadius: 10, padding: '12px 18px', marginBottom: 12,
-        }
-        const labelStyle = { fontSize: 13, display: 'flex', alignItems: 'center', gap: 5 }
-        const dimStyle = { color: 'var(--tact-text-dim,#aaa)', whiteSpace: 'nowrap' }
-        const sectionLabel = { fontSize: 11, fontWeight: 700, color: 'var(--tact-text-dim,#aaa)', textTransform: 'uppercase', letterSpacing: '.05em', whiteSpace: 'nowrap' }
-
-        function rateInput(f) {
-          return (
-            <label key={f.key} style={labelStyle}>
-              <span style={dimStyle}>{f.label}:</span>
-              <input
-                type="number"
-                className="tact-input"
-                style={{ width: 72, textAlign: 'center', fontWeight: 600, padding: '4px 6px', fontSize: 13 }}
-                value={globalRates[f.key] ?? 0}
-                step={f.step}
-                min={0}
-                onChange={(e) => applyGlobalRateField(f.key, e.target.value)}
-              />
-              {f.unit && <span style={{ fontSize: 12, color: 'var(--tact-text-dim,#888)' }}>{f.unit}</span>}
-            </label>
-          )
-        }
-
-        return (
-          <div style={panelStyle}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
-              <span style={sectionLabel}>OPEX (שנה ראשונה — לכל הבניינים):</span>
-              {GLOBAL_OPEX_FIELDS.map(rateInput)}
-            </div>
-          </div>
-        )
-      })()}
-
-      {/* ─── פאנל CAPEX גלובלי ─── */}
+      {/* ─── פאנל הגדרות גלובלי ─── */}
       {!loading && !appLoading && (() => {
         const panelCpx = globalCapex.cost_charger_unit + globalCapex.cost_infra_per_charger +
           globalCapex.cost_install_per_charger +
           (globalCapex.cost_elec_panel + globalCapex.cost_comm_panel) / Math.max(1, globalCapex.chargers_per_panel)
+
         const CAPEX_FIELDS_GLOBAL = [
-          { key: 'cost_charger_unit',        label: 'עלות מטען',       unit: '₪', step: 100 },
-          { key: 'cost_infra_per_charger',   label: 'תשתית',           unit: '₪', step: 100 },
-          { key: 'cost_install_per_charger', label: 'התקנה',           unit: '₪', step: 100 },
-          { key: 'cost_elec_panel',          label: 'ארון חשמל',       unit: '₪', step: 100 },
-          { key: 'cost_comm_panel',          label: 'ארון תקשורת',     unit: '₪', step: 100 },
-          { key: 'chargers_per_panel',       label: 'מטענים לארון',    unit: '',  step: 1   },
+          { key: 'cost_charger_unit',        label: 'עלות מטען',    unit: '₪', step: 100 },
+          { key: 'cost_infra_per_charger',   label: 'תשתית',        unit: '₪', step: 100 },
+          { key: 'cost_install_per_charger', label: 'התקנה',        unit: '₪', step: 100 },
+          { key: 'cost_elec_panel',          label: 'ארון חשמל',    unit: '₪', step: 100 },
+          { key: 'cost_comm_panel',          label: 'ארון תקשורת',  unit: '₪', step: 100 },
+          { key: 'chargers_per_panel',       label: 'מטענים לארון', unit: '',  step: 1   },
         ]
+
+        const sLabel = {
+          fontSize: 10, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase',
+          color: 'var(--tact-text-dim,#888)', marginBottom: 12, display: 'block',
+        }
+        const fRow = { display: 'flex', alignItems: 'center', gap: 6, fontSize: 13 }
+        const fDim = { color: 'var(--tact-text-dim,#aaa)', whiteSpace: 'nowrap' }
+        const numInp = (val, step, width, onChange) => (
+          <input
+            type="number"
+            className="tact-input"
+            style={{ width, textAlign: 'center', fontWeight: 600, padding: '3px 6px', fontSize: 13 }}
+            value={val}
+            step={step}
+            min={0}
+            onChange={onChange}
+          />
+        )
+        const unit = (u) => u && <span style={{ fontSize: 12, color: 'var(--tact-text-dim,#888)' }}>{u}</span>
+        const colDivider = { borderInlineEnd: '1px solid rgba(255,255,255,.08)' }
+
         return (
           <div style={{
-            background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.12)',
-            borderRadius: 10, padding: '12px 18px', marginBottom: 20,
+            background: 'rgba(255,255,255,.04)',
+            border: '1px solid rgba(255,255,255,.12)',
+            borderRadius: 12, marginBottom: 20, overflow: 'hidden',
           }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>
-              <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--tact-text-dim,#aaa)', whiteSpace: 'nowrap', textTransform: 'uppercase', letterSpacing: '.05em' }}>
-                עלויות התקנת מטען — גלובלי לכל הבניינים
-              </span>
-              {CAPEX_FIELDS_GLOBAL.map(({ key, label, unit, step }) => (
-                <label key={key} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 13 }}>
-                  <span style={{ color: 'var(--tact-text-dim,#aaa)', whiteSpace: 'nowrap' }}>{label}:</span>
-                  <input
-                    type="number"
-                    className="tact-input"
-                    style={{ width: key === 'chargers_per_panel' ? 52 : 80, textAlign: 'center', fontWeight: 600, padding: '4px 6px', fontSize: 13 }}
-                    value={globalCapex[key]}
-                    step={step}
-                    min={0}
-                    onChange={(e) => applyGlobalCapexField(key, e.target.value)}
-                  />
-                  {unit && <span style={{ fontSize: 12, color: 'var(--tact-text-dim,#888)' }}>{unit}</span>}
-                </label>
-              ))}
-              <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--tact-orange,#e67e22)', whiteSpace: 'nowrap', marginInlineStart: 'auto' }}>
-                סה"כ למטען: {ils(panelCpx)}
-              </span>
+            {/* כותרת הפאנל */}
+            <div style={{
+              padding: '7px 18px',
+              borderBottom: '1px solid rgba(255,255,255,.08)',
+              background: 'rgba(255,255,255,.03)',
+              fontSize: 10, fontWeight: 700, letterSpacing: '.08em', textTransform: 'uppercase',
+              color: 'var(--tact-text-dim,#777)',
+            }}>
+              הגדרות גלובליות — חלות על כל הבניינים
+            </div>
+
+            {/* שלושה עמודות */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'minmax(180px,1fr) minmax(380px,2.2fr) minmax(220px,1fr)' }}>
+
+              {/* עמודה 1 — כללי */}
+              <div style={{ padding: '16px 18px', ...colDivider }}>
+                <span style={sLabel}>כללי</span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <label style={fRow}>
+                    <span style={{ ...fDim, minWidth: 90 }}>גידול שנתי:</span>
+                    {numInp(globalGrowth, 1, 62, (e) => applyGlobalGrowth(parseFloat(e.target.value) || 0))}
+                    {unit('%')}
+                  </label>
+                  <label style={fRow}>
+                    <span style={{ ...fDim, minWidth: 90 }}>צריכה ממוצעת:</span>
+                    {numInp(globalAvgKwh, 1, 72, (e) => applyGlobalAvgKwh(parseFloat(e.target.value) || 0))}
+                    {unit('kWh/חודש')}
+                  </label>
+                </div>
+              </div>
+
+              {/* עמודה 2 — CAPEX */}
+              <div style={{ padding: '16px 18px', ...colDivider }}>
+                <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', marginBottom: 12 }}>
+                  <span style={{ ...sLabel, marginBottom: 0 }}>CAPEX — עלויות התקנה</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--tact-orange,#e67e22)', whiteSpace: 'nowrap' }}>
+                    סה"כ למטען: {ils(panelCpx)}
+                  </span>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 20px' }}>
+                  {CAPEX_FIELDS_GLOBAL.map(({ key, label, unit: u, step }) => (
+                    <label key={key} style={fRow}>
+                      <span style={{ ...fDim, minWidth: 76 }}>{label}:</span>
+                      {numInp(
+                        globalCapex[key], step,
+                        key === 'chargers_per_panel' ? 50 : 76,
+                        (e) => applyGlobalCapexField(key, e.target.value),
+                      )}
+                      {unit(u)}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* עמודה 3 — OPEX */}
+              <div style={{ padding: '16px 18px' }}>
+                <span style={sLabel}>OPEX — עלויות תפעול</span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {GLOBAL_OPEX_FIELDS.map((f) => (
+                    <label key={f.key} style={fRow}>
+                      <span style={{ ...fDim, minWidth: 96 }}>{f.label}:</span>
+                      {numInp(
+                        globalRates[f.key] ?? 0, f.step, 72,
+                        (e) => applyGlobalRateField(f.key, e.target.value),
+                      )}
+                      {unit(f.unit)}
+                    </label>
+                  ))}
+                </div>
+              </div>
+
             </div>
           </div>
         )
@@ -877,18 +857,109 @@ export default function BuildingCashflow({ loading: appLoading }) {
       {loading || appLoading ? (
         <div className="dim-text" style={{ padding: '2rem' }}>טוען...</div>
       ) : (
-        <>
-          {/* ─── רשימת בניינים ─── */}
-          <div className="building-cards-row">
+        <div className="building-master-detail">
+
+          {/* ─── תוכן שמאל ─── */}
+          <div className="building-content-area">
+
+            {/* תצוגה כוללת */}
+            {selectedId == null && (
+              <div className="building-detail">
+                <div className="kpi-row" style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginBottom: 24 }}>
+                  <div className="tact-kpi">
+                    <div className="tact-kpi-label">סה"כ הכנסות (תחזית)</div>
+                    <div className="tact-kpi-value" style={{ color: 'var(--tact-green)' }}>{ils(totalIncome5yr)}</div>
+                  </div>
+                  <div className="tact-kpi">
+                    <div className="tact-kpi-label">סה"כ CAPEX</div>
+                    <div className="tact-kpi-value" style={{ color: 'var(--tact-red,#e74c3c)' }}>{ils(totalCapex5yr)}</div>
+                  </div>
+                  <div className="tact-kpi">
+                    <div className="tact-kpi-label">סה"כ OPEX</div>
+                    <div className="tact-kpi-value" style={{ color: 'var(--tact-orange,#e67e22)' }}>{ils(totalOpex5yr)}</div>
+                  </div>
+                  <div className="tact-kpi">
+                    <div className="tact-kpi-label">סה"כ רווח (תחזית)</div>
+                    <div className="tact-kpi-value" style={{ color: totalProfit5yr >= 0 ? 'var(--tact-green)' : 'var(--tact-red,#e74c3c)' }}>
+                      {ils(totalProfit5yr)}
+                    </div>
+                  </div>
+                </div>
+
+                {buildings.length === 0 ? (
+                  <div className="empty-state">
+                    <p>אין בניינים עדיין. לחץ "הוסף בניין" כדי להתחיל.</p>
+                  </div>
+                ) : (
+                  <>
+                    <h3>הכנסות לפי בניין ושנה</h3>
+                    <CombinedChart combined={combined} buildings={buildings} />
+                    <h3 style={{ marginTop: 24 }}>רווח שנתי ומצטבר</h3>
+                    <CumulativeChart combined={combined} />
+                    <h3 style={{ marginTop: 24 }}>טבלת תחזית כוללת</h3>
+                    <CombinedTable combined={combined} buildings={buildings} />
+                  </>
+                )}
+              </div>
+            )}
+
+            {/* תצוגת בניין בודד */}
+            {selected && (
+              <div className="building-detail">
+                <h3 style={{ marginTop: 0 }}>{selected.building_name}</h3>
+
+                {forecast && (
+                  <div className="kpi-row" style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginBottom: 20 }}>
+                    <div className="tact-kpi">
+                      <div className="tact-kpi-label">סה"כ הכנסות ({selected.forecast_years} שנים)</div>
+                      <div className="tact-kpi-value" style={{ color: 'var(--tact-green)' }}>{ils(forecast.total_income)}</div>
+                    </div>
+                    <div className="tact-kpi">
+                      <div className="tact-kpi-label">סה"כ CAPEX</div>
+                      <div className="tact-kpi-value" style={{ color: 'var(--tact-red,#e74c3c)' }}>{ils(forecast.total_capex)}</div>
+                    </div>
+                    <div className="tact-kpi">
+                      <div className="tact-kpi-label">סה"כ OPEX</div>
+                      <div className="tact-kpi-value" style={{ color: 'var(--tact-orange,#e67e22)' }}>{ils(forecast.total_opex)}</div>
+                    </div>
+                    <div className="tact-kpi">
+                      <div className="tact-kpi-label">סה"כ רווח</div>
+                      <div className="tact-kpi-value" style={{ color: forecast.total_profit >= 0 ? 'var(--tact-green)' : 'var(--tact-red,#e74c3c)' }}>
+                        {ils(forecast.total_profit)}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div style={{ marginBottom: 20 }}>
+                  <h4 style={{ marginTop: 0, marginBottom: 12 }}>תחזית גרפית</h4>
+                  {forecast ? <ForecastChart years={forecast.years} /> : <div className="dim-text">טוען...</div>}
+                </div>
+
+                <div className="building-layout">
+                  <div className="building-settings-panel">
+                    <BuildingSettings bm={selected} globals={globalRates} onChange={handleRefresh} />
+                  </div>
+                  <div className="building-chart-panel">
+                    <h4 style={{ marginTop: 0 }}>פירוט שנתי</h4>
+                    {forecast ? <ForecastTable years={forecast.years} /> : <div className="dim-text">טוען...</div>}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* ─── רשימת בניינים — ימין ─── */}
+          <div className="building-list-panel">
             <div
-              className={`building-card ${selectedId == null ? 'selected' : ''}`}
+              className={`building-row ${selectedId == null ? 'selected' : ''}`}
               onClick={() => setSelectedId(null)}
             >
-              <div className="building-card-name">כל הבניינים</div>
-              <div className="building-card-meta">{buildings.length} בניינים</div>
+              <div className="building-row-name">כל הבניינים</div>
+              <div className="building-row-meta">{buildings.length} בניינים</div>
             </div>
             {buildings.map((bm) => (
-              <BuildingCard
+              <BuildingRow
                 key={bm.id}
                 bm={bm}
                 selected={selectedId === bm.id}
@@ -898,90 +969,7 @@ export default function BuildingCashflow({ loading: appLoading }) {
             ))}
           </div>
 
-          {/* ─── תצוגה כוללת ─── */}
-          {selectedId == null && (
-            <div className="building-detail">
-              <div className="kpi-row" style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginBottom: 24 }}>
-                <div className="tact-kpi">
-                  <div className="tact-kpi-label">סה"כ הכנסות (תחזית)</div>
-                  <div className="tact-kpi-value" style={{ color: 'var(--tact-green)' }}>{ils(totalIncome5yr)}</div>
-                </div>
-                <div className="tact-kpi">
-                  <div className="tact-kpi-label">סה"כ CAPEX</div>
-                  <div className="tact-kpi-value" style={{ color: 'var(--tact-red,#e74c3c)' }}>{ils(totalCapex5yr)}</div>
-                </div>
-                <div className="tact-kpi">
-                  <div className="tact-kpi-label">סה"כ OPEX</div>
-                  <div className="tact-kpi-value" style={{ color: 'var(--tact-orange,#e67e22)' }}>{ils(totalOpex5yr)}</div>
-                </div>
-                <div className="tact-kpi">
-                  <div className="tact-kpi-label">סה"כ רווח (תחזית)</div>
-                  <div className="tact-kpi-value" style={{ color: totalProfit5yr >= 0 ? 'var(--tact-green)' : 'var(--tact-red,#e74c3c)' }}>
-                    {ils(totalProfit5yr)}
-                  </div>
-                </div>
-              </div>
-
-              {buildings.length === 0 ? (
-                <div className="empty-state">
-                  <p>אין בניינים עדיין. לחץ "הוסף בניין" כדי להתחיל.</p>
-                </div>
-              ) : (
-                <>
-                  <h3>הכנסות לפי בניין ושנה</h3>
-                  <CombinedChart combined={combined} buildings={buildings} />
-                  <h3 style={{ marginTop: 24 }}>רווח שנתי ומצטבר</h3>
-                  <CumulativeChart combined={combined} />
-                  <h3 style={{ marginTop: 24 }}>טבלת תחזית כוללת</h3>
-                  <CombinedTable combined={combined} buildings={buildings} />
-                </>
-              )}
-            </div>
-          )}
-
-          {/* ─── תצוגת בניין בודד ─── */}
-          {selected && (
-            <div className="building-detail">
-              <h3 style={{ marginTop: 0 }}>{selected.building_name}</h3>
-
-              {forecast && (
-                <div className="kpi-row" style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginBottom: 20 }}>
-                  <div className="tact-kpi">
-                    <div className="tact-kpi-label">סה"כ הכנסות ({selected.forecast_years} שנים)</div>
-                    <div className="tact-kpi-value" style={{ color: 'var(--tact-green)' }}>{ils(forecast.total_income)}</div>
-                  </div>
-                  <div className="tact-kpi">
-                    <div className="tact-kpi-label">סה"כ CAPEX</div>
-                    <div className="tact-kpi-value" style={{ color: 'var(--tact-red,#e74c3c)' }}>{ils(forecast.total_capex)}</div>
-                  </div>
-                  <div className="tact-kpi">
-                    <div className="tact-kpi-label">סה"כ OPEX</div>
-                    <div className="tact-kpi-value" style={{ color: 'var(--tact-orange,#e67e22)' }}>{ils(forecast.total_opex)}</div>
-                  </div>
-                  <div className="tact-kpi">
-                    <div className="tact-kpi-label">סה"כ רווח</div>
-                    <div className="tact-kpi-value" style={{ color: forecast.total_profit >= 0 ? 'var(--tact-green)' : 'var(--tact-red,#e74c3c)' }}>
-                      {ils(forecast.total_profit)}
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <div className="building-layout">
-                <div className="building-settings-panel">
-                  <BuildingSettings bm={selected} globals={globalRates} onChange={handleRefresh} />
-                </div>
-                <div className="building-chart-panel">
-                  <h4 style={{ marginTop: 0 }}>תחזית גרפית</h4>
-                  {forecast ? <ForecastChart years={forecast.years} /> : <div className="dim-text">טוען...</div>}
-                </div>
-              </div>
-
-              <h4>פירוט שנתי</h4>
-              {forecast ? <ForecastTable years={forecast.years} /> : <div className="dim-text">טוען...</div>}
-            </div>
-          )}
-        </>
+        </div>
       )}
 
       <style>{`
