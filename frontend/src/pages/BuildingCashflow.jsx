@@ -131,10 +131,10 @@ function ForecastChart({ years }) {
   if (!years?.length) return null
   const data = years.map((y) => ({
     name: String(y.year),
-    הכנסה: y.annual_income,
-    עלות התקנת מטענים: y.capex,
-    עלות התאמה: y.annual_opex,
-    רווח: y.profit,
+    'הכנסה': y.annual_income,
+    'עלות התקנת מטענים': y.capex,
+    'עלות התאמה': y.annual_opex,
+    'רווח': y.profit,
   }))
   return (
     <ResponsiveContainer width="100%" height={260}>
