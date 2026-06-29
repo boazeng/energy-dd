@@ -494,7 +494,9 @@ export default function BuildingCashflow({ loading: appLoading }) {
   const [newName, setNewName] = useState('')
   const [adding, setAdding] = useState(false)
   const [globalGrowth, setGlobalGrowth] = useState(10)
+  const [globalAvgKwh, setGlobalAvgKwh] = useState(100)
   const growthTimer = useRef(null)
+  const kwhTimer = useRef(null)
 
   async function applyGlobalGrowth(rate) {
     setGlobalGrowth(rate)
@@ -502,6 +504,17 @@ export default function BuildingCashflow({ loading: appLoading }) {
     growthTimer.current = setTimeout(async () => {
       await Promise.all(
         buildings.map((b) => api.updateBuildingModel(b.id, { annual_growth_rate: rate }))
+      )
+      await load()
+    }, 600)
+  }
+
+  async function applyGlobalAvgKwh(kwh) {
+    setGlobalAvgKwh(kwh)
+    clearTimeout(kwhTimer.current)
+    kwhTimer.current = setTimeout(async () => {
+      await Promise.all(
+        buildings.map((b) => api.updateBuildingModel(b.id, { avg_kwh_per_charger_monthly: kwh }))
       )
       await load()
     }, 600)
@@ -516,7 +529,10 @@ export default function BuildingCashflow({ loading: appLoading }) {
       ])
       setBuildings(bms)
       setCombined(comb)
-      if (bms.length > 0) setGlobalGrowth(bms[0].annual_growth_rate ?? 10)
+      if (bms.length > 0) {
+        setGlobalGrowth(bms[0].annual_growth_rate ?? 10)
+        setGlobalAvgKwh(bms[0].avg_kwh_per_charger_monthly ?? 100)
+      }
     } finally {
       setLoading(false)
     }
@@ -584,6 +600,19 @@ export default function BuildingCashflow({ loading: appLoading }) {
             onChange={(e) => applyGlobalGrowth(parseFloat(e.target.value) || 0)}
           />
           <span style={{ fontSize: 13 }}>%</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,.06)', borderRadius: 8, padding: '6px 14px', border: '1px solid rgba(255,255,255,.12)' }}>
+          <label style={{ fontSize: 13, color: 'var(--tact-text-dim,#aaa)', whiteSpace: 'nowrap' }}>צריכה ממוצעת למטען:</label>
+          <input
+            type="number"
+            className="tact-input"
+            style={{ width: 80, textAlign: 'center', fontWeight: 600 }}
+            value={globalAvgKwh}
+            step={1}
+            min={0}
+            onChange={(e) => applyGlobalAvgKwh(parseFloat(e.target.value) || 0)}
+          />
+          <span style={{ fontSize: 13 }}>kWh/חודש</span>
         </div>
         <button
           className="tact-btn tact-btn-secondary"
