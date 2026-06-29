@@ -555,6 +555,7 @@ export default function BuildingCashflow({ loading: appLoading }) {
   const [excludedIds, setExcludedIds] = useState(() => {
     try { return new Set(JSON.parse(localStorage.getItem('energy-excluded') || '[]')) } catch { return new Set() }
   })
+  const [showInclusion, setShowInclusion] = useState(false)
 
   const growthTimer = useRef(null)
   const kwhTimer = useRef(null)
@@ -573,6 +574,13 @@ export default function BuildingCashflow({ loading: appLoading }) {
       localStorage.setItem('energy-excluded', JSON.stringify([...next]))
       return next
     })
+  }
+
+  // בחר הכל / נקה הכל — כל הפרויקטים נכנסים/יוצאים מהתזרים
+  function setAllIncluded(includeAll) {
+    const next = includeAll ? new Set() : new Set(buildings.map((b) => b.id))
+    setExcludedIds(next)
+    localStorage.setItem('energy-excluded', JSON.stringify([...next]))
   }
 
   async function applyGlobalGrowth(rate) {
@@ -696,10 +704,16 @@ export default function BuildingCashflow({ loading: appLoading }) {
 
   const selected = buildings.find((b) => b.id === selectedId)
 
-  const totalIncome5yr  = combined.reduce((s, r) => s + r.total_income, 0)
-  const totalCapex5yr   = combined.reduce((s, r) => s + r.total_capex, 0)
-  const totalOpex5yr    = combined.reduce((s, r) => s + r.total_opex, 0)
-  const totalProfit5yr  = combined.reduce((s, r) => s + r.total_profit, 0)
+  // סיכומים — רק מהבניינים הכלולים בתזרים (לפי excludedIds)
+  const includedForKpi = buildings.filter((b) => !excludedIds.has(b.id))
+  const sumIncl = (field) =>
+    combined.reduce((s, r) =>
+      s + includedForKpi.reduce((bs, b) => bs + (r.buildings[b.building_name]?.[field] || 0), 0), 0)
+  const totalIncome5yr  = sumIncl('annual_income')
+  const totalCapex5yr   = sumIncl('capex')
+  const totalOpex5yr    = sumIncl('annual_opex')
+  const totalLoan5yr    = combined.reduce((s, r) => s + (r.loan_repayment || 0), 0)
+  const totalProfit5yr  = totalIncome5yr - totalCapex5yr - totalOpex5yr - totalLoan5yr
 
   return (
     <div className="building-cashflow-page">
@@ -961,6 +975,63 @@ export default function BuildingCashflow({ loading: appLoading }) {
                     overheadExpenses={overheadExpenses}
                     excludedIds={excludedIds}
                   />
+                )}
+
+                {/* ─── כלולים בתזרים (בחירת פרויקטים) ─── */}
+                {buildings.length > 0 && (
+                  <div className="inclusion-panel" style={{ marginTop: 24 }}>
+                    <button
+                      className="tact-btn tact-btn-secondary"
+                      style={{ fontSize: 13 }}
+                      onClick={() => setShowInclusion((v) => !v)}
+                    >
+                      <span style={{ marginInlineEnd: 6 }}>{showInclusion ? '▾' : '▸'}</span>
+                      כלולים בתזרים ({includedForKpi.length}/{buildings.length})
+                    </button>
+
+                    {showInclusion && (
+                      <div style={{ marginTop: 12, maxWidth: 540 }}>
+                        <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
+                          <button className="tact-btn" style={{ fontSize: 12 }}
+                            onClick={() => setAllIncluded(true)}>בחר הכל</button>
+                          <button className="tact-btn tact-btn-secondary" style={{ fontSize: 12 }}
+                            onClick={() => setAllIncluded(false)}>נקה הכל</button>
+                        </div>
+                        <table className="tact-table" style={{ width: '100%' }}>
+                          <thead>
+                            <tr>
+                              <th style={{ textAlign: 'right' }}>פרויקט</th>
+                              <th style={{ textAlign: 'center', width: 140 }}>כלול בתזרים</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {buildings.map((b) => {
+                              const included = !excludedIds.has(b.id)
+                              return (
+                                <tr key={b.id}>
+                                  <td style={{ textAlign: 'right', fontSize: 13 }}>{b.building_name}</td>
+                                  <td style={{ textAlign: 'center' }}>
+                                    <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                                      <input
+                                        type="checkbox"
+                                        checked={included}
+                                        onChange={() => toggleExclude(b.id)}
+                                        style={{ width: 16, height: 16, cursor: 'pointer' }}
+                                      />
+                                      <span style={{ fontSize: 12, fontWeight: 600,
+                                        color: included ? 'var(--tact-green)' : 'var(--tact-text-dim,#888)' }}>
+                                        {included ? 'כלול' : 'לא כלול'}
+                                      </span>
+                                    </label>
+                                  </td>
+                                </tr>
+                              )
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
             )}
