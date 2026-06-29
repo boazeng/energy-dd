@@ -196,7 +196,7 @@ export default function Tasks({ tasks, questions, loading, onChange, onQuestions
                 {questions.map((q) => (
                   <tr key={q.id} className={q.status === 'answered' ? 'q-row-answered' : ''}>
                     <td className="muted q-cell-page">
-                      {PAGE_LABELS[q.page] ?? q.page || '—'}
+                      {(PAGE_LABELS[q.page] ?? q.page) || '—'}
                     </td>
                     <td className="q-cell-text">{q.question_text}</td>
                     <td className="q-cell-thumb">
