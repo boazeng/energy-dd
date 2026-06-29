@@ -18,35 +18,38 @@ const fmtK = (v) => {
 
 const COLORS = ['#6c8ebf', '#82ca9d', '#ffc658', '#ff7c7c', '#a29bfe', '#fd79a8', '#00cec9', '#fdcb6e']
 
-// הכנסות (גידול שנתי מוגדר גלובלית בראש העמוד)
-const INCOME_FIELDS = [
-  { key: 'current_chargers',             label: 'מטענים נוכחיים',      unit: '',          step: 1,   type: 'int' },
-  { key: 'potential_spots',              label: 'חניות פוטנציאליות',   unit: '',          step: 1,   type: 'int' },
-  { key: 'mgmt_fee_per_charger',         label: 'עמלת ניהול למטען',    unit: '₪/חודש',   step: 0.1, type: 'float' },
-  { key: 'avg_kwh_per_charger_monthly',  label: 'צריכה ממוצעת למטען',  unit: 'kWh/חודש', step: 1,   type: 'float' },
-  { key: 'electricity_rate_agorot',      label: 'עמלת חשמל',           unit: "אג'/kWh",  step: 0.1, type: 'float' },
-  { key: 'subscription_fee_per_charger', label: 'דמי מנוי למטען',      unit: '₪/חודש',   step: 0.1, type: 'float' },
-  { key: 'charger_install_income',       label: 'הכנסה מהתקנת מטען',   unit: '₪/מטען',   step: 100, type: 'float', note: 'לפי הסכם דייר' },
-  { key: 'start_year',                   label: 'שנת התחלה',            unit: '',          step: 1,   type: 'int' },
-  { key: 'forecast_years',               label: 'שנות תחזית',           unit: '',          step: 1,   type: 'int' },
+// שדות ספציפיים לבניין בודד
+const BUILDING_SPECIFIC_FIELDS = [
+  { key: 'current_chargers',       label: 'מטענים נוכחיים',     unit: '',        step: 1,   type: 'int',   note: 'מסונכרן מפרויקטים' },
+  { key: 'potential_spots',        label: 'חניות פוטנציאליות',  unit: '',        step: 1,   type: 'int' },
+  { key: 'chargers_no_rcd',        label: 'מטענים ללא פחת',     unit: '',        step: 1,   type: 'int',   note: 'מסונכרן מהאקסל' },
+  { key: 'charger_install_income', label: 'הכנסה מהתקנת מטען', unit: '₪/מטען', step: 100, type: 'float', note: 'לפי הסכם דייר' },
 ]
 
-// CAPEX — עלויות מטען חדש (ניתן לשינוי)
+// שדות גלובליים — CAPEX (מנוהלים בפאנל העליון)
 const CAPEX_FIELDS = [
-  { key: 'cost_charger_unit',        label: 'עלות מטען',                    unit: '₪',     step: 100, type: 'float' },
-  { key: 'cost_infra_per_charger',   label: 'תשתית חשמל+תקשורת (50מ\')',   unit: '₪',     step: 100, type: 'float' },
-  { key: 'cost_install_per_charger', label: 'התקנה כולל בודק',              unit: '₪',     step: 100, type: 'float' },
-  { key: 'cost_elec_panel',          label: 'ארון חשמל',                    unit: '₪/ארון', step: 100, type: 'float' },
-  { key: 'cost_comm_panel',          label: 'ארון תקשורת',                  unit: '₪/ארון', step: 100, type: 'float' },
-  { key: 'chargers_per_panel',       label: 'מטענים לארון',                 unit: '',       step: 1,   type: 'int',   note: 'ברירת מחדל 10' },
+  { key: 'cost_charger_unit',        label: 'עלות מטען',                  unit: '₪',      step: 100, type: 'float' },
+  { key: 'cost_infra_per_charger',   label: "תשתית חשמל+תקשורת (50מ')",  unit: '₪',      step: 100, type: 'float' },
+  { key: 'cost_install_per_charger', label: 'התקנה כולל בודק',            unit: '₪',      step: 100, type: 'float' },
+  { key: 'cost_elec_panel',          label: 'ארון חשמל',                  unit: '₪/ארון', step: 100, type: 'float' },
+  { key: 'cost_comm_panel',          label: 'ארון תקשורת',                unit: '₪/ארון', step: 100, type: 'float' },
+  { key: 'chargers_per_panel',       label: 'מטענים לארון',               unit: '',        step: 1,   type: 'int' },
 ]
 
-// הוצאות תפעוליות שנתיות
-const OPEX_FIELDS = [
-  { key: 'chargers_no_rcd',             label: 'מטענים ללא פחת',      unit: '',       step: 1,  type: 'int',   note: 'מסונכרן מהאקסל' },
-  { key: 'cost_rcd_per_charger',        label: 'עלות פחת חסר',        unit: '₪/שנה', step: 10, type: 'float', note: 'למטען ללא פחת' },
-  { key: 'cost_internet_per_charger',   label: 'עלות אינטרנט',        unit: '₪/שנה', step: 10, type: 'float', note: 'לכל מטען' },
-  { key: 'cost_inspector_per_charger',  label: 'עלות אישור בודק',     unit: '₪/שנה', step: 10, type: 'float', note: 'לכל מטען' },
+// שדות גלובליים — הכנסות ו-OPEX ותחזית
+const GLOBAL_INCOME_FIELDS = [
+  { key: 'mgmt_fee_per_charger',         label: 'עמלת ניהול למטען',  unit: '₪/חודש',  step: 0.1, type: 'float' },
+  { key: 'electricity_rate_agorot',      label: 'עמלת חשמל',         unit: "אג'/kWh", step: 0.1, type: 'float' },
+  { key: 'subscription_fee_per_charger', label: 'דמי מנוי למטען',    unit: '₪/חודש',  step: 0.1, type: 'float' },
+]
+const GLOBAL_OPEX_FIELDS = [
+  { key: 'cost_rcd_per_charger',       label: 'עלות פחת חסר',    unit: '₪/שנה', step: 10, type: 'float' },
+  { key: 'cost_internet_per_charger',  label: 'עלות אינטרנט',    unit: '₪/שנה', step: 10, type: 'float' },
+  { key: 'cost_inspector_per_charger', label: 'עלות אישור בודק', unit: '₪/שנה', step: 10, type: 'float' },
+]
+const GLOBAL_FORECAST_FIELDS = [
+  { key: 'start_year',     label: 'שנת התחלה',  unit: '', step: 1, type: 'int' },
+  { key: 'forecast_years', label: 'שנות תחזית', unit: '', step: 1, type: 'int' },
 ]
 
 function monthlyIncome(bm) {
@@ -181,7 +184,7 @@ function FieldRow({ fieldDef, value, onChange }) {
   )
 }
 
-function BuildingSettings({ bm, onChange }) {
+function BuildingSettings({ bm, globals, onChange }) {
   const [local, setLocal] = useState({ ...bm, extra_costs: bm.extra_costs || [] })
 
   useEffect(() => { setLocal({ ...bm, extra_costs: bm.extra_costs || [] }) }, [bm.id])
@@ -192,16 +195,14 @@ function BuildingSettings({ bm, onChange }) {
   })
 
   function handle(key, raw) {
-    const def = [...INCOME_FIELDS, ...CAPEX_FIELDS, ...OPEX_FIELDS].find((f) => f.key === key)
+    const def = BUILDING_SPECIFIC_FIELDS.find((f) => f.key === key)
     const value = def?.type === 'int' ? parseInt(raw, 10) || 0 : parseFloat(raw) || 0
-    const next = { ...local, [key]: value }
-    setLocal(next)
+    setLocal((prev) => ({ ...prev, [key]: value }))
     save({ [key]: value })
   }
 
   function saveExtraCosts(costs) {
-    const next = { ...local, extra_costs: costs }
-    setLocal(next)
+    setLocal((prev) => ({ ...prev, extra_costs: costs }))
     save({ extra_costs: costs })
   }
 
@@ -214,35 +215,32 @@ function BuildingSettings({ bm, onChange }) {
   }
 
   function updateExtraCost(i, field, val) {
-    const updated = local.extra_costs.map((c, idx) =>
-      idx === i ? { ...c, [field]: field === 'cost_per_charger' ? (parseFloat(val) || 0) : val } : c
+    saveExtraCosts(
+      local.extra_costs.map((c, idx) =>
+        idx === i ? { ...c, [field]: field === 'cost_per_charger' ? (parseFloat(val) || 0) : val } : c
+      )
     )
-    saveExtraCosts(updated)
   }
 
-  const incomePerCharger = monthlyIncome(local)
-  const opexCurrent = annualOpex(local)
-  const capexEach = capexPerCharger(local)
   const extraTotal = (local.extra_costs || []).reduce((s, c) => s + (c.cost_per_charger || 0), 0)
+
+  // חישוב הכנסה חודשית למטען לפי הערכים הגלובליים
+  const incomePerCharger =
+    (globals.mgmt_fee_per_charger || 0) +
+    ((globals.electricity_rate_agorot || 0) / 100) * (globals.avg_kwh_per_charger_monthly || 0) +
+    (globals.subscription_fee_per_charger || 0)
 
   return (
     <div className="building-settings">
-      <div className="settings-section-title">הכנסות</div>
+      <div className="settings-section-title">נתוני הבניין</div>
       <div className="settings-grid">
-        {INCOME_FIELDS.map((f) => (
-          <FieldRow key={f.key} fieldDef={f} value={local[f.key]} onChange={handle} />
-        ))}
-      </div>
-
-      <div className="settings-section-title" style={{ marginTop: 16 }}>הוצאות חד-פעמיות (OPEX שנה ראשונה — מטענים קיימים)</div>
-      <div className="settings-grid">
-        {OPEX_FIELDS.map((f) => (
+        {BUILDING_SPECIFIC_FIELDS.map((f) => (
           <FieldRow key={f.key} fieldDef={f} value={local[f.key]} onChange={handle} />
         ))}
       </div>
 
       <div className="settings-section-title" style={{ marginTop: 16 }}>
-        עלויות נוספות פר מטען
+        עלויות נוספות פר מטען (ספציפי לבניין)
         <button
           className="tact-btn tact-btn-secondary"
           style={{ fontSize: 11, padding: '2px 10px', marginInlineStart: 10 }}
@@ -280,27 +278,18 @@ function BuildingSettings({ bm, onChange }) {
           </div>
         ))}
       </div>
-      {extraTotal > 0 && (
-        <div className="dim-text" style={{ fontSize: 12, marginTop: 4 }}>
-          סה"כ עלויות נוספות: <strong style={{ color: 'var(--tact-orange,#e67e22)' }}>{ils(extraTotal)}</strong>/מטען · {ils(extraTotal * (local.current_chargers || 0))} לכלל {local.current_chargers || 0} מטענים
-        </div>
-      )}
 
-      <div className="income-summary">
-        <div>
-          <span>הכנסה חודשית למטען: </span>
-          <strong style={{ color: 'var(--tact-green)' }}>{ils(incomePerCharger)}</strong>
-          <span className="dim-text" style={{ fontSize: 11 }}>
-            {' '}(ניהול {ils(local.mgmt_fee_per_charger)} + חשמל {ils((local.electricity_rate_agorot / 100) * local.avg_kwh_per_charger_monthly)} + מנוי {ils(local.subscription_fee_per_charger)})
-          </span>
+      <div className="income-summary" style={{ marginTop: 14 }}>
+        <div style={{ fontSize: 12, color: 'var(--tact-text-dim,#aaa)', marginBottom: 4 }}>
+          הכנסה חודשית למטען (לפי הגדרות גלובליות):
+          <strong style={{ color: 'var(--tact-green)', marginInlineStart: 6 }}>{ils(incomePerCharger)}</strong>
         </div>
-        <div style={{ marginTop: 4 }}>
-          <span>OPEX (שנה ראשונה): </span>
-          <strong style={{ color: 'var(--tact-orange,#e67e22)' }}>{ils(opexCurrent)}</strong>
-          <div className="dim-text" style={{ fontSize: 11, marginTop: 2 }}>
-            חד-פעמי בשנת {local.start_year || 2026} בלבד — מ-{(local.start_year || 2026) + 1} ואילך עלות OPEX = 0
+        {extraTotal > 0 && (
+          <div className="dim-text" style={{ fontSize: 12 }}>
+            עלויות נוספות: <strong style={{ color: 'var(--tact-orange,#e67e22)' }}>{ils(extraTotal)}</strong>/מטען
+            {' '}· {ils(extraTotal * (local.current_chargers || 0))} לכלל {local.current_chargers || 0} מטענים
           </div>
-        </div>
+        )}
       </div>
     </div>
   )
@@ -588,9 +577,21 @@ export default function BuildingCashflow({ loading: appLoading }) {
     cost_comm_panel: 1000,
     chargers_per_panel: 10,
   })
+  const [globalRates, setGlobalRates] = useState({
+    mgmt_fee_per_charger: 40,
+    electricity_rate_agorot: 30,
+    subscription_fee_per_charger: 0,
+    avg_kwh_per_charger_monthly: 100,
+    cost_rcd_per_charger: 300,
+    cost_internet_per_charger: 400,
+    cost_inspector_per_charger: 250,
+    start_year: 2026,
+    forecast_years: 5,
+  })
   const growthTimer = useRef(null)
   const kwhTimer = useRef(null)
   const capexTimers = useRef({})
+  const ratesTimers = useRef({})
 
   async function applyGlobalGrowth(rate) {
     setGlobalGrowth(rate)
@@ -605,10 +606,25 @@ export default function BuildingCashflow({ loading: appLoading }) {
 
   async function applyGlobalAvgKwh(kwh) {
     setGlobalAvgKwh(kwh)
+    setGlobalRates((prev) => ({ ...prev, avg_kwh_per_charger_monthly: kwh }))
     clearTimeout(kwhTimer.current)
     kwhTimer.current = setTimeout(async () => {
       await Promise.all(
         buildings.map((b) => api.updateBuildingModel(b.id, { avg_kwh_per_charger_monthly: kwh }))
+      )
+      await load()
+    }, 600)
+  }
+
+  async function applyGlobalRateField(field, raw) {
+    const isInt = ['start_year', 'forecast_years'].includes(field)
+    const value = isInt ? parseInt(raw, 10) || 0 : parseFloat(raw) || 0
+    setGlobalRates((prev) => ({ ...prev, [field]: value }))
+    if (field === 'avg_kwh_per_charger_monthly') setGlobalAvgKwh(value)
+    clearTimeout(ratesTimers.current[field])
+    ratesTimers.current[field] = setTimeout(async () => {
+      await Promise.all(
+        buildings.map((b) => api.updateBuildingModel(b.id, { [field]: value }))
       )
       await load()
     }, 600)
@@ -646,6 +662,17 @@ export default function BuildingCashflow({ loading: appLoading }) {
           cost_elec_panel:          b0.cost_elec_panel          ?? 6000,
           cost_comm_panel:          b0.cost_comm_panel          ?? 1000,
           chargers_per_panel:       b0.chargers_per_panel       ?? 10,
+        })
+        setGlobalRates({
+          mgmt_fee_per_charger:         b0.mgmt_fee_per_charger         ?? 40,
+          electricity_rate_agorot:      b0.electricity_rate_agorot      ?? 30,
+          subscription_fee_per_charger: b0.subscription_fee_per_charger ?? 0,
+          avg_kwh_per_charger_monthly:  b0.avg_kwh_per_charger_monthly  ?? 100,
+          cost_rcd_per_charger:         b0.cost_rcd_per_charger         ?? 300,
+          cost_internet_per_charger:    b0.cost_internet_per_charger    ?? 400,
+          cost_inspector_per_charger:   b0.cost_inspector_per_charger   ?? 250,
+          start_year:                   b0.start_year                   ?? 2026,
+          forecast_years:               b0.forecast_years               ?? 5,
         })
       }
     } finally {
@@ -753,6 +780,48 @@ export default function BuildingCashflow({ loading: appLoading }) {
           </div>
         )}
       </div>
+
+      {/* ─── פאנל הכנסות/OPEX/תחזית גלובלי ─── */}
+      {!loading && !appLoading && (() => {
+        const panelStyle = {
+          background: 'rgba(255,255,255,.05)', border: '1px solid rgba(255,255,255,.12)',
+          borderRadius: 10, padding: '12px 18px', marginBottom: 12,
+        }
+        const labelStyle = { fontSize: 13, display: 'flex', alignItems: 'center', gap: 5 }
+        const dimStyle = { color: 'var(--tact-text-dim,#aaa)', whiteSpace: 'nowrap' }
+        const sectionLabel = { fontSize: 11, fontWeight: 700, color: 'var(--tact-text-dim,#aaa)', textTransform: 'uppercase', letterSpacing: '.05em', whiteSpace: 'nowrap' }
+
+        function rateInput(f) {
+          return (
+            <label key={f.key} style={labelStyle}>
+              <span style={dimStyle}>{f.label}:</span>
+              <input
+                type="number"
+                className="tact-input"
+                style={{ width: 72, textAlign: 'center', fontWeight: 600, padding: '4px 6px', fontSize: 13 }}
+                value={globalRates[f.key] ?? 0}
+                step={f.step}
+                min={0}
+                onChange={(e) => applyGlobalRateField(f.key, e.target.value)}
+              />
+              {f.unit && <span style={{ fontSize: 12, color: 'var(--tact-text-dim,#888)' }}>{f.unit}</span>}
+            </label>
+          )
+        }
+
+        return (
+          <div style={panelStyle}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
+              <span style={sectionLabel}>הכנסות:</span>
+              {GLOBAL_INCOME_FIELDS.map(rateInput)}
+              <span style={{ ...sectionLabel, marginInlineStart: 8 }}>OPEX (שנה ראשונה):</span>
+              {GLOBAL_OPEX_FIELDS.map(rateInput)}
+              <span style={{ ...sectionLabel, marginInlineStart: 8 }}>תחזית:</span>
+              {GLOBAL_FORECAST_FIELDS.map(rateInput)}
+            </div>
+          </div>
+        )
+      })()}
 
       {/* ─── פאנל CAPEX גלובלי ─── */}
       {!loading && !appLoading && (() => {
@@ -894,7 +963,7 @@ export default function BuildingCashflow({ loading: appLoading }) {
 
               <div className="building-layout">
                 <div className="building-settings-panel">
-                  <BuildingSettings bm={selected} onChange={handleRefresh} />
+                  <BuildingSettings bm={selected} globals={globalRates} onChange={handleRefresh} />
                 </div>
                 <div className="building-chart-panel">
                   <h4 style={{ marginTop: 0 }}>תחזית גרפית</h4>
