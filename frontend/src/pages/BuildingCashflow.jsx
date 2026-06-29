@@ -234,19 +234,6 @@ function BuildingSettings({ bm, onChange }) {
         ))}
       </div>
 
-      <div className="settings-section-title" style={{ marginTop: 16 }}>עלויות מטען חדש (CAPEX)</div>
-      <div className="settings-grid">
-        {CAPEX_FIELDS.map((f) => (
-          <FieldRow key={f.key} fieldDef={f} value={local[f.key]} onChange={handle} />
-        ))}
-      </div>
-      <div className="capex-summary">
-        סה"כ CAPEX למטען חדש: <strong>{ils(capexEach)}</strong>
-        <span className="dim-text" style={{ fontSize: 11 }}>
-          {' '}(מטען {ils(local.cost_charger_unit)} + תשתית {ils(local.cost_infra_per_charger)} + התקנה {ils(local.cost_install_per_charger)} + ארונות {ils(((local.cost_elec_panel||0)+(local.cost_comm_panel||0))/Math.max(1,local.chargers_per_panel||10))})
-        </span>
-      </div>
-
       <div className="settings-section-title" style={{ marginTop: 16 }}>הוצאות חד-פעמיות (OPEX שנה ראשונה — מטענים קיימים)</div>
       <div className="settings-grid">
         {OPEX_FIELDS.map((f) => (
