@@ -478,7 +478,7 @@ function CombinedTable({ combined, buildings }) {
           </tr>
         )}
         <tr style={{ background: 'rgba(130,202,157,.10)' }}>
-          <td style={{ textAlign: 'right', ...footerTd }}>רווח נקי כולל</td>
+          <td style={{ textAlign: 'right', ...footerTd }}>רווח נקי לאחר החזר הלוואה</td>
           <td colSpan={3} />
           <td style={{ ...tdL, background: 'rgba(130,202,157,.2)', fontWeight: 800, fontSize: 14,
             color: totalProfit >= 0 ? 'var(--tact-green)' : 'var(--tact-red,#e74c3c)' }}>
