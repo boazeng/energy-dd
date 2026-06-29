@@ -1,21 +1,30 @@
-import { Fragment, useState } from 'react'
+import { Fragment, useRef, useState } from 'react'
 import TactIcon from '../components/TactIcon.jsx'
+import { api } from '../api/client.js'
 
-const COLUMNS = [
-  { key: 'building',      label: 'בניין' },
-  { key: 'term',          label: 'תקופה' },
-  { key: 'payment',       label: 'עלות מנוי' },
-  { key: 'pricing_model', label: 'עלות חשמל' },
-  { key: 'charger_cost',  label: 'רכישה והתקנת מטען' },
-  { key: 'notes',         label: 'הערות / אי-התאמות' },
+// עמודות קריאה-בלבד
+const READ_COLS = [
+  { key: 'building', label: 'בניין' },
+  { key: 'term',     label: 'תקופה' },
 ]
+
+// עמודות הניתנות לעריכה ידנית
+const EDIT_COLS = [
+  { key: 'payment',       label: 'עלות מנוי',            placeholder: 'למשל ₪40/חודש' },
+  { key: 'pricing_model', label: 'עלות חשמל',            placeholder: 'למשל חח"י + 30 אג׳' },
+  { key: 'charger_cost',  label: 'רכישה והתקנת מטען',    placeholder: 'למשל ₪2,000' },
+  { key: 'notes',         label: 'הערות עדכון',          placeholder: 'פירוט השינוי…' },
+]
+
+const ALL_COLS = [...READ_COLS, ...EDIT_COLS]
+const EDITABLE_KEYS = new Set(EDIT_COLS.map((c) => c.key))
 
 function ExpandedRow({ a }) {
   return (
     <div className="ta-detail">
       {a.summary && <p className="ta-summary">{a.summary}</p>}
       <div className="ta-detail-grid">
-        {a.address    && <Field label="כתובת"       value={a.address} />}
+        {a.address     && <Field label="כתובת"        value={a.address} />}
         {a.termination && <Field label="סיום / חידוש" value={a.termination} />}
         {a.tenant_name && <Field label="נציג / חותם"  value={a.tenant_name} />}
       </div>
@@ -65,13 +74,72 @@ function Field({ label, value }) {
   )
 }
 
+// תא עריכה inline
+function EditableCell({ value, placeholder, onSave, onClick }) {
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(value)
+  const inputRef = useRef(null)
+
+  function startEdit(e) {
+    e.stopPropagation()
+    setDraft(value)
+    setEditing(true)
+    setTimeout(() => inputRef.current?.focus(), 0)
+  }
+
+  async function commit() {
+    setEditing(false)
+    if (draft !== value) await onSave(draft)
+  }
+
+  function onKeyDown(e) {
+    if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); commit() }
+    if (e.key === 'Escape') { setEditing(false); setDraft(value) }
+    e.stopPropagation()
+  }
+
+  if (editing) {
+    return (
+      <td className="ta-edit-cell" onClick={(e) => e.stopPropagation()}>
+        <textarea
+          ref={inputRef}
+          className="ta-edit-input"
+          value={draft}
+          placeholder={placeholder}
+          rows={2}
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={commit}
+          onKeyDown={onKeyDown}
+        />
+      </td>
+    )
+  }
+
+  const hasValue = value && value !== '—'
+  return (
+    <td
+      className={`ta-editable-cell ${hasValue ? '' : 'ta-cell-empty'}`}
+      onClick={startEdit}
+      title="לחץ לעריכה"
+    >
+      <span className="ta-cell-text">{value || '—'}</span>
+      <span className="ta-edit-icon">✎</span>
+    </td>
+  )
+}
+
 function initialOpen() {
   const v = new URLSearchParams(window.location.search).get('open')
   return v ? Number(v) : null
 }
 
-export default function TenantAgreements({ agreements, loading }) {
+export default function TenantAgreements({ agreements, loading, onChange }) {
   const [open, setOpen] = useState(initialOpen)
+
+  async function save(id, field, value) {
+    await api.updateAgreement(id, { [field]: value })
+    if (onChange) onChange()
+  }
 
   return (
     <section>
@@ -82,7 +150,7 @@ export default function TenantAgreements({ agreements, loading }) {
         </span>
       </div>
       <p className="home-sub">
-        סיכום ההסכמים המרכזיים. לחיצה על שורה פותחת את מלוא הפרטים.
+        לחיצה על שורה פותחת פרטים מורחבים. לחיצה על תא <strong>עריכה</strong> (✎) מאפשרת עדכון ידני.
       </p>
 
       {loading ? (
@@ -90,15 +158,20 @@ export default function TenantAgreements({ agreements, loading }) {
       ) : agreements.length === 0 ? (
         <div className="ta-empty">
           <TactIcon name="document" size={28} />
-          <p>אין עדיין הסכמים. לאחר הוספת הסכמים הם יופיעו כאן.</p>
+          <p>אין עדיין הסכמים.</p>
         </div>
       ) : (
         <table className="ta-table">
           <thead>
             <tr>
               <th className="ta-expander" />
-              {COLUMNS.map((c) => (
-                <th key={c.key}>{c.label}</th>
+              {ALL_COLS.map((c) => (
+                <th key={c.key}>
+                  {c.label}
+                  {EDITABLE_KEYS.has(c.key) && (
+                    <span className="ta-editable-badge"> ✎</span>
+                  )}
+                </th>
               ))}
             </tr>
           </thead>
@@ -114,19 +187,26 @@ export default function TenantAgreements({ agreements, loading }) {
                     <td className="ta-expander">
                       <span className={`ta-chevron ${isOpen ? 'open' : ''}`}>▸</span>
                     </td>
-                    {COLUMNS.map((c) => {
-                      const val = a[c.key] || '—'
-                      const isNote = c.key === 'notes' && val && val !== '—'
-                      return (
-                        <td key={c.key} className={isNote ? 'ta-cell-warn' : ''}>
-                          {val}
-                        </td>
-                      )
-                    })}
+
+                    {/* עמודות קריאה בלבד */}
+                    {READ_COLS.map((c) => (
+                      <td key={c.key}>{a[c.key] || '—'}</td>
+                    ))}
+
+                    {/* עמודות עריכה */}
+                    {EDIT_COLS.map((c) => (
+                      <EditableCell
+                        key={c.key}
+                        value={a[c.key] || ''}
+                        placeholder={c.placeholder}
+                        onSave={(val) => save(a.id, c.key, val)}
+                      />
+                    ))}
                   </tr>
+
                   {isOpen && (
                     <tr className="ta-detail-row">
-                      <td colSpan={COLUMNS.length + 1}>
+                      <td colSpan={ALL_COLS.length + 1}>
                         <ExpandedRow a={a} />
                       </td>
                     </tr>
