@@ -975,37 +975,45 @@ export default function BuildingCashflow({ loading: appLoading }) {
       <style>{`
         .building-cashflow-page { padding: 1rem 0; }
 
-        .building-cards-row {
+        /* ─── פריסה ראשית: תוכן שמאל + רשימה ימין ─── */
+        .building-master-detail {
           display: flex;
-          gap: 12px;
-          flex-wrap: wrap;
-          margin-bottom: 24px;
+          gap: 20px;
+          align-items: flex-start;
+        }
+        .building-content-area { flex: 1; min-width: 0; }
+        .building-list-panel {
+          width: 220px;
+          flex-shrink: 0;
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+          position: sticky;
+          top: 12px;
         }
 
-        .building-card {
+        /* ─── שורת בניין ─── */
+        .building-row {
           position: relative;
           background: var(--tact-surface, rgba(255,255,255,.06));
           border: 1.5px solid rgba(255,255,255,.12);
-          border-radius: 10px;
-          padding: 12px 16px;
+          border-radius: 8px;
+          padding: 9px 12px;
           cursor: pointer;
-          min-width: 160px;
           transition: border-color .15s, background .15s;
         }
-        .building-card:hover { border-color: rgba(255,255,255,.3); }
-        .building-card.selected { border-color: var(--tact-accent,#6c8ebf); background: rgba(108,142,191,.15); }
-
-        .building-card-name { font-weight: 600; font-size: 14px; margin-bottom: 4px; }
-        .building-card-meta { font-size: 12px; color: var(--tact-text-dim,#888); line-height: 1.5; }
-
-        .building-card-delete {
-          position: absolute; top: 8px; left: 8px;
+        .building-row:hover { border-color: rgba(255,255,255,.3); }
+        .building-row.selected { border-color: var(--tact-accent,#6c8ebf); background: rgba(108,142,191,.15); }
+        .building-row-name { font-weight: 600; font-size: 13px; margin-bottom: 2px; }
+        .building-row-meta { font-size: 11px; color: var(--tact-text-dim,#888); line-height: 1.4; }
+        .building-row-delete {
+          position: absolute; top: 6px; left: 6px;
           background: none; border: none; cursor: pointer;
           color: var(--tact-text-dim,#888); padding: 2px;
           opacity: 0; transition: opacity .15s;
         }
-        .building-card:hover .building-card-delete { opacity: 1; }
-        .building-card-delete:hover { color: var(--tact-red,#e74c3c); }
+        .building-row:hover .building-row-delete { opacity: 1; }
+        .building-row-delete:hover { color: var(--tact-red,#e74c3c); }
 
         .building-detail {
           background: var(--tact-surface, rgba(255,255,255,.04));
@@ -1021,6 +1029,7 @@ export default function BuildingCashflow({ loading: appLoading }) {
           margin-bottom: 24px;
         }
         @media (max-width: 860px) { .building-layout { grid-template-columns: 1fr; } }
+        @media (max-width: 700px) { .building-master-detail { flex-direction: column-reverse; } .building-list-panel { width: 100%; position: static; } }
 
         .settings-section-title {
           font-size: 12px;
