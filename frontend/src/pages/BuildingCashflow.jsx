@@ -911,6 +911,63 @@ export default function BuildingCashflow({ loading: appLoading }) {
         )
       })()}
 
+      {/* ─── כלולים בתזרים (בחירת פרויקטים) — מעל הרשימה והטבלה ─── */}
+      {!loading && !appLoading && buildings.length > 0 && (
+        <div className="inclusion-panel" style={{ marginBottom: 20 }}>
+          <button
+            className="tact-btn tact-btn-secondary"
+            style={{ fontSize: 13 }}
+            onClick={() => setShowInclusion((v) => !v)}
+          >
+            <span style={{ marginInlineEnd: 6 }}>{showInclusion ? '▾' : '▸'}</span>
+            כלולים בתזרים ({includedForKpi.length}/{buildings.length})
+          </button>
+
+          {showInclusion && (
+            <div style={{ marginTop: 12, maxWidth: 540 }}>
+              <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
+                <button className="tact-btn" style={{ fontSize: 12 }}
+                  onClick={() => setAllIncluded(true)}>בחר הכל</button>
+                <button className="tact-btn tact-btn-secondary" style={{ fontSize: 12 }}
+                  onClick={() => setAllIncluded(false)}>נקה הכל</button>
+              </div>
+              <table className="tact-table" style={{ width: '100%' }}>
+                <thead>
+                  <tr>
+                    <th style={{ textAlign: 'right' }}>פרויקט</th>
+                    <th style={{ textAlign: 'center', width: 140 }}>כלול בתזרים</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {buildings.map((b) => {
+                    const included = !excludedIds.has(b.id)
+                    return (
+                      <tr key={b.id}>
+                        <td style={{ textAlign: 'right', fontSize: 13 }}>{b.building_name}</td>
+                        <td style={{ textAlign: 'center' }}>
+                          <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                            <input
+                              type="checkbox"
+                              checked={included}
+                              onChange={() => toggleExclude(b.id)}
+                              style={{ width: 16, height: 16, cursor: 'pointer' }}
+                            />
+                            <span style={{ fontSize: 12, fontWeight: 600,
+                              color: included ? 'var(--tact-green)' : 'var(--tact-text-dim,#888)' }}>
+                              {included ? 'כלול' : 'לא כלול'}
+                            </span>
+                          </label>
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
       {loading || appLoading ? (
         <div className="dim-text" style={{ padding: '2rem' }}>טוען...</div>
       ) : (
@@ -975,63 +1032,6 @@ export default function BuildingCashflow({ loading: appLoading }) {
                     overheadExpenses={overheadExpenses}
                     excludedIds={excludedIds}
                   />
-                )}
-
-                {/* ─── כלולים בתזרים (בחירת פרויקטים) ─── */}
-                {buildings.length > 0 && (
-                  <div className="inclusion-panel" style={{ marginTop: 24 }}>
-                    <button
-                      className="tact-btn tact-btn-secondary"
-                      style={{ fontSize: 13 }}
-                      onClick={() => setShowInclusion((v) => !v)}
-                    >
-                      <span style={{ marginInlineEnd: 6 }}>{showInclusion ? '▾' : '▸'}</span>
-                      כלולים בתזרים ({includedForKpi.length}/{buildings.length})
-                    </button>
-
-                    {showInclusion && (
-                      <div style={{ marginTop: 12, maxWidth: 540 }}>
-                        <div style={{ display: 'flex', gap: 10, marginBottom: 10 }}>
-                          <button className="tact-btn" style={{ fontSize: 12 }}
-                            onClick={() => setAllIncluded(true)}>בחר הכל</button>
-                          <button className="tact-btn tact-btn-secondary" style={{ fontSize: 12 }}
-                            onClick={() => setAllIncluded(false)}>נקה הכל</button>
-                        </div>
-                        <table className="tact-table" style={{ width: '100%' }}>
-                          <thead>
-                            <tr>
-                              <th style={{ textAlign: 'right' }}>פרויקט</th>
-                              <th style={{ textAlign: 'center', width: 140 }}>כלול בתזרים</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {buildings.map((b) => {
-                              const included = !excludedIds.has(b.id)
-                              return (
-                                <tr key={b.id}>
-                                  <td style={{ textAlign: 'right', fontSize: 13 }}>{b.building_name}</td>
-                                  <td style={{ textAlign: 'center' }}>
-                                    <label style={{ display: 'inline-flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
-                                      <input
-                                        type="checkbox"
-                                        checked={included}
-                                        onChange={() => toggleExclude(b.id)}
-                                        style={{ width: 16, height: 16, cursor: 'pointer' }}
-                                      />
-                                      <span style={{ fontSize: 12, fontWeight: 600,
-                                        color: included ? 'var(--tact-green)' : 'var(--tact-text-dim,#888)' }}>
-                                        {included ? 'כלול' : 'לא כלול'}
-                                      </span>
-                                    </label>
-                                  </td>
-                                </tr>
-                              )
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-                  </div>
                 )}
               </div>
             )}
