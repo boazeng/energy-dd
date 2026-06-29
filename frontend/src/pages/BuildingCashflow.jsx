@@ -393,7 +393,6 @@ function CumulativeChart({ combined }) {
 
 function CombinedTable({ combined, buildings }) {
   if (!combined?.length) return null
-  const years = combined.map((r) => r.year)
 
   function buildingSummary(name) {
     return combined.reduce(
@@ -411,7 +410,6 @@ function CombinedTable({ combined, buildings }) {
     )
   }
 
-  // מיון מהגדול לקטן לפי רווח
   const summaries = Object.fromEntries(buildings.map((b) => [b.building_name, buildingSummary(b.building_name)]))
   const sortedBuildings = [...buildings].sort(
     (a, b) => summaries[b.building_name].profit - summaries[a.building_name].profit
@@ -422,131 +420,73 @@ function CombinedTable({ combined, buildings }) {
   const totalOpex    = combined.reduce((s, r) => s + r.total_opex,    0)
   const totalProfit  = combined.reduce((s, r) => s + r.total_profit,  0)
   const totalLoan    = combined.reduce((s, r) => s + r.loan_repayment, 0)
-  const hasLoan      = combined.some((r) => r.loan_repayment > 0)
-  const profitBefore = totalProfit + totalLoan  // לפני ניכוי הלוואה
+  const profitBefore = totalProfit + totalLoan
 
-  const sep      = { borderRight: '2px solid rgba(255,255,255,.18)' }
   const footerTd = { fontSize: 13, fontWeight: 700 }
+  const tdL = { textAlign: 'left' }
 
   return (
-    <div className="table-wrap" style={{ overflowX: 'auto' }}>
-      <table className="tact-table combined-pivot-table">
-        <thead>
-          <tr>
-            <th style={{ minWidth: 150, textAlign: 'right' }}>בניין</th>
-            {years.map((y) => (
-              <th key={y} style={{ minWidth: 100, textAlign: 'left' }}>{y}</th>
-            ))}
-            <th style={{ minWidth: 110, textAlign: 'left', ...sep }}>סה"כ הכנסות</th>
-            <th style={{ minWidth: 90,  textAlign: 'left' }}>השקעה</th>
-            <th style={{ minWidth: 90,  textAlign: 'left' }}>תפעול</th>
-            <th style={{ minWidth: 120, textAlign: 'left', background: 'rgba(130,202,157,.12)', ...sep }}>
-              רווח נקי לבניין
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {sortedBuildings.map((b) => {
-            const s = summaries[b.building_name]
-            return (
-              <tr key={b.id}>
-                <td style={{ fontWeight: 500, textAlign: 'right' }}>{b.building_name}</td>
-                {combined.map((row) => {
-                  const bd    = row.buildings[b.building_name]
-                  const inc   = bd?.annual_income || 0
-                  const exp   = (bd?.capex || 0) + (bd?.annual_opex || 0)
-                  const added = bd?.chargers_added || 0
-                  return (
-                    <td key={row.year} style={{ textAlign: 'left', fontSize: 12, lineHeight: 1.4, verticalAlign: 'top', paddingTop: 8, paddingBottom: 8 }}>
-                      <div style={{ color: inc > 0 ? 'var(--tact-green)' : 'var(--tact-text-dim,#888)', fontWeight: 500 }}>
-                        {inc > 0 ? ils(inc) : '—'}
-                        {added > 0 && (
-                          <span style={{ fontSize: 10, color: 'var(--tact-accent,#6c8ebf)', marginInlineStart: 3 }}>+{added}</span>
-                        )}
-                      </div>
-                      {exp > 0 && (
-                        <div style={{ color: 'var(--tact-red,#e74c3c)', fontSize: 11, opacity: .85 }}>
-                          {ils(-exp)}
-                        </div>
-                      )}
-                    </td>
-                  )
-                })}
-                <td style={{ textAlign: 'left', color: 'var(--tact-green)', fontWeight: 600, ...sep }}>
-                  {ils(s.income)}
-                </td>
-                <td style={{ textAlign: 'left', color: s.capex > 0 ? 'var(--tact-red,#e74c3c)' : 'inherit', fontSize: 13 }}>
-                  {s.capex > 0 ? ils(-s.capex) : '—'}
-                </td>
-                <td style={{ textAlign: 'left', color: s.opex > 0 ? 'var(--tact-orange,#e67e22)' : 'inherit', fontSize: 13 }}>
-                  {s.opex > 0 ? ils(-s.opex) : '—'}
-                </td>
-                <td style={{
-                  textAlign: 'left', fontWeight: 700,
-                  background: 'rgba(130,202,157,.08)',
-                  color: s.profit >= 0 ? 'var(--tact-green)' : 'var(--tact-red,#e74c3c)',
-                  ...sep,
-                }}>
-                  {ils(s.profit)}
-                </td>
-              </tr>
-            )
-          })}
-        </tbody>
-        <tfoot>
-          {/* שורה 1: רווח לפני הלוואה */}
-          <tr style={{ borderTop: '2px solid rgba(255,255,255,.2)', background: 'rgba(108,142,191,.08)' }}>
-            <td style={{ textAlign: 'right', ...footerTd }}>רווח צפוי לפני תשלום הלוואה</td>
-            {combined.map((row) => {
-              const v = row.total_profit + row.loan_repayment
-              return (
-                <td key={row.year} style={{ textAlign: 'left', ...footerTd, color: v >= 0 ? 'var(--tact-green)' : 'var(--tact-red,#e74c3c)' }}>
-                  {ils(v)}
-                </td>
-              )
-            })}
-            <td style={{ textAlign: 'left', color: 'var(--tact-green)', ...footerTd, ...sep }}>{ils(totalIncome)}</td>
-            <td style={{ textAlign: 'left', color: 'var(--tact-red,#e74c3c)', ...footerTd }}>{ils(-totalCapex)}</td>
-            <td style={{ textAlign: 'left', color: 'var(--tact-orange,#e67e22)', ...footerTd }}>{ils(-totalOpex)}</td>
-            <td style={{ textAlign: 'left', background: 'rgba(130,202,157,.15)', ...footerTd,
-              color: profitBefore >= 0 ? 'var(--tact-green)' : 'var(--tact-red,#e74c3c)', ...sep }}>
-              {ils(profitBefore)}
-            </td>
-          </tr>
-
-          {/* שורה 2: החזר הלוואה (אותו גופן) */}
+    <table className="tact-table" style={{ width: '100%' }}>
+      <thead>
+        <tr>
+          <th style={{ textAlign: 'right' }}>בניין</th>
+          <th style={tdL}>סה"כ הכנסות</th>
+          <th style={tdL}>השקעה</th>
+          <th style={tdL}>תפעול</th>
+          <th style={{ ...tdL, background: 'rgba(130,202,157,.12)' }}>רווח נקי</th>
+        </tr>
+      </thead>
+      <tbody>
+        {sortedBuildings.map((b) => {
+          const s = summaries[b.building_name]
+          return (
+            <tr key={b.id}>
+              <td style={{ fontWeight: 500, textAlign: 'right' }}>{b.building_name}</td>
+              <td style={{ ...tdL, color: 'var(--tact-green)', fontWeight: 600 }}>{ils(s.income)}</td>
+              <td style={{ ...tdL, color: s.capex > 0 ? 'var(--tact-red,#e74c3c)' : 'inherit' }}>
+                {s.capex > 0 ? ils(-s.capex) : '—'}
+              </td>
+              <td style={{ ...tdL, color: s.opex > 0 ? 'var(--tact-orange,#e67e22)' : 'inherit' }}>
+                {s.opex > 0 ? ils(-s.opex) : '—'}
+              </td>
+              <td style={{ ...tdL, fontWeight: 700, background: 'rgba(130,202,157,.08)',
+                color: s.profit >= 0 ? 'var(--tact-green)' : 'var(--tact-red,#e74c3c)' }}>
+                {ils(s.profit)}
+              </td>
+            </tr>
+          )
+        })}
+      </tbody>
+      <tfoot>
+        <tr style={{ borderTop: '2px solid rgba(255,255,255,.2)', background: 'rgba(108,142,191,.08)' }}>
+          <td style={{ textAlign: 'right', ...footerTd }}>סה"כ לפני הלוואה</td>
+          <td style={{ ...tdL, color: 'var(--tact-green)', ...footerTd }}>{ils(totalIncome)}</td>
+          <td style={{ ...tdL, color: 'var(--tact-red,#e74c3c)', ...footerTd }}>{ils(-totalCapex)}</td>
+          <td style={{ ...tdL, color: 'var(--tact-orange,#e67e22)', ...footerTd }}>{ils(-totalOpex)}</td>
+          <td style={{ ...tdL, background: 'rgba(130,202,157,.15)', ...footerTd,
+            color: profitBefore >= 0 ? 'var(--tact-green)' : 'var(--tact-red,#e74c3c)' }}>
+            {ils(profitBefore)}
+          </td>
+        </tr>
+        {totalLoan > 0 && (
           <tr style={{ background: 'rgba(231,76,60,.06)' }}>
             <td style={{ textAlign: 'right', ...footerTd }}>החזר הלוואה</td>
-            {combined.map((row) => (
-              <td key={row.year} style={{ textAlign: 'left', ...footerTd, color: row.loan_repayment > 0 ? 'var(--tact-red,#e74c3c)' : 'var(--tact-text-dim,#aaa)' }}>
-                {row.loan_repayment > 0 ? ils(-row.loan_repayment) : '—'}
-              </td>
-            ))}
-            <td colSpan={3} style={sep} />
-            <td style={{ textAlign: 'left', background: 'rgba(231,76,60,.1)', ...footerTd,
-              color: totalLoan > 0 ? 'var(--tact-red,#e74c3c)' : 'var(--tact-text-dim,#aaa)', ...sep }}>
-              {totalLoan > 0 ? ils(-totalLoan) : '—'}
+            <td colSpan={3} />
+            <td style={{ ...tdL, background: 'rgba(231,76,60,.1)', ...footerTd, color: 'var(--tact-red,#e74c3c)' }}>
+              {ils(-totalLoan)}
             </td>
           </tr>
-
-          {/* שורה 3: רווח לאחר הלוואה */}
-          <tr style={{ background: 'rgba(130,202,157,.10)' }}>
-            <td style={{ textAlign: 'right', ...footerTd }}>רווח צפוי לאחר החזר הלוואה</td>
-            {combined.map((row) => (
-              <td key={row.year} style={{ textAlign: 'left', ...footerTd, color: row.total_profit >= 0 ? 'var(--tact-green)' : 'var(--tact-red,#e74c3c)' }}>
-                {ils(row.total_profit)}
-              </td>
-            ))}
-            <td colSpan={3} style={sep} />
-            <td style={{ textAlign: 'left', background: 'rgba(130,202,157,.2)', fontWeight: 800, fontSize: 14,
-              color: totalProfit >= 0 ? 'var(--tact-green)' : 'var(--tact-red,#e74c3c)', ...sep }}>
-              {ils(totalProfit)}
-            </td>
-          </tr>
-
-        </tfoot>
-      </table>
-    </div>
+        )}
+        <tr style={{ background: 'rgba(130,202,157,.10)' }}>
+          <td style={{ textAlign: 'right', ...footerTd }}>רווח נקי כולל</td>
+          <td colSpan={3} />
+          <td style={{ ...tdL, background: 'rgba(130,202,157,.2)', fontWeight: 800, fontSize: 14,
+            color: totalProfit >= 0 ? 'var(--tact-green)' : 'var(--tact-red,#e74c3c)' }}>
+            {ils(totalProfit)}
+          </td>
+        </tr>
+      </tfoot>
+    </table>
   )
 }
 
@@ -911,14 +851,7 @@ export default function BuildingCashflow({ loading: appLoading }) {
                     <p>אין בניינים עדיין. לחץ "הוסף בניין" כדי להתחיל.</p>
                   </div>
                 ) : (
-                  <>
-                    <h3>הכנסות לפי בניין ושנה</h3>
-                    <CombinedChart combined={combined} buildings={buildings} />
-                    <h3 style={{ marginTop: 24 }}>רווח שנתי ומצטבר</h3>
-                    <CumulativeChart combined={combined} />
-                    <h3 style={{ marginTop: 24 }}>טבלת תחזית כוללת</h3>
-                    <CombinedTable combined={combined} buildings={buildings} />
-                  </>
+                  <CombinedTable combined={combined} buildings={buildings} />
                 )}
               </div>
             )}
