@@ -36,6 +36,7 @@ def _to_out(row: TenantAgreement) -> dict:
         "flags": row.flags,
         "charger_cost": row.charger_cost or "",
         "notes": row.notes or "",
+        "review_notes": row.review_notes or "",
         "details": details,
         "source_file": row.source_file,
         "source_url": row.source_url,

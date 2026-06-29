@@ -39,6 +39,9 @@ class TenantAgreement(Base):
     # --- הערות / אי-התאמות מול נתוני החברה ---
     notes: Mapped[str] = mapped_column(Text, default="")
 
+    # --- הערות לאחר סקירה ידנית ---
+    review_notes: Mapped[str] = mapped_column(Text, default="")
+
     # --- מטא ---
     source_file: Mapped[str] = mapped_column(String(300), default="")    # שם קובץ המקור
     source_url: Mapped[str] = mapped_column(Text, default="")            # קישור ל-SharePoint

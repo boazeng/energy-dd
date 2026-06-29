@@ -26,6 +26,7 @@ class TenantAgreementBase(BaseModel):
     flags: str = ""
     charger_cost: str = ""
     notes: str = ""
+    review_notes: str = ""
     details: list[DetailSection] = Field(default_factory=list)
     source_file: str = ""
     source_url: str = ""
@@ -50,6 +51,7 @@ class TenantAgreementUpdate(BaseModel):
     flags: str | None = None
     charger_cost: str | None = None
     notes: str | None = None
+    review_notes: str | None = None
     details: list[DetailSection] | None = None
     source_file: str | None = None
     source_url: str | None = None

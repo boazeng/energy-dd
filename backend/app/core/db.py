@@ -40,6 +40,7 @@ def _run_migrations() -> None:
     _add_column_if_missing("supplier_ledger", "opening_balance", "REAL DEFAULT 0.0")
     _add_column_if_missing("tenant_agreements", "notes", "TEXT DEFAULT ''")
     _add_column_if_missing("tenant_agreements", "charger_cost", "TEXT DEFAULT ''")
+    _add_column_if_missing("tenant_agreements", "review_notes", "TEXT DEFAULT ''")
     _refresh_supplier_ledger()
 
 

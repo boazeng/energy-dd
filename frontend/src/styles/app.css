@@ -160,6 +160,31 @@
 }
 .ta-source-link:hover { background: rgba(31, 58, 95, 0.14); transform: translateY(-1px); }
 
+.ta-file-link {
+  display: inline-flex; align-items: center; gap: 5px;
+  color: var(--color-primary); font-size: .85rem; font-weight: 500;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 160px;
+}
+.ta-file-link:hover { text-decoration: underline; }
+.ta-file-link span { overflow: hidden; text-overflow: ellipsis; }
+
+.ta-cell-editable {
+  cursor: pointer; min-width: 140px;
+  position: relative;
+}
+.ta-cell-editable:hover:not(.editing) { background: var(--color-bg); }
+.ta-edit-hint { color: var(--color-muted, #888); font-size: .82rem; font-style: italic; }
+
+.ta-review-input {
+  width: 100%; min-height: 60px;
+  border: 1.5px solid var(--color-primary);
+  border-radius: var(--radius-sm); padding: 6px 8px;
+  font-size: .9rem; font-family: inherit; resize: vertical;
+  background: var(--color-bg, #fff);
+  direction: rtl;
+}
+.ta-review-input:focus { outline: none; box-shadow: 0 0 0 3px var(--color-primary-soft); }
+
 /* ---- סטטוס פרויקטים ---- */
 .pr-panels {
   display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 16px;
