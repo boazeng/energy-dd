@@ -18,38 +18,32 @@ const fmtK = (v) => {
 
 const COLORS = ['#6c8ebf', '#82ca9d', '#ffc658', '#ff7c7c', '#a29bfe', '#fd79a8', '#00cec9', '#fdcb6e']
 
-// שדות ספציפיים לבניין בודד
+// שדות ספציפיים לבניין בודד (כולל תעריפים לפי הסכם דייר)
 const BUILDING_SPECIFIC_FIELDS = [
-  { key: 'current_chargers',       label: 'מטענים נוכחיים',     unit: '',        step: 1,   type: 'int',   note: 'מסונכרן מפרויקטים' },
-  { key: 'potential_spots',        label: 'חניות פוטנציאליות',  unit: '',        step: 1,   type: 'int' },
-  { key: 'chargers_no_rcd',        label: 'מטענים ללא פחת',     unit: '',        step: 1,   type: 'int',   note: 'מסונכרן מהאקסל' },
-  { key: 'charger_install_income', label: 'הכנסה מהתקנת מטען', unit: '₪/מטען', step: 100, type: 'float', note: 'לפי הסכם דייר' },
+  { key: 'current_chargers',             label: 'מטענים נוכחיים',     unit: '',         step: 1,   type: 'int',   note: 'מסונכרן מפרויקטים' },
+  { key: 'potential_spots',              label: 'חניות פוטנציאליות',  unit: '',         step: 1,   type: 'int' },
+  { key: 'chargers_no_rcd',              label: 'מטענים ללא פחת',     unit: '',         step: 1,   type: 'int',   note: 'מסונכרן מהאקסל' },
+  { key: 'charger_install_income',       label: 'הכנסה מהתקנת מטען', unit: '₪/מטען',  step: 100, type: 'float', note: 'לפי הסכם דייר' },
+  { key: 'mgmt_fee_per_charger',         label: 'עמלת ניהול למטען',  unit: '₪/חודש',  step: 0.1, type: 'float', note: 'לפי הסכם דייר' },
+  { key: 'electricity_rate_agorot',      label: 'עמלת חשמל',         unit: "אג'/kWh", step: 0.1, type: 'float', note: 'לפי הסכם דייר' },
+  { key: 'subscription_fee_per_charger', label: 'דמי מנוי למטען',    unit: '₪/חודש',  step: 0.1, type: 'float', note: 'לפי הסכם דייר' },
 ]
 
 // שדות גלובליים — CAPEX (מנוהלים בפאנל העליון)
 const CAPEX_FIELDS = [
-  { key: 'cost_charger_unit',        label: 'עלות מטען',                  unit: '₪',      step: 100, type: 'float' },
-  { key: 'cost_infra_per_charger',   label: "תשתית חשמל+תקשורת (50מ')",  unit: '₪',      step: 100, type: 'float' },
-  { key: 'cost_install_per_charger', label: 'התקנה כולל בודק',            unit: '₪',      step: 100, type: 'float' },
-  { key: 'cost_elec_panel',          label: 'ארון חשמל',                  unit: '₪/ארון', step: 100, type: 'float' },
-  { key: 'cost_comm_panel',          label: 'ארון תקשורת',                unit: '₪/ארון', step: 100, type: 'float' },
-  { key: 'chargers_per_panel',       label: 'מטענים לארון',               unit: '',        step: 1,   type: 'int' },
+  { key: 'cost_charger_unit',        label: 'עלות מטען',                 unit: '₪',      step: 100, type: 'float' },
+  { key: 'cost_infra_per_charger',   label: "תשתית חשמל+תקשורת (50מ')", unit: '₪',      step: 100, type: 'float' },
+  { key: 'cost_install_per_charger', label: 'התקנה כולל בודק',           unit: '₪',      step: 100, type: 'float' },
+  { key: 'cost_elec_panel',          label: 'ארון חשמל',                 unit: '₪/ארון', step: 100, type: 'float' },
+  { key: 'cost_comm_panel',          label: 'ארון תקשורת',               unit: '₪/ארון', step: 100, type: 'float' },
+  { key: 'chargers_per_panel',       label: 'מטענים לארון',              unit: '',        step: 1,   type: 'int' },
 ]
 
-// שדות גלובליים — הכנסות ו-OPEX ותחזית
-const GLOBAL_INCOME_FIELDS = [
-  { key: 'mgmt_fee_per_charger',         label: 'עמלת ניהול למטען',  unit: '₪/חודש',  step: 0.1, type: 'float' },
-  { key: 'electricity_rate_agorot',      label: 'עמלת חשמל',         unit: "אג'/kWh", step: 0.1, type: 'float' },
-  { key: 'subscription_fee_per_charger', label: 'דמי מנוי למטען',    unit: '₪/חודש',  step: 0.1, type: 'float' },
-]
+// שדות גלובליים — OPEX (עלויות זהות לכל הבניינים)
 const GLOBAL_OPEX_FIELDS = [
   { key: 'cost_rcd_per_charger',       label: 'עלות פחת חסר',    unit: '₪/שנה', step: 10, type: 'float' },
   { key: 'cost_internet_per_charger',  label: 'עלות אינטרנט',    unit: '₪/שנה', step: 10, type: 'float' },
   { key: 'cost_inspector_per_charger', label: 'עלות אישור בודק', unit: '₪/שנה', step: 10, type: 'float' },
-]
-const GLOBAL_FORECAST_FIELDS = [
-  { key: 'start_year',     label: 'שנת התחלה',  unit: '', step: 1, type: 'int' },
-  { key: 'forecast_years', label: 'שנות תחזית', unit: '', step: 1, type: 'int' },
 ]
 
 function monthlyIncome(bm) {
@@ -224,11 +218,11 @@ function BuildingSettings({ bm, globals, onChange }) {
 
   const extraTotal = (local.extra_costs || []).reduce((s, c) => s + (c.cost_per_charger || 0), 0)
 
-  // חישוב הכנסה חודשית למטען לפי הערכים הגלובליים
+  // חישוב הכנסה חודשית למטען לפי ערכי הבניין + kWh גלובלי
   const incomePerCharger =
-    (globals.mgmt_fee_per_charger || 0) +
-    ((globals.electricity_rate_agorot || 0) / 100) * (globals.avg_kwh_per_charger_monthly || 0) +
-    (globals.subscription_fee_per_charger || 0)
+    (local.mgmt_fee_per_charger || 0) +
+    ((local.electricity_rate_agorot || 0) / 100) * (globals.avg_kwh_per_charger_monthly || 0) +
+    (local.subscription_fee_per_charger || 0)
 
   return (
     <div className="building-settings">
@@ -281,8 +275,11 @@ function BuildingSettings({ bm, globals, onChange }) {
 
       <div className="income-summary" style={{ marginTop: 14 }}>
         <div style={{ fontSize: 12, color: 'var(--tact-text-dim,#aaa)', marginBottom: 4 }}>
-          הכנסה חודשית למטען (לפי הגדרות גלובליות):
+          הכנסה חודשית למטען:
           <strong style={{ color: 'var(--tact-green)', marginInlineStart: 6 }}>{ils(incomePerCharger)}</strong>
+          <span className="dim-text" style={{ fontSize: 11, marginInlineStart: 6 }}>
+            (ניהול {ils(local.mgmt_fee_per_charger || 0)} + חשמל {ils(((local.electricity_rate_agorot || 0) / 100) * (globals.avg_kwh_per_charger_monthly || 0))} + מנוי {ils(local.subscription_fee_per_charger || 0)})
+          </span>
         </div>
         {extraTotal > 0 && (
           <div className="dim-text" style={{ fontSize: 12 }}>
@@ -601,15 +598,10 @@ export default function BuildingCashflow({ loading: appLoading }) {
     chargers_per_panel: 10,
   })
   const [globalRates, setGlobalRates] = useState({
-    mgmt_fee_per_charger: 40,
-    electricity_rate_agorot: 30,
-    subscription_fee_per_charger: 0,
     avg_kwh_per_charger_monthly: 100,
     cost_rcd_per_charger: 300,
     cost_internet_per_charger: 400,
     cost_inspector_per_charger: 250,
-    start_year: 2026,
-    forecast_years: 5,
   })
   const growthTimer = useRef(null)
   const kwhTimer = useRef(null)
@@ -687,15 +679,10 @@ export default function BuildingCashflow({ loading: appLoading }) {
           chargers_per_panel:       b0.chargers_per_panel       ?? 10,
         })
         setGlobalRates({
-          mgmt_fee_per_charger:         b0.mgmt_fee_per_charger         ?? 40,
-          electricity_rate_agorot:      b0.electricity_rate_agorot      ?? 30,
-          subscription_fee_per_charger: b0.subscription_fee_per_charger ?? 0,
           avg_kwh_per_charger_monthly:  b0.avg_kwh_per_charger_monthly  ?? 100,
           cost_rcd_per_charger:         b0.cost_rcd_per_charger         ?? 300,
           cost_internet_per_charger:    b0.cost_internet_per_charger    ?? 400,
           cost_inspector_per_charger:   b0.cost_inspector_per_charger   ?? 250,
-          start_year:                   b0.start_year                   ?? 2026,
-          forecast_years:               b0.forecast_years               ?? 5,
         })
       }
     } finally {
@@ -835,12 +822,8 @@ export default function BuildingCashflow({ loading: appLoading }) {
         return (
           <div style={panelStyle}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 20, flexWrap: 'wrap' }}>
-              <span style={sectionLabel}>הכנסות:</span>
-              {GLOBAL_INCOME_FIELDS.map(rateInput)}
-              <span style={{ ...sectionLabel, marginInlineStart: 8 }}>OPEX (שנה ראשונה):</span>
+              <span style={sectionLabel}>OPEX (שנה ראשונה — לכל הבניינים):</span>
               {GLOBAL_OPEX_FIELDS.map(rateInput)}
-              <span style={{ ...sectionLabel, marginInlineStart: 8 }}>תחזית:</span>
-              {GLOBAL_FORECAST_FIELDS.map(rateInput)}
             </div>
           </div>
         )
