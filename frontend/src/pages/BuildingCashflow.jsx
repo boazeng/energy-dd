@@ -951,11 +951,6 @@ export default function BuildingCashflow({ loading: appLoading }) {
                   </div>
                 )}
 
-                <div style={{ marginBottom: 20 }}>
-                  <h4 style={{ marginTop: 0, marginBottom: 12 }}>תחזית גרפית</h4>
-                  {forecast ? <ForecastChart years={forecast.years} /> : <div className="dim-text">טוען...</div>}
-                </div>
-
                 <div className="building-layout">
                   <div className="building-settings-panel">
                     <BuildingSettings bm={selected} globals={globalRates} onChange={handleRefresh} />
@@ -964,6 +959,11 @@ export default function BuildingCashflow({ loading: appLoading }) {
                     <h4 style={{ marginTop: 0 }}>פירוט שנתי</h4>
                     {forecast ? <ForecastTable years={forecast.years} /> : <div className="dim-text">טוען...</div>}
                   </div>
+                </div>
+
+                <div style={{ marginTop: 24, marginBottom: 20 }}>
+                  <h4 style={{ marginTop: 0, marginBottom: 12 }}>תחזית גרפית</h4>
+                  {forecast ? <ForecastChart years={forecast.years} /> : <div className="dim-text">טוען...</div>}
                 </div>
               </div>
             )}
