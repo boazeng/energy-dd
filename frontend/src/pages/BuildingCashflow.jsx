@@ -463,15 +463,22 @@ function CombinedTable({ combined, buildings }) {
               <tr key={b.id}>
                 <td style={{ fontWeight: 500, textAlign: 'right' }}>{b.building_name}</td>
                 {combined.map((row) => {
-                  const inc   = row.buildings[b.building_name]?.annual_income || 0
-                  const added = row.buildings[b.building_name]?.chargers_added || 0
+                  const b_data = row.buildings[b.building_name]
+                  const inc    = b_data?.annual_income || 0
+                  const exp    = (b_data?.capex || 0) + (b_data?.annual_opex || 0)
+                  const added  = b_data?.chargers_added || 0
                   return (
-                    <td key={row.year} style={{ textAlign: 'left', color: inc > 0 ? 'var(--tact-green)' : 'var(--tact-text-dim,#888)', fontSize: 13 }}>
-                      {inc > 0 ? ils(inc) : '—'}
-                      {added > 0 && (
-                        <span style={{ fontSize: 10, color: 'var(--tact-accent,#6c8ebf)', marginInlineStart: 3 }}>
-                          +{added}
-                        </span>
+                    <td key={row.year} style={{ textAlign: 'left', fontSize: 12, lineHeight: 1.4, verticalAlign: 'top', paddingTop: 8, paddingBottom: 8 }}>
+                      <div style={{ color: inc > 0 ? 'var(--tact-green)' : 'var(--tact-text-dim,#888)', fontWeight: 500 }}>
+                        {inc > 0 ? ils(inc) : '—'}
+                        {added > 0 && (
+                          <span style={{ fontSize: 10, color: 'var(--tact-accent,#6c8ebf)', marginInlineStart: 3 }}>+{added}</span>
+                        )}
+                      </div>
+                      {exp > 0 && (
+                        <div style={{ color: 'var(--tact-red,#e74c3c)', fontSize: 11, opacity: .85 }}>
+                          {ils(-exp)}
+                        </div>
                       )}
                     </td>
                   )
@@ -503,8 +510,13 @@ function CombinedTable({ combined, buildings }) {
           <tr style={{ fontWeight: 700, borderTop: '2px solid rgba(255,255,255,.2)', background: 'rgba(108,142,191,.1)' }}>
             <td style={{ textAlign: 'right' }}>סה"כ כל הבניינים</td>
             {combined.map((row) => (
-              <td key={row.year} style={{ textAlign: 'left', color: 'var(--tact-green)', fontSize: 13 }}>
-                {ils(row.total_income)}
+              <td key={row.year} style={{ textAlign: 'left', fontSize: 12, lineHeight: 1.4, verticalAlign: 'top', paddingTop: 8, paddingBottom: 8 }}>
+                <div style={{ color: 'var(--tact-green)' }}>{ils(row.total_income)}</div>
+                {(row.total_capex + row.total_opex) > 0 && (
+                  <div style={{ color: 'var(--tact-red,#e74c3c)', fontSize: 11, opacity: .85 }}>
+                    {ils(-(row.total_capex + row.total_opex))}
+                  </div>
+                )}
               </td>
             ))}
             <td style={{ textAlign: 'left', color: 'var(--tact-green)', ...sep }}>{ils(totalIncome)}</td>
