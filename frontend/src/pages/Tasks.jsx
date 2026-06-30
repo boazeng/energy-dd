@@ -8,41 +8,14 @@ import {
   STATUS_BADGE,
 } from '../constants.js'
 
-const PAGE_LABELS = {
-  home: 'בית',
-  projects: 'סטטוס פרויקטים',
-  financials: 'ניתוח כספי',
-  cashflow: 'תזרים',
-  'building-cashflow': 'תזרים בניינים',
-  tasks: 'רשימת מטלות',
-  agreements: 'הסכמי דיירים',
-}
-
-const Q_STATUS_LABEL = { open: 'פתוחה', answered: 'נענתה' }
-const Q_STATUS_BADGE = { open: 'tact-badge-soon', answered: 'tact-badge-pos' }
-
-export default function Tasks({ tasks, questions, loading, onChange, onQuestionsChange }) {
+export default function Tasks({ tasks, loading, onChange }) {
   const [filter, setFilter] = useState('all')
   const [adding, setAdding] = useState(false)
   const [draft, setDraft] = useState({ category: 'tenant_agreement', title: '' })
-  const [expandedImg, setExpandedImg] = useState(null)
-  const [editAnswer, setEditAnswer]   = useState({})
-  const [addingQ, setAddingQ]         = useState(false)
-  const [qDraft, setQDraft]           = useState({ question_text: '', page: '' })
+  const [editId, setEditId] = useState(null)
+  const [editDraft, setEditDraft] = useState({})
 
-  const shown =
-    filter === 'all' ? tasks : tasks.filter((t) => t.category === filter)
-
-  async function deleteTask(id) {
-    if (!window.confirm('למחוק את המטלה?')) return
-    await api.deleteTask(id)
-    onChange()
-  }
-
-  async function changeStatus(task, status) {
-    await api.updateTask(task.id, { status })
-    onChange()
-  }
+  const shown = filter === 'all' ? tasks : tasks.filter((t) => t.category === filter)
 
   async function addTask(e) {
     e.preventDefault()
@@ -53,31 +26,33 @@ export default function Tasks({ tasks, questions, loading, onChange, onQuestions
     onChange()
   }
 
-  async function changeQStatus(q, status) {
-    await api.updateQuestion(q.id, { status })
-    onQuestionsChange()
+  async function changeStatus(task, status) {
+    await api.updateTask(task.id, { status })
+    onChange()
   }
 
-  async function saveAnswer(q) {
-    const answer = editAnswer[q.id] ?? q.answer
-    await api.updateQuestion(q.id, { answer, status: answer.trim() ? 'answered' : q.status })
-    setEditAnswer((prev) => { const n = { ...prev }; delete n[q.id]; return n })
-    onQuestionsChange()
+  function startEdit(task) {
+    setEditId(task.id)
+    setEditDraft({ title: task.title, category: task.category })
   }
 
-  async function deleteQuestion(id) {
-    if (!window.confirm('למחוק את השאלה?')) return
-    await api.deleteQuestion(id)
-    onQuestionsChange()
+  function cancelEdit() {
+    setEditId(null)
+    setEditDraft({})
   }
 
-  async function addQuestion(e) {
-    e.preventDefault()
-    if (!qDraft.question_text.trim()) return
-    await api.createQuestion({ ...qDraft, status: 'open', answer: '' })
-    setQDraft({ question_text: '', page: '' })
-    setAddingQ(false)
-    onQuestionsChange()
+  async function saveEdit(task) {
+    if (!editDraft.title?.trim()) return
+    await api.updateTask(task.id, editDraft)
+    setEditId(null)
+    setEditDraft({})
+    onChange()
+  }
+
+  async function deleteTask(id) {
+    if (!window.confirm('למחוק את המטלה?')) return
+    await api.deleteTask(id)
+    onChange()
   }
 
   return (
@@ -92,7 +67,6 @@ export default function Tasks({ tasks, questions, loading, onChange, onQuestions
         </button>
       </div>
 
-      {/* סינון לפי קטגוריה */}
       <div className="filter-row">
         <button
           className={`filter-pill ${filter === 'all' ? 'active' : ''}`}
@@ -111,7 +85,6 @@ export default function Tasks({ tasks, questions, loading, onChange, onQuestions
         ))}
       </div>
 
-      {/* טופס הוספה */}
       {adding && (
         <form className="add-form" onSubmit={addTask}>
           <select
@@ -119,9 +92,7 @@ export default function Tasks({ tasks, questions, loading, onChange, onQuestions
             onChange={(e) => setDraft({ ...draft, category: e.target.value })}
           >
             {CATEGORIES.map((c) => (
-              <option key={c.key} value={c.key}>
-                {c.label}
-              </option>
+              <option key={c.key} value={c.key}>{c.label}</option>
             ))}
           </select>
           <input
@@ -130,13 +101,11 @@ export default function Tasks({ tasks, questions, loading, onChange, onQuestions
             value={draft.title}
             onChange={(e) => setDraft({ ...draft, title: e.target.value })}
           />
-          <button className="tact-btn tact-btn-primary" type="submit">
-            הוסף
-          </button>
+          <button className="tact-btn tact-btn-primary" type="submit">הוסף</button>
+          <button className="tact-btn" type="button" onClick={() => setAdding(false)}>ביטול</button>
         </form>
       )}
 
-      {/* טבלת מטלות */}
       {loading ? (
         <p className="muted">טוען…</p>
       ) : shown.length === 0 ? (
@@ -153,172 +122,82 @@ export default function Tasks({ tasks, questions, loading, onChange, onQuestions
             </tr>
           </thead>
           <tbody>
-            {shown.map((t) => (
-              <tr key={t.id}>
-                <td className="muted">{CATEGORY_LABEL[t.category]}</td>
-                <td>{t.title}</td>
-                <td>
-                  <span className={`tact-badge ${STATUS_BADGE[t.status]}`}>
-                    {STATUSES.find((s) => s.key === t.status)?.label}
-                  </span>
-                </td>
-                <td>
-                  <select
-                    value={t.status}
-                    onChange={(e) => changeStatus(t, e.target.value)}
-                  >
-                    {STATUSES.map((s) => (
-                      <option key={s.key} value={s.key}>
-                        {s.label}
-                      </option>
-                    ))}
-                  </select>
-                </td>
-                <td>
-                  <button
-                    className="cf-del"
-                    title="מחק מטלה"
-                    onClick={() => deleteTask(t.id)}
-                  >
-                    ✕
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      )}
-
-      {/* ---- שאלות לבירור ---- */}
-      <div className="q-section">
-        <div className="q-section-head">
-          <h2 className="block-title">שאלות לבירור</h2>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <span className="muted q-count">
-              {questions.filter((q) => q.status === 'open').length} פתוחות
-              {' · '}
-              {questions.length} סה"כ
-            </span>
-            <button className="tact-btn tact-btn-primary" onClick={() => setAddingQ((v) => !v)}>
-              + שאלה
-            </button>
-          </div>
-        </div>
-
-        {addingQ && (
-          <form className="add-form" onSubmit={addQuestion} style={{ marginBottom: 12 }}>
-            <select
-              value={qDraft.page}
-              onChange={(e) => setQDraft((d) => ({ ...d, page: e.target.value }))}
-            >
-              <option value="">— עמוד (אופציונלי) —</option>
-              {Object.entries(PAGE_LABELS).map(([k, l]) => (
-                <option key={k} value={k}>{l}</option>
-              ))}
-            </select>
-            <input
-              autoFocus
-              placeholder="טקסט השאלה…"
-              value={qDraft.question_text}
-              onChange={(e) => setQDraft((d) => ({ ...d, question_text: e.target.value }))}
-              style={{ flex: 1 }}
-            />
-            <button className="tact-btn tact-btn-primary" type="submit">הוסף</button>
-            <button className="tact-btn" type="button" onClick={() => setAddingQ(false)}>ביטול</button>
-          </form>
-        )}
-
-        {loading ? (
-          <p className="muted">טוען…</p>
-        ) : questions.length === 0 ? (
-          <p className="muted">אין שאלות עדיין.</p>
-        ) : (
-          <div className="q-table-wrap">
-            <table className="tasks-table q-table">
-              <thead>
-                <tr>
-                  <th>עמוד</th>
-                  <th>שאלה</th>
-                  <th>צילום</th>
-                  <th>סטטוס</th>
-                  <th>תשובה / הערה</th>
-                  <th></th>
+            {shown.map((t) =>
+              editId === t.id ? (
+                <tr key={t.id} className="edit-row">
+                  <td>
+                    <select
+                      value={editDraft.category}
+                      onChange={(e) => setEditDraft({ ...editDraft, category: e.target.value })}
+                    >
+                      {CATEGORIES.map((c) => (
+                        <option key={c.key} value={c.key}>{c.label}</option>
+                      ))}
+                    </select>
+                  </td>
+                  <td>
+                    <input
+                      autoFocus
+                      value={editDraft.title}
+                      onChange={(e) => setEditDraft({ ...editDraft, title: e.target.value })}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') saveEdit(t)
+                        if (e.key === 'Escape') cancelEdit()
+                      }}
+                      style={{ width: '100%' }}
+                    />
+                  </td>
+                  <td colSpan={2}>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button className="tact-btn tact-btn-primary" onClick={() => saveEdit(t)}>שמור</button>
+                      <button className="tact-btn" onClick={cancelEdit}>ביטול</button>
+                    </div>
+                  </td>
+                  <td></td>
                 </tr>
-              </thead>
-              <tbody>
-                {questions.map((q) => (
-                  <tr key={q.id} className={q.status === 'answered' ? 'q-row-answered' : ''}>
-                    <td className="muted q-cell-page">
-                      {(PAGE_LABELS[q.page] ?? q.page) || '—'}
-                    </td>
-                    <td className="q-cell-text">{q.question_text}</td>
-                    <td className="q-cell-thumb">
-                      {q.screenshot_data ? (
-                        <img
-                          src={q.screenshot_data}
-                          alt="צילום מסך"
-                          className="q-thumb"
-                          onClick={() => setExpandedImg(q.screenshot_data)}
-                          title="לחץ להגדלה"
-                        />
-                      ) : (
-                        <span className="muted">—</span>
-                      )}
-                    </td>
-                    <td>
-                      <span className={`tact-badge ${Q_STATUS_BADGE[q.status]}`}>
-                        {Q_STATUS_LABEL[q.status]}
-                      </span>
-                    </td>
-                    <td className="q-cell-answer">
-                      <div className="q-answer-row">
-                        <input
-                          className="q-answer-input"
-                          placeholder="הזן תשובה…"
-                          value={editAnswer[q.id] ?? q.answer}
-                          onChange={(e) =>
-                            setEditAnswer((prev) => ({ ...prev, [q.id]: e.target.value }))
-                          }
-                          onBlur={() => {
-                            if (editAnswer[q.id] !== undefined) saveAnswer(q)
-                          }}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') saveAnswer(q)
-                          }}
-                        />
-                        {editAnswer[q.id] !== undefined && (
-                          <button
-                            className="tact-btn tact-btn-primary q-save-btn"
-                            onClick={() => saveAnswer(q)}
-                          >
-                            שמור
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                    <td>
+              ) : (
+                <tr key={t.id}>
+                  <td className="muted">{CATEGORY_LABEL[t.category]}</td>
+                  <td>{t.title}</td>
+                  <td>
+                    <span className={`tact-badge ${STATUS_BADGE[t.status]}`}>
+                      {STATUSES.find((s) => s.key === t.status)?.label}
+                    </span>
+                  </td>
+                  <td>
+                    <select
+                      value={t.status}
+                      onChange={(e) => changeStatus(t, e.target.value)}
+                    >
+                      {STATUSES.map((s) => (
+                        <option key={s.key} value={s.key}>{s.label}</option>
+                      ))}
+                    </select>
+                  </td>
+                  <td>
+                    <div style={{ display: 'flex', gap: 6 }}>
                       <button
                         className="cf-del"
-                        title="מחק שאלה"
-                        onClick={() => deleteQuestion(q.id)}
+                        title="ערוך מטלה"
+                        onClick={() => startEdit(t)}
+                        style={{ opacity: 0.7 }}
+                      >
+                        ✎
+                      </button>
+                      <button
+                        className="cf-del"
+                        title="מחק מטלה"
+                        onClick={() => deleteTask(t.id)}
                       >
                         ✕
                       </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      {/* תמונה מוגדלת */}
-      {expandedImg && (
-        <div className="q-lightbox" onClick={() => setExpandedImg(null)}>
-          <img src={expandedImg} alt="צילום מסך מוגדל" />
-          <button className="q-lightbox-close" onClick={() => setExpandedImg(null)}>✕</button>
-        </div>
+                    </div>
+                  </td>
+                </tr>
+              )
+            )}
+          </tbody>
+        </table>
       )}
     </section>
   )
