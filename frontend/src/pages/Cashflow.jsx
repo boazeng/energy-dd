@@ -241,7 +241,7 @@ function OverheadPanel({ items, onChange }) {
 const VIEW_OPTS  = [{ v: 'annual', l: 'שנתי' }, { v: 'quarterly', l: 'רבעוני' }, { v: 'monthly', l: 'חודשי' }]
 const BAR_DEFS   = [{ k: 'הכנסות', color: '#2e7d4f' }, { k: 'הוצאות', color: '#d64a2e' }, { k: 'רווח', color: '#1f3a5f' }]
 
-export default function Cashflow({ loading: parentLoading }) {
+export default function Cashflow({ loading: parentLoading, horizonMode = 'contract' }) {
   const [loan, setLoan]                   = useState({ amount: 3000000, years: 5, prime: 6, margin: 2, start_month: '' })
   const [combinedForecast, setCombined]   = useState([])
   const [loading, setLoading]             = useState(true)
@@ -256,13 +256,14 @@ export default function Cashflow({ loading: parentLoading }) {
   const timers = useRef({})
 
   useEffect(() => {
-    Promise.all([api.getCashflow(), api.getCombinedForecast()])
+    const fy = horizonMode === '5yr' ? 5 : undefined
+    Promise.all([api.getCashflow(), api.getCombinedForecast(fy)])
       .then(([cf, forecast]) => {
         if (cf.loan) setLoan(cf.loan)
         setCombined(forecast || [])
         setLoading(false)
       }).catch(() => setLoading(false))
-  }, [])
+  }, [horizonMode])
 
   function patchLoan(patch) {
     setLoan((prev) => ({ ...prev, ...patch }))

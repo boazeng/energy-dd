@@ -39,6 +39,7 @@ export default function App() {
   const [supplierLedger, setSupplierLedger] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [horizonMode, setHorizonMode] = useState('contract') // 'contract' | '5yr' — משותף לתזרים ותזרים בניינים
 
   async function refresh() {
     try {
@@ -118,8 +119,8 @@ export default function App() {
             onSupplierChange={refreshSuppliers}
           />
         )}
-        {tab === 'cashflow' && <Cashflow loading={loading} />}
-        {tab === 'building-cashflow' && <BuildingCashflow loading={loading} />}
+        {tab === 'cashflow' && <Cashflow loading={loading} horizonMode={horizonMode} />}
+        {tab === 'building-cashflow' && <BuildingCashflow loading={loading} horizonMode={horizonMode} onHorizonChange={setHorizonMode} />}
         {tab === 'tasks' && (
           <Tasks
             tasks={tasks}

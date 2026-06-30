@@ -643,7 +643,7 @@ function CombinedTable({ combined, buildings, overheadExpenses = [], excludedIds
 
 // ─── קומפוננט ראשי ───────────────────────────────────────────────────────────
 
-export default function BuildingCashflow({ loading: appLoading }) {
+export default function BuildingCashflow({ loading: appLoading, horizonMode = 'contract', onHorizonChange }) {
   const [buildings, setBuildings] = useState([])
   const [selectedId, setSelectedId] = useState(null)
   const [forecast, setForecast] = useState(null)
@@ -675,7 +675,6 @@ export default function BuildingCashflow({ loading: appLoading }) {
   })
   const [showInclusion, setShowInclusion] = useState(false)
   const [viewMode, setViewMode] = useState('annual')
-  const [horizonMode, setHorizonMode] = useState('contract') // 'contract' | '5yr'
 
   const growthTimer = useRef(null)
   const kwhTimer = useRef(null)
@@ -752,8 +751,8 @@ export default function BuildingCashflow({ loading: appLoading }) {
     }, 600)
   }
 
-  async function load(horizon) {
-    const fy = (horizon ?? horizonMode) === '5yr' ? 5 : undefined
+  async function load() {
+    const fy = horizonMode === '5yr' ? 5 : undefined
     setLoading(true)
     try {
       const [bms, comb] = await Promise.all([
@@ -786,7 +785,7 @@ export default function BuildingCashflow({ loading: appLoading }) {
     }
   }
 
-  useEffect(() => { load() }, [])
+  useEffect(() => { load() }, [horizonMode])
 
   useEffect(() => {
     if (selectedId == null) { setForecast(null); return }
@@ -856,7 +855,7 @@ export default function BuildingCashflow({ loading: appLoading }) {
             {[['contract','לפי הסכם'],['5yr','5 שנים']].map(([mode, label]) => (
               <button
                 key={mode}
-                onClick={() => { setHorizonMode(mode); load(mode) }}
+                onClick={() => onHorizonChange(mode)}
                 style={{
                   padding: '4px 12px', fontSize: 12, fontWeight: 600, borderRadius: 5,
                   border: 'none', cursor: 'pointer',
