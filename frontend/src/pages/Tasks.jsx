@@ -26,7 +26,9 @@ export default function Tasks({ tasks, questions, loading, onChange, onQuestions
   const [adding, setAdding] = useState(false)
   const [draft, setDraft] = useState({ category: 'tenant_agreement', title: '' })
   const [expandedImg, setExpandedImg] = useState(null)
-  const [editAnswer, setEditAnswer] = useState({}) // { [id]: string }
+  const [editAnswer, setEditAnswer]   = useState({})
+  const [addingQ, setAddingQ]         = useState(false)
+  const [qDraft, setQDraft]           = useState({ question_text: '', page: '' })
 
   const shown =
     filter === 'all' ? tasks : tasks.filter((t) => t.category === filter)
@@ -60,6 +62,15 @@ export default function Tasks({ tasks, questions, loading, onChange, onQuestions
   async function deleteQuestion(id) {
     if (!window.confirm('למחוק את השאלה?')) return
     await api.deleteQuestion(id)
+    onQuestionsChange()
+  }
+
+  async function addQuestion(e) {
+    e.preventDefault()
+    if (!qDraft.question_text.trim()) return
+    await api.createQuestion({ ...qDraft, status: 'open', answer: '' })
+    setQDraft({ question_text: '', page: '' })
+    setAddingQ(false)
     onQuestionsChange()
   }
 
@@ -166,19 +177,45 @@ export default function Tasks({ tasks, questions, loading, onChange, onQuestions
       <div className="q-section">
         <div className="q-section-head">
           <h2 className="block-title">שאלות לבירור</h2>
-          <span className="muted q-count">
-            {questions.filter((q) => q.status === 'open').length} פתוחות
-            {' · '}
-            {questions.length} סה"כ
-          </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span className="muted q-count">
+              {questions.filter((q) => q.status === 'open').length} פתוחות
+              {' · '}
+              {questions.length} סה"כ
+            </span>
+            <button className="tact-btn tact-btn-primary" onClick={() => setAddingQ((v) => !v)}>
+              + שאלה
+            </button>
+          </div>
         </div>
+
+        {addingQ && (
+          <form className="add-form" onSubmit={addQuestion} style={{ marginBottom: 12 }}>
+            <select
+              value={qDraft.page}
+              onChange={(e) => setQDraft((d) => ({ ...d, page: e.target.value }))}
+            >
+              <option value="">— עמוד (אופציונלי) —</option>
+              {Object.entries(PAGE_LABELS).map(([k, l]) => (
+                <option key={k} value={k}>{l}</option>
+              ))}
+            </select>
+            <input
+              autoFocus
+              placeholder="טקסט השאלה…"
+              value={qDraft.question_text}
+              onChange={(e) => setQDraft((d) => ({ ...d, question_text: e.target.value }))}
+              style={{ flex: 1 }}
+            />
+            <button className="tact-btn tact-btn-primary" type="submit">הוסף</button>
+            <button className="tact-btn" type="button" onClick={() => setAddingQ(false)}>ביטול</button>
+          </form>
+        )}
 
         {loading ? (
           <p className="muted">טוען…</p>
         ) : questions.length === 0 ? (
-          <p className="muted">
-            אין שאלות עדיין — לחץ על כפתור <strong>? שאלה</strong> בפינה התחתונה כדי להוסיף.
-          </p>
+          <p className="muted">אין שאלות עדיין.</p>
         ) : (
           <div className="q-table-wrap">
             <table className="tasks-table q-table">
