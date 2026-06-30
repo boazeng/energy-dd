@@ -253,6 +253,8 @@ def sync_install_income(db: Session) -> int:
     models = list(db.scalars(select(BuildingModel)))
     updated = 0
     for bm in models:
+        if "חסר הסכם" in (bm.notes or ""):
+            continue  # בניינים ללא הסכם — לא מסנכרנים מ-agreements
         street_part = bm.building_name.split(",")[0].strip()
         norm_bm = _normalize(street_part)
         for agr in agreements:
