@@ -61,4 +61,13 @@ def migrate_building_models(engine: Engine) -> None:
             "UPDATE tenant_agreements SET building = REPLACE(building, 'גן עמר 4A', 'ג\\'ו עמר 4A')"
             " WHERE building LIKE '%גן עמר 4A%'"
         ))
+        # תיקון קיצור "שד' היובל" → "שדרות היובל" (תואם ל-projects.json שמשתמש בשם המלא)
+        conn.execute(text(
+            "UPDATE building_models SET building_name = REPLACE(building_name, 'שד׳ היובל', 'שדרות היובל')"
+            " WHERE building_name LIKE '%היובל%'"
+        ))
+        conn.execute(text(
+            "UPDATE tenant_agreements SET building = REPLACE(building, 'שד׳ היובל', 'שדרות היובל')"
+            " WHERE building LIKE '%היובל%'"
+        ))
         conn.commit()

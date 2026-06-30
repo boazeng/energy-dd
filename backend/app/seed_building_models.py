@@ -99,7 +99,7 @@ BUILDING_SEEDS = [
         purchase=1600, install=2350,
     ),
     dict(
-        building_name="שד׳ היובל 3, ראשון לציון",
+        building_name="שדרות היובל 3, ראשון לציון",
         mgmt_fee=80, elec_rate=0, avg_kwh=150,
         purchase=4200, install=2800,
     ),
