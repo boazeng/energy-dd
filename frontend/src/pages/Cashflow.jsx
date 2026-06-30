@@ -314,12 +314,15 @@ export default function Cashflow({ loading: parentLoading }) {
     })
   }, [combinedForecast, viewMode, discountRate, settings.opening_balance, totalAnnualOverhead, periodsPerYear])
 
-  const chartData  = periods.map((r) => ({ period: r.period, הכנסות: r.income, הוצאות: r.expense, רווח: r.net }))
-  const totalIncome  = periods.reduce((s, r) => s + r.income, 0)
-  const totalExpense = periods.reduce((s, r) => s + r.expense, 0)
-  const totalNet     = periods.reduce((s, r) => s + r.net, 0)
-  const npv          = periods.reduce((s, r) => s + r.pvNet, 0)
-  const endBalance   = periods.length ? periods[periods.length - 1].balance : Number(settings.opening_balance || 0)
+  const chartData    = periods.map((r) => ({ period: r.period, הכנסות: r.income, הוצאות: r.expense, רווח: r.net }))
+  const totalIncome   = periods.reduce((s, r) => s + r.income, 0)
+  const totalCapex    = periods.reduce((s, r) => s + r.capex, 0)
+  const totalOpex     = periods.reduce((s, r) => s + r.opex, 0)
+  const totalOverhead = periods.reduce((s, r) => s + r.overhead, 0)
+  const totalLoan     = periods.reduce((s, r) => s + r.loan, 0)
+  const totalNet      = periods.reduce((s, r) => s + r.net, 0)
+  const npv           = periods.reduce((s, r) => s + r.pvNet, 0)
+  const endBalance    = periods.length ? periods[periods.length - 1].balance : Number(settings.opening_balance || 0)
 
   if (loading || parentLoading) return <p className="muted">טוען…</p>
 
@@ -344,31 +347,6 @@ export default function Cashflow({ loading: parentLoading }) {
           <input type="number" min="0" max="50" step="0.5" value={discountRate}
             onChange={(e) => setDiscountRate(parseFloat(e.target.value) || 0)} />
         </label>
-      </div>
-
-      <div className="kpi-grid">
-        <div className="tact-kpi">
-          <div className="tact-kpi-label">סה"כ הכנסות</div>
-          <div className="tact-kpi-val fin-pos">{ils(totalIncome)}</div>
-        </div>
-        <div className="tact-kpi">
-          <div className="tact-kpi-label">סה"כ הוצאות</div>
-          <div className="tact-kpi-val fin-neg">{ils(totalExpense)}</div>
-        </div>
-        <div className="tact-kpi">
-          <div className="tact-kpi-label">רווח נקי מצרפי</div>
-          <div className={`tact-kpi-val ${totalNet < 0 ? 'fin-neg' : 'fin-pos'}`}>{ils(totalNet)}</div>
-        </div>
-        {discountRate > 0 && (
-          <div className="tact-kpi">
-            <div className="tact-kpi-label">NPV ({discountRate}%)</div>
-            <div className={`tact-kpi-val ${npv < 0 ? 'fin-neg' : 'fin-pos'}`}>{ils(npv)}</div>
-          </div>
-        )}
-        <div className="tact-kpi">
-          <div className="tact-kpi-label">יתרה בסוף תקופה</div>
-          <div className={`tact-kpi-val ${endBalance < 0 ? 'fin-neg' : ''}`}>{ils(endBalance)}</div>
-        </div>
       </div>
 
       <div className="cf-chart">
@@ -455,6 +433,23 @@ export default function Cashflow({ loading: parentLoading }) {
                   </tr>
                 ))}
               </tbody>
+              {periods.length > 0 && (
+                <tfoot>
+                  <tr style={{ fontWeight: 700, borderTop: '2px solid #c0c8d8' }}>
+                    <td className="fin-rowlabel">סה"כ</td>
+                    <td className="fin-pos">{ils(totalIncome)}</td>
+                    <td className="fin-neg">{ils(totalCapex)}</td>
+                    <td className="fin-neg">{ils(totalOpex)}</td>
+                    <td className="fin-neg">{ils(totalOverhead)}</td>
+                    <td className="fin-neg">{ils(totalLoan)}</td>
+                    <td className={totalNet < 0 ? 'fin-neg' : 'fin-pos'}>{ils(totalNet)}</td>
+                    {discountRate > 0 && (
+                      <td className={npv < 0 ? 'fin-neg' : 'fin-pos'}>{ils(npv)}</td>
+                    )}
+                    <td className={endBalance < 0 ? 'fin-neg' : ''}><strong>{ils(endBalance)}</strong></td>
+                  </tr>
+                </tfoot>
+              )}
             </table>
           </div>
         </>
