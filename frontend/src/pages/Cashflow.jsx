@@ -617,18 +617,6 @@ export default function Cashflow({ loading: parentLoading, horizonMode = 'contra
                     <td className="fin-neg" style={{ background: 'rgba(0,0,0,.04)', fontWeight: 700 }}>{ils(totalOpex)}</td>
                   </tr>
 
-                  {npvMode === 'with_financing' && totalLoan > 0 && (
-                    <tr>
-                      <td className="fin-rowlabel">מימון (ריבית)</td>
-                      {periods.map((r, i) => (
-                        <td key={i} className={r.loanInterest > 0 ? 'fin-neg' : ''} style={{ color: r.loanInterest > 0 ? undefined : '#bbb' }}>
-                          {r.loanInterest > 0 ? ils(r.loanInterest) : '—'}
-                        </td>
-                      ))}
-                      <td className="fin-neg" style={{ background: 'rgba(0,0,0,.04)', fontWeight: 700 }}>{ils(totalLoanInterest)}</td>
-                    </tr>
-                  )}
-
                   {totalOverhead > 0 && (
                     <tr>
                       <td className="fin-rowlabel">תקורות</td>
@@ -653,16 +641,27 @@ export default function Cashflow({ loading: parentLoading, horizonMode = 'contra
                     </tr>
                   )}
 
-                  {/* סה"כ רווח */}
+                  {/* החזר הלוואה — מוצג לפני סה"כ רווח רק במצב כולל מימון */}
+                  {npvMode === 'with_financing' && totalLoan > 0 && (
+                    <tr>
+                      <td className="fin-rowlabel">החזר הלוואה</td>
+                      {periods.map((r, i) => (
+                        <td key={i} className={r.loan > 0 ? 'fin-neg' : ''} style={{ color: r.loan > 0 ? undefined : '#bbb' }}>
+                          {r.loan > 0 ? ils(r.loan) : '—'}
+                        </td>
+                      ))}
+                      <td className="fin-neg" style={{ background: 'rgba(0,0,0,.04)', fontWeight: 700 }}>{ils(totalLoan)}</td>
+                    </tr>
+                  )}
+
+                  {/* סה"כ רווח = הכנסות פחות כל ההוצאות (כולל מימון אם במצב כולל מימון) */}
                   {(() => {
                     const withFin = npvMode === 'with_financing' && totalLoan > 0
                     const rowVal  = (r) => withFin ? r.net : r.netOperating
                     const total   = withFin ? totalNet : totalNetOperating
                     return (
                       <tr style={{ borderTop: '2px solid #c0c8d8', fontWeight: 700 }}>
-                        <td className="fin-rowlabel">
-                          סה"כ רווח{withFin ? ' (כולל מימון)' : ''}
-                        </td>
+                        <td className="fin-rowlabel">סה"כ רווח</td>
                         {periods.map((r, i) => (
                           <td key={i} className={rowVal(r) < 0 ? 'fin-neg' : 'fin-pos'}>{ils(rowVal(r))}</td>
                         ))}
@@ -694,8 +693,8 @@ export default function Cashflow({ loading: parentLoading, horizonMode = 'contra
                     </>
                   )}
 
-                  {/* ── מימון ── */}
-                  {totalLoan > 0 && (
+                  {/* ── הוצאות מימון — רק במצב ללא מימון (במצב כולל מימון ההלוואה כבר למעלה) ── */}
+                  {totalLoan > 0 && npvMode !== 'with_financing' && (
                     <>
                       <tr style={{ background: 'rgba(108,142,191,.07)' }}>
                         <td colSpan={periods.length + 2} style={{ padding: '4px 10px', fontSize: 11, fontWeight: 700, color: 'var(--tact-text-dim,#888)', letterSpacing: '.04em' }}>
@@ -703,34 +702,26 @@ export default function Cashflow({ loading: parentLoading, horizonMode = 'contra
                         </td>
                       </tr>
                       <tr>
-                        <td className="fin-rowlabel">
-                          {npvMode === 'without_financing' ? 'עלויות' : 'החזר הלוואה'}
-                        </td>
-                        {periods.map((r, i) => {
-                          const val = npvMode === 'with_financing' ? r.loanPrincipal : r.loan
-                          return (
-                            <td key={i} className={val > 0 ? 'fin-neg' : ''} style={{ color: val > 0 ? undefined : '#bbb' }}>
-                              {val > 0 ? ils(val) : '—'}
-                            </td>
-                          )
-                        })}
-                        <td className="fin-neg" style={{ background: 'rgba(0,0,0,.04)', fontWeight: 700 }}>
-                          {ils(npvMode === 'with_financing' ? totalLoanPrincipal : totalLoan)}
+                        <td className="fin-rowlabel">החזר הלוואה</td>
+                        {periods.map((r, i) => (
+                          <td key={i} className={r.loan > 0 ? 'fin-neg' : ''} style={{ color: r.loan > 0 ? undefined : '#bbb' }}>
+                            {r.loan > 0 ? ils(r.loan) : '—'}
+                          </td>
+                        ))}
+                        <td className="fin-neg" style={{ background: 'rgba(0,0,0,.04)', fontWeight: 700 }}>{ils(totalLoan)}</td>
+                      </tr>
+                      {/* נטו — רק כשהלוואה נפרדת מהסה"כ */}
+                      <tr style={{ borderTop: '2px solid #c0c8d8', fontWeight: 700 }}>
+                        <td className="fin-rowlabel">נטו</td>
+                        {periods.map((r, i) => (
+                          <td key={i} className={r.net < 0 ? 'fin-neg' : 'fin-pos'}>{ils(r.net)}</td>
+                        ))}
+                        <td className={totalNet < 0 ? 'fin-neg' : 'fin-pos'} style={{ background: 'rgba(0,0,0,.04)', fontWeight: 800 }}>
+                          {ils(totalNet)}
                         </td>
                       </tr>
                     </>
                   )}
-
-                  {/* ── נטו סופי ── */}
-                  <tr style={{ borderTop: '2px solid #c0c8d8', fontWeight: 700 }}>
-                    <td className="fin-rowlabel">נטו</td>
-                    {periods.map((r, i) => (
-                      <td key={i} className={r.net < 0 ? 'fin-neg' : 'fin-pos'}>{ils(r.net)}</td>
-                    ))}
-                    <td className={totalNet < 0 ? 'fin-neg' : 'fin-pos'} style={{ background: 'rgba(0,0,0,.04)', fontWeight: 800 }}>
-                      {ils(totalNet)}
-                    </td>
-                  </tr>
 
                   <tr style={{ fontWeight: 700 }}>
                     <td className="fin-rowlabel">יתרה מצטברת</td>
