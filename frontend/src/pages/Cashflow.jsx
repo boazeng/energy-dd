@@ -465,13 +465,6 @@ export default function Cashflow({ loading: parentLoading, horizonMode = 'contra
       </div>
       <p className="home-sub">תחזית תזרים מצרפית לכל הבניינים — נתונים מתזרים בניינים.</p>
 
-      <div className="cf-open">
-        <label><span>ריבית היוון %</span>
-          <input type="number" min="0" max="50" step="0.5" value={discountRate}
-            onChange={(e) => saveDiscountRate(parseFloat(e.target.value) || 0)} />
-        </label>
-      </div>
-
       <div className="cf-chart">
         <div className="cf-gran">
           {VIEW_OPTS.map((o) => (
@@ -535,7 +528,16 @@ export default function Cashflow({ loading: parentLoading, horizonMode = 'contra
 
       {subTab === 'forecast' && (
         <>
-          <div style={{ display: 'flex', gap: 8, margin: '16px 0 4px', flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 16, margin: '16px 0 4px', flexWrap: 'wrap' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 13, color: 'var(--tact-text-dim,#666)', whiteSpace: 'nowrap' }}>
+              <span>ריבית היוון %</span>
+              <input type="number" min="0" max="50" step="0.5" value={discountRate}
+                onChange={(e) => saveDiscountRate(parseFloat(e.target.value) || 0)}
+                style={{ width: 72, padding: '4px 8px', borderRadius: 6, border: '1px solid #d0d7e6', fontSize: 13 }} />
+            </label>
+            <span style={{ color: '#d0d7e6' }}>|</span>
+          </div>
+          <div style={{ display: 'flex', gap: 8, margin: '0 0 4px', flexWrap: 'wrap' }}>
             {[['with_financing','חישוב ערך נוכחי כולל מימון'],['without_financing','חישוב ערך נוכחי ללא מימון']].map(([mode, label]) => (
               <button key={mode}
                 onClick={() => setNpvMode((p) => { const next = p === mode ? null : mode; localStorage.setItem('energy-cf-npv-mode', next || ''); return next })}
@@ -549,7 +551,7 @@ export default function Cashflow({ loading: parentLoading, horizonMode = 'contra
               >{label}</button>
             ))}
           </div>
-          <h2 className="block-title">תחזית מצרפית</h2>
+          <h2 className="block-title">תזרים מרכז</h2>
           {periods.length === 0 ? (
             <p className="muted" style={{ padding: '1.5rem 0' }}>
               אין נתוני תחזית. הגדר בניינים בלשונית "תזרים בניינים".
@@ -685,13 +687,13 @@ export default function Cashflow({ loading: parentLoading, horizonMode = 'contra
                           היוון — שיעור {discountRate}%{npvMode ? ` · ${npvMode === 'with_financing' ? 'כולל מימון' : 'ללא מימון'}` : ''}
                         </td>
                       </tr>
-                      <tr style={{ fontWeight: 600 }}>
-                        <td className="fin-rowlabel">{npvLabel}</td>
+                      <tr style={{ fontWeight: 700, background: 'rgba(255,193,7,.13)' }}>
+                        <td className="fin-rowlabel" style={{ color: '#7a5c00' }}>{npvLabel}</td>
                         {periods.map((r, i) => {
                           const val = r[activePvKey]
-                          return <td key={i} className={val < 0 ? 'fin-neg' : 'fin-pos'}>{ils(val)}</td>
+                          return <td key={i} style={{ color: val < 0 ? '#c0392b' : '#1a6b3a', fontWeight: 700 }}>{ils(val)}</td>
                         })}
-                        <td className={activeNpv < 0 ? 'fin-neg' : 'fin-pos'} style={{ background: 'rgba(0,0,0,.04)', fontWeight: 700 }}>
+                        <td style={{ background: 'rgba(255,193,7,.25)', fontWeight: 800, color: activeNpv < 0 ? '#c0392b' : '#1a6b3a' }}>
                           {ils(activeNpv)}
                         </td>
                       </tr>
