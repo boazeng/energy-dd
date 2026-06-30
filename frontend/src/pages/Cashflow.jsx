@@ -1,12 +1,13 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import {
-  ComposedChart, Bar, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend,
-  ResponsiveContainer,
+  Bar, ComposedChart, CartesianGrid, Tooltip, Legend,
+  ResponsiveContainer, XAxis, YAxis,
 } from 'recharts'
 import { api } from '../api/client.js'
 
-const ils = (n) =>
-  '₪' + Number(n || 0).toLocaleString('he-IL', { maximumFractionDigits: 0 })
+// ─── עזרים ───────────────────────────────────────────────────────────────────
+
+const ils = (n) => '₪' + Number(n || 0).toLocaleString('he-IL', { maximumFractionDigits: 0 })
 
 const fmtK = (v) => {
   const a = Math.abs(v), s = v < 0 ? '-' : ''
@@ -14,6 +15,57 @@ const fmtK = (v) => {
   if (a >= 1e3) return s + '₪' + (a / 1e3).toFixed(0) + 'K'
   return s + '₪' + a
 }
+
+const MONTHS_SHORT = ['ינ׳','פב׳','מר׳','אפ׳','מי׳','יו׳','יל׳','אג׳','ספ׳','אוק׳','נו׳','דצ׳']
+
+function periodWeights(prev, chargersAdded, n) {
+  const chPerPeriod = chargersAdded / n
+  const ws = Array.from({ length: n }, (_, k) => prev + (k + 0.5) * chPerPeriod)
+  const wSum = ws.reduce((s, w) => s + w, 0)
+  return { ws, wSum, chPerPeriod }
+}
+
+function expandCombined(combined, viewMode) {
+  if (viewMode === 'annual') return combined.map((r) => ({ ...r, period: String(r.year) }))
+  const n = viewMode === 'quarterly' ? 4 : 12
+  const out = []
+  for (const row of combined) {
+    const bldgMeta = {}
+    for (const [name, bd] of Object.entries(row.buildings || {})) {
+      const prev = (bd.total_chargers || 0) - (bd.chargers_added || 0)
+      bldgMeta[name] = { prev, ...periodWeights(prev, bd.chargers_added || 0, n) }
+    }
+    for (let i = 0; i < n; i++) {
+      const label = viewMode === 'quarterly'
+        ? `Q${i + 1} ${row.year}`
+        : `${MONTHS_SHORT[i]} '${String(row.year).slice(2)}`
+      const buildings = {}
+      for (const [name, bd] of Object.entries(row.buildings || {})) {
+        const { ws, wSum, chPerPeriod, prev } = bldgMeta[name]
+        const inc = wSum > 0 ? (bd.annual_income || 0) * ws[i] / wSum : (bd.annual_income || 0) / n
+        const cpx = (bd.capex || 0) / n
+        const opx = (bd.annual_opex || 0) / n
+        buildings[name] = {
+          ...bd,
+          annual_income: inc, capex: cpx, annual_opex: opx, profit: inc - cpx - opx,
+          chargers_added: chPerPeriod, total_chargers: prev + (i + 1) * chPerPeriod,
+        }
+      }
+      const totalIncome = Object.values(buildings).reduce((s, b) => s + b.annual_income, 0)
+      const totalCapex  = Object.values(buildings).reduce((s, b) => s + b.capex, 0)
+      const totalOpex   = Object.values(buildings).reduce((s, b) => s + b.annual_opex, 0)
+      const loanPer     = (row.loan_repayment || 0) / n
+      out.push({
+        ...row, period: label, buildings,
+        total_income: totalIncome, total_capex: totalCapex, total_opex: totalOpex,
+        loan_repayment: loanPer, total_profit: totalIncome - totalCapex - totalOpex - loanPer,
+      })
+    }
+  }
+  return out
+}
+
+// ─── לוח שפיצר ───────────────────────────────────────────────────────────────
 
 function buildAmort(amount, annualPct, years) {
   const n = Math.max(1, Math.round((years || 0) * 12))
@@ -33,12 +85,11 @@ function buildAmort(amount, annualPct, years) {
   return { n, monthly: M, rows, totalPaid, totalInterest: totalPaid - amount }
 }
 
-// ============================ תת-לשונית: הלוואה ============================
 function LoanTab({ loan, onChange }) {
   const [openYear, setOpenYear] = useState(null)
   const amount = Number(loan.amount || 0)
-  const years = Number(loan.years || 0)
-  const rate = Number(loan.prime || 0) + Number(loan.margin || 0)
+  const years  = Number(loan.years  || 0)
+  const rate   = Number(loan.prime  || 0) + Number(loan.margin || 0)
   const am = useMemo(() => buildAmort(amount, rate, years), [amount, rate, years])
 
   const byYear = useMemo(() => {
@@ -48,9 +99,9 @@ function LoanTab({ loan, onChange }) {
       if (!slice.length) break
       out.push({
         year: y,
-        payment: slice.reduce((s, r) => s + r.payment, 0),
-        interest: slice.reduce((s, r) => s + r.interest, 0),
-        principal: slice.reduce((s, r) => s + r.principal, 0),
+        payment:    slice.reduce((s, r) => s + r.payment, 0),
+        interest:   slice.reduce((s, r) => s + r.interest, 0),
+        principal:  slice.reduce((s, r) => s + r.principal, 0),
         endBalance: slice[slice.length - 1].balance,
         months: slice,
       })
@@ -61,66 +112,42 @@ function LoanTab({ loan, onChange }) {
   return (
     <div>
       <div className="cf-open">
-        <label>
-          <span>גובה רכישה / הלוואה ₪</span>
+        <label><span>גובה הלוואה ₪</span>
           <input type="number" value={amount}
-            onChange={(e) => onChange({ amount: parseFloat(e.target.value) || 0 })} />
-        </label>
-        <label>
-          <span>שנות החזר</span>
+            onChange={(e) => onChange({ amount: parseFloat(e.target.value) || 0 })} /></label>
+        <label><span>שנות החזר</span>
           <input type="number" min="1" max="30" value={years}
-            onChange={(e) => onChange({ years: parseInt(e.target.value) || 1 })} />
-        </label>
-        <label>
-          <span>ריבית פריים %</span>
+            onChange={(e) => onChange({ years: parseInt(e.target.value) || 1 })} /></label>
+        <label><span>ריבית פריים %</span>
           <input type="number" step="0.1" value={loan.prime ?? 0}
-            onChange={(e) => onChange({ prime: parseFloat(e.target.value) || 0 })} />
-        </label>
-        <label>
-          <span>מרווח מעל פריים %</span>
+            onChange={(e) => onChange({ prime: parseFloat(e.target.value) || 0 })} /></label>
+        <label><span>מרווח מעל פריים %</span>
           <input type="number" step="0.1" value={loan.margin ?? 0}
-            onChange={(e) => onChange({ margin: parseFloat(e.target.value) || 0 })} />
-        </label>
-        <label>
-          <span>חודש התחלת ההלוואה</span>
+            onChange={(e) => onChange({ margin: parseFloat(e.target.value) || 0 })} /></label>
+        <label><span>חודש התחלה</span>
           <input type="month" value={loan.start_month || ''}
-            onChange={(e) => onChange({ start_month: e.target.value })} />
-        </label>
-        <div className="cf-rate-chip">
-          ריבית שנתית כוללת
-          <strong>{rate.toFixed(2)}%</strong>
-        </div>
+            onChange={(e) => onChange({ start_month: e.target.value })} /></label>
+        <div className="cf-rate-chip">ריבית כוללת <strong>{rate.toFixed(2)}%</strong></div>
       </div>
 
       <div className="kpi-grid">
-        <div className="tact-kpi">
-          <div className="tact-kpi-label">תשלום חודשי</div>
-          <div className="tact-kpi-val">{ils(am.monthly)}</div>
-        </div>
-        <div className="tact-kpi">
-          <div className="tact-kpi-label">סה"כ החזר ({am.n} ת׳)</div>
-          <div className="tact-kpi-val">{ils(am.totalPaid)}</div>
-        </div>
-        <div className="tact-kpi">
-          <div className="tact-kpi-label">סה"כ ריבית</div>
-          <div className="tact-kpi-val fin-neg">{ils(am.totalInterest)}</div>
-        </div>
-        <div className="tact-kpi">
-          <div className="tact-kpi-label">קרן (גובה הלוואה)</div>
-          <div className="tact-kpi-val">{ils(amount)}</div>
-        </div>
+        <div className="tact-kpi"><div className="tact-kpi-label">תשלום חודשי</div>
+          <div className="tact-kpi-val">{ils(am.monthly)}</div></div>
+        <div className="tact-kpi"><div className="tact-kpi-label">סה"כ החזר ({am.n} ת׳)</div>
+          <div className="tact-kpi-val">{ils(am.totalPaid)}</div></div>
+        <div className="tact-kpi"><div className="tact-kpi-label">סה"כ ריבית</div>
+          <div className="tact-kpi-val fin-neg">{ils(am.totalInterest)}</div></div>
+        <div className="tact-kpi"><div className="tact-kpi-label">קרן</div>
+          <div className="tact-kpi-val">{ils(amount)}</div></div>
       </div>
 
       <h2 className="block-title">לוח סילוקין — {years} שנים</h2>
       <div className="fin-table-wrap">
         <table className="fin-table cf-fc">
-          <thead>
-            <tr>
-              <th className="ta-expander" />
-              <th className="fin-rowlabel">שנה</th>
-              <th>סה"כ תשלום</th><th>קרן</th><th>ריבית</th><th>יתרת קרן</th>
-            </tr>
-          </thead>
+          <thead><tr>
+            <th className="ta-expander" /><th className="fin-rowlabel">שנה</th>
+            <th>סה"כ תשלום</th><th>קרן</th><th>ריבית</th><th>יתרת קרן</th>
+          </tr></thead>
           <tbody>
             {byYear.map((y) => {
               const isOpen = openYear === y.year
@@ -138,28 +165,19 @@ function LoanTab({ loan, onChange }) {
                     <td><strong>{ils(y.endBalance)}</strong></td>
                   </tr>
                   {isOpen && (
-                    <tr className="ta-detail-row">
-                      <td colSpan={6}>
-                        <div className="ta-detail">
-                          <table className="pr-ch-table">
-                            <thead>
-                              <tr><th>חודש</th><th>תשלום</th><th>קרן</th><th>ריבית</th><th>יתרת קרן</th></tr>
-                            </thead>
-                            <tbody>
-                              {y.months.map((r) => (
-                                <tr key={r.i}>
-                                  <td>{r.i}</td>
-                                  <td>{ils(r.payment)}</td>
-                                  <td>{ils(r.principal)}</td>
-                                  <td className="fin-neg">{ils(r.interest)}</td>
-                                  <td>{ils(r.balance)}</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
-                        </div>
-                      </td>
-                    </tr>
+                    <tr className="ta-detail-row"><td colSpan={6}><div className="ta-detail">
+                      <table className="pr-ch-table">
+                        <thead><tr><th>חודש</th><th>תשלום</th><th>קרן</th><th>ריבית</th><th>יתרת קרן</th></tr></thead>
+                        <tbody>
+                          {y.months.map((r) => (
+                            <tr key={r.i}>
+                              <td>{r.i}</td><td>{ils(r.payment)}</td><td>{ils(r.principal)}</td>
+                              <td className="fin-neg">{ils(r.interest)}</td><td>{ils(r.balance)}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div></td></tr>
                   )}
                 </Fragment>
               )
@@ -167,85 +185,141 @@ function LoanTab({ loan, onChange }) {
           </tbody>
         </table>
       </div>
-      <p className="ta-source muted">
-        חישוב לוח שפיצר (תשלום חודשי קבוע). התשלום השנתי משולב כהוצאה בתחזית התזרים
-        {loan.start_month ? ` החל מ-${loan.start_month}` : ''}.
-      </p>
     </div>
   )
 }
 
-// ============================ עמוד התזרים ============================
+// ─── פאנל תקורות ─────────────────────────────────────────────────────────────
+
+function OverheadPanel({ items, onChange }) {
+  function addItem() { onChange([...items, { id: Date.now(), name: '', annual: 0 }]) }
+  function removeItem(id) { onChange(items.filter((i) => i.id !== id)) }
+  function patchItem(id, patch) { onChange(items.map((i) => i.id === id ? { ...i, ...patch } : i)) }
+  const total = items.reduce((s, i) => s + (Number(i.annual) || 0), 0)
+
+  return (
+    <div>
+      <div className="cf-items-head">
+        <h2 className="block-title" style={{ margin: 0 }}>תקורות שנתיות</h2>
+        <button className="tact-btn" onClick={addItem}>+ תקורה</button>
+      </div>
+      <div className="fin-table-wrap">
+        <table className="fin-table cf-items">
+          <thead><tr><th className="fin-rowlabel">שם</th><th>סכום שנתי ₪</th><th /></tr></thead>
+          <tbody>
+            {items.length === 0 ? (
+              <tr><td colSpan={3} className="muted" style={{ textAlign: 'center', padding: 16 }}>
+                אין תקורות — לחץ "+ תקורה" להוספה.
+              </td></tr>
+            ) : items.map((it) => (
+              <tr key={it.id}>
+                <td className="fin-rowlabel">
+                  <input className="cf-in cf-in-lg" value={it.name} placeholder="שם התקורה"
+                    onChange={(e) => patchItem(it.id, { name: e.target.value })} />
+                </td>
+                <td>
+                  <input className="cf-in cf-in-num" type="number" value={it.annual}
+                    onChange={(e) => patchItem(it.id, { annual: parseFloat(e.target.value) || 0 })} />
+                </td>
+                <td><button className="cf-del" onClick={() => removeItem(it.id)}>✕</button></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {items.length > 0 && (
+        <p className="muted" style={{ fontSize: '0.82rem', marginTop: 4 }}>
+          סה"כ תקורות שנתיות: <strong>{ils(total)}</strong>
+        </p>
+      )}
+    </div>
+  )
+}
+
+// ─── עמוד תזרים ──────────────────────────────────────────────────────────────
+
+const VIEW_OPTS  = [{ v: 'annual', l: 'שנתי' }, { v: 'quarterly', l: 'רבעוני' }, { v: 'monthly', l: 'חודשי' }]
+const BAR_DEFS   = [{ k: 'הכנסות', color: '#2e7d4f' }, { k: 'הוצאות', color: '#d64a2e' }, { k: 'רווח', color: '#1f3a5f' }]
+
 export default function Cashflow({ loading: parentLoading }) {
-  const [settings, setSettings] = useState({ opening_balance: 0, balance_date: '' })
-  const [loan, setLoan] = useState({ amount: 3000000, years: 5, prime: 6, margin: 2, start_month: '' })
-  const [combinedForecast, setCombinedForecast] = useState([])
-  const [loading, setLoading] = useState(true)
-  const [subTab, setSubTab] = useState('forecast')
-  const [visibleBars, setVisibleBars] = useState({ הכנסות: true, הוצאות: true, רווח: true })
+  const [settings, setSettings]           = useState({ opening_balance: 0, balance_date: '' })
+  const [loan, setLoan]                   = useState({ amount: 3000000, years: 5, prime: 6, margin: 2, start_month: '' })
+  const [combinedForecast, setCombined]   = useState([])
+  const [loading, setLoading]             = useState(true)
+  const [subTab, setSubTab]               = useState('forecast')
+  const [viewMode, setViewMode]           = useState('annual')
+  const [discountRate, setDiscountRate]   = useState(0)
+  const [visibleBars, setVisibleBars]     = useState({ הכנסות: true, הוצאות: true, רווח: true })
+  const [overheadItems, setOverheadItems] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('energy-cf-overhead') || '[]') } catch { return [] }
+  })
   const timers = useRef({})
 
   useEffect(() => {
-    Promise.all([
-      api.getCashflow(),
-      api.getCombinedForecast(),
-    ]).then(([cf, forecast]) => {
-      setSettings(cf.settings || { opening_balance: 0, balance_date: '' })
-      if (cf.loan) setLoan(cf.loan)
-      setCombinedForecast(forecast || [])
-      setLoading(false)
-    }).catch(() => setLoading(false))
+    Promise.all([api.getCashflow(), api.getCombinedForecast()])
+      .then(([cf, forecast]) => {
+        setSettings(cf.settings || { opening_balance: 0, balance_date: '' })
+        if (cf.loan) setLoan(cf.loan)
+        setCombined(forecast || [])
+        setLoading(false)
+      }).catch(() => setLoading(false))
   }, [])
 
   function patchSettings(patch) {
     const next = { ...settings, ...patch }
     setSettings(next)
     clearTimeout(timers.current.settings)
-    timers.current.settings = setTimeout(() => {
-      api.updateCashflowSettings(next).catch(() => {})
-    }, 600)
+    timers.current.settings = setTimeout(() => api.updateCashflowSettings(next).catch(() => {}), 600)
   }
 
   function patchLoan(patch) {
     setLoan((prev) => ({ ...prev, ...patch }))
     clearTimeout(timers.current.loan)
-    timers.current.loan = setTimeout(() => {
-      api.updateCashflowLoan(patch).catch(() => {})
-    }, 600)
+    timers.current.loan = setTimeout(() => api.updateCashflowLoan(patch).catch(() => {}), 600)
   }
 
-  const yearlyRows = useMemo(() => {
-    let bal = Number(settings.opening_balance || 0)
-    return combinedForecast.map((yf) => {
-      const expense = yf.total_capex + yf.total_opex + yf.loan_repayment
-      const net = yf.total_income - expense
+  function patchOverhead(next) {
+    setOverheadItems(next)
+    localStorage.setItem('energy-cf-overhead', JSON.stringify(next))
+  }
+
+  const periodsPerYear = viewMode === 'annual' ? 1 : viewMode === 'quarterly' ? 4 : 12
+  const totalAnnualOverhead = overheadItems.reduce((s, o) => s + (Number(o.annual) || 0), 0)
+
+  const periods = useMemo(() => {
+    const expanded = expandCombined(combinedForecast, viewMode)
+    const r = (discountRate || 0) / 100
+    let bal   = Number(settings.opening_balance || 0)
+    let pvBal = Number(settings.opening_balance || 0)
+    return expanded.map((p, idx) => {
+      const n           = periodsPerYear
+      const overheadPer = totalAnnualOverhead / n
+      const expense     = p.total_capex + p.total_opex + p.loan_repayment + overheadPer
+      const net         = p.total_income - expense
       bal += net
+      const t        = idx / n
+      const pvFactor = r > 0 ? 1 / Math.pow(1 + r, t) : 1
+      const pvNet    = net * pvFactor
+      pvBal += pvNet
       return {
-        year: yf.year,
-        income: yf.total_income,
-        capex: yf.total_capex,
-        opex: yf.total_opex,
-        loan_repayment: yf.loan_repayment,
-        expense,
-        net,
-        balance: bal,
+        period: p.period,
+        income: p.total_income,
+        capex:  p.total_capex,
+        opex:   p.total_opex,
+        loan:   p.loan_repayment,
+        overhead: overheadPer,
+        expense, net, balance: bal,
+        pvNet, pvBalance: pvBal,
       }
     })
-  }, [combinedForecast, settings.opening_balance])
+  }, [combinedForecast, viewMode, discountRate, settings.opening_balance, totalAnnualOverhead, periodsPerYear])
 
-  const chartData = yearlyRows.map((r) => ({
-    year: String(r.year),
-    הכנסות: r.income,
-    הוצאות: r.expense,
-    רווח: r.net,
-  }))
-
-  const totalIncome = yearlyRows.reduce((s, r) => s + r.income, 0)
-  const totalExpense = yearlyRows.reduce((s, r) => s + r.expense, 0)
-  const totalNet = yearlyRows.reduce((s, r) => s + r.net, 0)
-  const endBalance = yearlyRows.length
-    ? yearlyRows[yearlyRows.length - 1].balance
-    : Number(settings.opening_balance || 0)
+  const chartData  = periods.map((r) => ({ period: r.period, הכנסות: r.income, הוצאות: r.expense, רווח: r.net }))
+  const totalIncome  = periods.reduce((s, r) => s + r.income, 0)
+  const totalExpense = periods.reduce((s, r) => s + r.expense, 0)
+  const totalNet     = periods.reduce((s, r) => s + r.net, 0)
+  const npv          = periods.reduce((s, r) => s + r.pvNet, 0)
+  const endBalance   = periods.length ? periods[periods.length - 1].balance : Number(settings.opening_balance || 0)
 
   if (loading || parentLoading) return <p className="muted">טוען…</p>
 
@@ -255,20 +329,20 @@ export default function Cashflow({ loading: parentLoading }) {
         <h1 className="home-title">תזרים מזומנים</h1>
         <span className="tact-badge tact-badge-on">{combinedForecast.length} שנים</span>
       </div>
-      <p className="home-sub">
-        תחזית תזרים שנתית מצרפית לכל הבניינים — נתונים מתזרים בניינים.
-      </p>
+      <p className="home-sub">תחזית תזרים מצרפית לכל הבניינים — נתונים מתזרים בניינים.</p>
 
       <div className="cf-open">
-        <label>
-          <span>יתרת פתיחה ₪</span>
+        <label><span>יתרת פתיחה ₪</span>
           <input type="number" value={settings.opening_balance ?? 0}
             onChange={(e) => patchSettings({ opening_balance: parseFloat(e.target.value) || 0 })} />
         </label>
-        <label>
-          <span>נכון לתאריך</span>
+        <label><span>נכון לתאריך</span>
           <input type="date" value={settings.balance_date || ''}
             onChange={(e) => patchSettings({ balance_date: e.target.value })} />
+        </label>
+        <label><span>ריבית היוון %</span>
+          <input type="number" min="0" max="50" step="0.5" value={discountRate}
+            onChange={(e) => setDiscountRate(parseFloat(e.target.value) || 0)} />
         </label>
       </div>
 
@@ -282,11 +356,15 @@ export default function Cashflow({ loading: parentLoading }) {
           <div className="tact-kpi-val fin-neg">{ils(totalExpense)}</div>
         </div>
         <div className="tact-kpi">
-          <div className={`tact-kpi-val ${totalNet < 0 ? 'fin-neg' : 'fin-pos'}`}>
-            <div className="tact-kpi-label">רווח נקי מצרפי</div>
-            {ils(totalNet)}
-          </div>
+          <div className="tact-kpi-label">רווח נקי מצרפי</div>
+          <div className={`tact-kpi-val ${totalNet < 0 ? 'fin-neg' : 'fin-pos'}`}>{ils(totalNet)}</div>
         </div>
+        {discountRate > 0 && (
+          <div className="tact-kpi">
+            <div className="tact-kpi-label">NPV ({discountRate}%)</div>
+            <div className={`tact-kpi-val ${npv < 0 ? 'fin-neg' : 'fin-pos'}`}>{ils(npv)}</div>
+          </div>
+        )}
         <div className="tact-kpi">
           <div className="tact-kpi-label">יתרה בסוף תקופה</div>
           <div className={`tact-kpi-val ${endBalance < 0 ? 'fin-neg' : ''}`}>{ils(endBalance)}</div>
@@ -295,17 +373,16 @@ export default function Cashflow({ loading: parentLoading }) {
 
       <div className="cf-chart">
         <div className="cf-gran">
-          {[
-            { k: 'הכנסות', color: '#2e7d4f' },
-            { k: 'הוצאות', color: '#d64a2e' },
-            { k: 'רווח',   color: '#1f3a5f' },
-          ].map(({ k, color }) => (
-            <button
-              key={k}
+          {VIEW_OPTS.map((o) => (
+            <button key={o.v} className={`filter-pill ${viewMode === o.v ? 'active' : ''}`}
+              onClick={() => setViewMode(o.v)}>{o.l}</button>
+          ))}
+          <span style={{ margin: '0 8px', color: '#ccc' }}>|</span>
+          {BAR_DEFS.map(({ k, color }) => (
+            <button key={k}
               className={`filter-pill ${visibleBars[k] ? 'active' : ''}`}
               style={visibleBars[k] ? { borderColor: color, background: color + '18' } : {}}
-              onClick={() => setVisibleBars((p) => ({ ...p, [k]: !p[k] }))}
-            >
+              onClick={() => setVisibleBars((p) => ({ ...p, [k]: !p[k] }))}>
               {k}
             </button>
           ))}
@@ -313,7 +390,7 @@ export default function Cashflow({ loading: parentLoading }) {
         <ResponsiveContainer width="100%" height={320}>
           <ComposedChart data={chartData} margin={{ top: 10, right: 12, left: 12, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e6e9ef" />
-            <XAxis dataKey="year" tick={{ fontSize: 12 }} />
+            <XAxis dataKey="period" tick={{ fontSize: 11 }} />
             <YAxis tickFormatter={fmtK} tick={{ fontSize: 12 }} width={70} />
             <Tooltip formatter={(v) => ils(v)} labelStyle={{ direction: 'rtl' }} />
             <Legend />
@@ -325,45 +402,55 @@ export default function Cashflow({ loading: parentLoading }) {
       </div>
 
       <div className="cf-subtabs">
-        <button className={`cf-subtab ${subTab === 'forecast' ? 'active' : ''}`}
-          onClick={() => setSubTab('forecast')}>תחזית שנתית</button>
-        <button className={`cf-subtab ${subTab === 'loan' ? 'active' : ''}`}
+        <button className={`cf-subtab ${subTab === 'forecast'  ? 'active' : ''}`}
+          onClick={() => setSubTab('forecast')}>תחזית</button>
+        <button className={`cf-subtab ${subTab === 'overhead'  ? 'active' : ''}`}
+          onClick={() => setSubTab('overhead')}>
+          תקורות {overheadItems.length > 0 && `(${overheadItems.length})`}
+        </button>
+        <button className={`cf-subtab ${subTab === 'loan'      ? 'active' : ''}`}
           onClick={() => setSubTab('loan')}>הלוואת רכישה</button>
       </div>
 
-      {subTab === 'loan' && <LoanTab loan={loan} onChange={patchLoan} />}
+      {subTab === 'loan'     && <LoanTab loan={loan} onChange={patchLoan} />}
+      {subTab === 'overhead' && <OverheadPanel items={overheadItems} onChange={patchOverhead} />}
 
       {subTab === 'forecast' && (
         <>
-          <h2 className="block-title">תחזית שנתית מצרפית</h2>
+          <h2 className="block-title">תחזית מצרפית</h2>
           <div className="fin-table-wrap">
             <table className="fin-table cf-fc">
               <thead>
                 <tr>
-                  <th className="fin-rowlabel">שנה</th>
+                  <th className="fin-rowlabel">תקופה</th>
                   <th>הכנסות</th>
                   <th>CAPEX</th>
                   <th>OPEX</th>
+                  <th>תקורות</th>
                   <th>החזר הלוואה</th>
                   <th>נטו</th>
+                  {discountRate > 0 && <th>נטו מהוון</th>}
                   <th>יתרה מצטברת</th>
                 </tr>
               </thead>
               <tbody>
-                {yearlyRows.length === 0 ? (
-                  <tr>
-                    <td colSpan={7} className="muted" style={{ textAlign: 'center', padding: 24 }}>
-                      אין נתוני תחזית. הגדר בניינים בלשונית "תזרים בניינים".
-                    </td>
-                  </tr>
-                ) : yearlyRows.map((r) => (
-                  <tr key={r.year}>
-                    <td className="fin-rowlabel">{r.year}</td>
+                {periods.length === 0 ? (
+                  <tr><td colSpan={discountRate > 0 ? 9 : 8} className="muted"
+                    style={{ textAlign: 'center', padding: 24 }}>
+                    אין נתוני תחזית. הגדר בניינים בלשונית "תזרים בניינים".
+                  </td></tr>
+                ) : periods.map((r, i) => (
+                  <tr key={i}>
+                    <td className="fin-rowlabel">{r.period}</td>
                     <td className="fin-pos">{ils(r.income)}</td>
                     <td className="fin-neg">{ils(r.capex)}</td>
                     <td className="fin-neg">{ils(r.opex)}</td>
-                    <td className="fin-neg">{ils(r.loan_repayment)}</td>
+                    <td className="fin-neg">{ils(r.overhead)}</td>
+                    <td className="fin-neg">{ils(r.loan)}</td>
                     <td className={r.net < 0 ? 'fin-neg' : 'fin-pos'}>{ils(r.net)}</td>
+                    {discountRate > 0 && (
+                      <td className={r.pvNet < 0 ? 'fin-neg' : 'fin-pos'}>{ils(r.pvNet)}</td>
+                    )}
                     <td className={r.balance < 0 ? 'fin-neg' : ''}><strong>{ils(r.balance)}</strong></td>
                   </tr>
                 ))}
