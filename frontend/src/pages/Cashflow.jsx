@@ -249,6 +249,7 @@ export default function Cashflow({ loading: parentLoading }) {
   const [viewMode, setViewMode]           = useState('annual')
   const [discountRate, setDiscountRate]   = useState(0)
   const [visibleBars, setVisibleBars]     = useState({ הכנסות: true, הוצאות: true, רווח: true })
+  const [includeLoan, setIncludeLoan]     = useState(true)
   const [overheadItems, setOverheadItems] = useState(() => {
     try { return JSON.parse(localStorage.getItem('energy-cf-overhead') || '[]') } catch { return [] }
   })
@@ -307,7 +308,12 @@ export default function Cashflow({ loading: parentLoading }) {
     })
   }, [combinedForecast, viewMode, discountRate, totalAnnualOverhead, periodsPerYear])
 
-  const chartData          = periods.map((r) => ({ period: r.period, הכנסות: r.income, הוצאות: r.capex + r.opex + r.overhead + r.loan, רווח: r.net }))
+  const chartData          = periods.map((r) => ({
+    period: r.period,
+    הכנסות: r.income,
+    הוצאות: r.capex + r.opex + r.overhead + (includeLoan ? r.loan : 0),
+    רווח:   includeLoan ? r.net : r.netOperating,
+  }))
   const totalIncome        = periods.reduce((s, r) => s + r.income, 0)
   const totalCapex         = periods.reduce((s, r) => s + r.capex, 0)
   const totalOpex          = periods.reduce((s, r) => s + r.opex, 0)
@@ -350,6 +356,16 @@ export default function Cashflow({ loading: parentLoading }) {
               {k}
             </button>
           ))}
+          {totalLoan > 0 && (
+            <>
+              <span style={{ margin: '0 8px', color: '#ccc' }}>|</span>
+              <button
+                className={`filter-pill ${includeLoan ? 'active' : ''}`}
+                onClick={() => setIncludeLoan((v) => !v)}>
+                {includeLoan ? 'כולל החזר הלוואה' : 'ללא החזר הלוואה'}
+              </button>
+            </>
+          )}
         </div>
         <ResponsiveContainer width="100%" height={320}>
           <ComposedChart data={chartData} margin={{ top: 10, right: 12, left: 12, bottom: 0 }}>
