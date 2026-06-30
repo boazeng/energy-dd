@@ -292,6 +292,7 @@ export default function Cashflow({ loading: parentLoading }) {
       const pvFactor = r > 0 ? 1 / Math.pow(1 + r, t) : 1
       const pvNet    = net * pvFactor
       pvBal += pvNet
+      const chargers = Object.values(p.buildings || {}).reduce((s, b) => s + (b.total_chargers || 0), 0)
       return {
         period: p.period,
         income: p.total_income,
@@ -301,6 +302,7 @@ export default function Cashflow({ loading: parentLoading }) {
         overhead: overheadPer,
         expense, net, balance: bal,
         pvNet, pvBalance: pvBal,
+        chargers,
       }
     })
   }, [combinedForecast, viewMode, discountRate, totalAnnualOverhead, periodsPerYear])
@@ -384,6 +386,7 @@ export default function Cashflow({ loading: parentLoading }) {
               <thead>
                 <tr>
                   <th className="fin-rowlabel">תקופה</th>
+                  <th>מטענים</th>
                   <th>הכנסות</th>
                   <th>CAPEX</th>
                   <th>OPEX</th>
@@ -396,13 +399,14 @@ export default function Cashflow({ loading: parentLoading }) {
               </thead>
               <tbody>
                 {periods.length === 0 ? (
-                  <tr><td colSpan={discountRate > 0 ? 9 : 8} className="muted"
+                  <tr><td colSpan={discountRate > 0 ? 10 : 9} className="muted"
                     style={{ textAlign: 'center', padding: 24 }}>
                     אין נתוני תחזית. הגדר בניינים בלשונית "תזרים בניינים".
                   </td></tr>
                 ) : periods.map((r, i) => (
                   <tr key={i}>
                     <td className="fin-rowlabel">{r.period}</td>
+                    <td style={{ textAlign: 'center' }}>{Math.round(r.chargers)}</td>
                     <td className="fin-pos">{ils(r.income)}</td>
                     <td className="fin-neg">{ils(r.capex)}</td>
                     <td className="fin-neg">{ils(r.opex)}</td>
@@ -420,6 +424,7 @@ export default function Cashflow({ loading: parentLoading }) {
                 <tfoot>
                   <tr style={{ fontWeight: 700, borderTop: '2px solid #c0c8d8' }}>
                     <td className="fin-rowlabel">סה"כ</td>
+                    <td style={{ textAlign: 'center' }}>{Math.round(periods[periods.length - 1].chargers)}</td>
                     <td className="fin-pos">{ils(totalIncome)}</td>
                     <td className="fin-neg">{ils(totalCapex)}</td>
                     <td className="fin-neg">{ils(totalOpex)}</td>
