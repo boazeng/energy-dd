@@ -182,6 +182,7 @@ export default function Cashflow({ loading: parentLoading }) {
   const [combinedForecast, setCombinedForecast] = useState([])
   const [loading, setLoading] = useState(true)
   const [subTab, setSubTab] = useState('forecast')
+  const [visibleBars, setVisibleBars] = useState({ הכנסות: true, הוצאות: true, רווח: true })
   const timers = useRef({})
 
   useEffect(() => {
@@ -236,7 +237,7 @@ export default function Cashflow({ loading: parentLoading }) {
     year: String(r.year),
     הכנסות: r.income,
     הוצאות: r.expense,
-    יתרה: r.balance,
+    רווח: r.net,
   }))
 
   const totalIncome = yearlyRows.reduce((s, r) => s + r.income, 0)
@@ -293,6 +294,22 @@ export default function Cashflow({ loading: parentLoading }) {
       </div>
 
       <div className="cf-chart">
+        <div className="cf-gran">
+          {[
+            { k: 'הכנסות', color: '#2e7d4f' },
+            { k: 'הוצאות', color: '#d64a2e' },
+            { k: 'רווח',   color: '#1f3a5f' },
+          ].map(({ k, color }) => (
+            <button
+              key={k}
+              className={`filter-pill ${visibleBars[k] ? 'active' : ''}`}
+              style={visibleBars[k] ? { borderColor: color, background: color + '18' } : {}}
+              onClick={() => setVisibleBars((p) => ({ ...p, [k]: !p[k] }))}
+            >
+              {k}
+            </button>
+          ))}
+        </div>
         <ResponsiveContainer width="100%" height={320}>
           <ComposedChart data={chartData} margin={{ top: 10, right: 12, left: 12, bottom: 0 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="#e6e9ef" />
@@ -300,9 +317,9 @@ export default function Cashflow({ loading: parentLoading }) {
             <YAxis tickFormatter={fmtK} tick={{ fontSize: 12 }} width={70} />
             <Tooltip formatter={(v) => ils(v)} labelStyle={{ direction: 'rtl' }} />
             <Legend />
-            <Bar dataKey="הכנסות" fill="#2e7d4f" radius={[3, 3, 0, 0]} />
-            <Bar dataKey="הוצאות" fill="#d64a2e" radius={[3, 3, 0, 0]} />
-            <Line dataKey="יתרה" stroke="#1f3a5f" strokeWidth={2.5} dot={{ r: 3 }} />
+            {visibleBars['הכנסות'] && <Bar dataKey="הכנסות" fill="#2e7d4f" radius={[3, 3, 0, 0]} />}
+            {visibleBars['הוצאות'] && <Bar dataKey="הוצאות" fill="#d64a2e" radius={[3, 3, 0, 0]} />}
+            {visibleBars['רווח']   && <Bar dataKey="רווח"   fill="#1f3a5f" radius={[3, 3, 0, 0]} />}
           </ComposedChart>
         </ResponsiveContainer>
       </div>
