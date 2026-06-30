@@ -59,11 +59,10 @@ function expandCombined(combined, viewMode) {
       const totalIncome = Object.values(buildings).reduce((s, b) => s + b.annual_income, 0)
       const totalCapex  = Object.values(buildings).reduce((s, b) => s + b.capex, 0)
       const totalOpex   = Object.values(buildings).reduce((s, b) => s + b.annual_opex, 0)
-      const loanPer     = (row.loan_repayment || 0) / n
       out.push({
         ...row, period: label, buildings,
         total_income: totalIncome, total_capex: totalCapex, total_opex: totalOpex,
-        loan_repayment: loanPer, total_profit: totalIncome - totalCapex - totalOpex - loanPer,
+        total_profit: totalIncome - totalCapex - totalOpex,
       })
     }
   }
@@ -488,12 +487,7 @@ function CumulativeChart({ combined, viewMode = 'annual' }) {
   let cum = 0
   const data = periods.map((row) => {
     cum += row.total_profit
-    return {
-      name: row.period,
-      'רווח': row.total_profit,
-      'החזר הלוואה': row.loan_repayment > 0 ? -row.loan_repayment : null,
-      'מצטבר': cum,
-    }
+    return { name: row.period, 'רווח': row.total_profit, 'מצטבר': cum }
   })
   const monthly = viewMode === 'monthly'
   return (
@@ -506,7 +500,6 @@ function CumulativeChart({ combined, viewMode = 'annual' }) {
         <Tooltip formatter={(v) => ils(v)} labelStyle={{ color: '#222' }} />
         <Legend />
         <Bar dataKey="רווח" fill="#6c8ebf" radius={[3,3,0,0]} />
-        <Bar dataKey="החזר הלוואה" fill="#e74c3c" radius={[3,3,0,0]} />
         <Line type="monotone" dataKey="מצטבר" stroke="#82ca9d" strokeWidth={2.5} dot={{ fill: '#82ca9d', r: 4 }} />
       </ComposedChart>
     </ResponsiveContainer>
@@ -535,11 +528,9 @@ function CombinedTable({ combined, buildings, overheadExpenses = [], excludedIds
     period: row.period,
     inc: includedBuildings.reduce((s, b) => s + (row.buildings[b.building_name]?.annual_income || 0), 0),
     exp: includedBuildings.reduce((s, b) => s + (row.buildings[b.building_name]?.capex || 0) + (row.buildings[b.building_name]?.annual_opex || 0), 0),
-    loan: row.loan_repayment,
   }))
 
-  const totalProfit  = combined.reduce((s, r) => s + includedBuildings.reduce((ss, b) => ss + (r.buildings[b.building_name]?.profit || 0), 0), 0)
-  const totalLoan    = combined.reduce((s, r) => s + r.loan_repayment, 0)
+  const totalProfit   = combined.reduce((s, r) => s + includedBuildings.reduce((ss, b) => ss + (r.buildings[b.building_name]?.profit || 0), 0), 0)
   const overheadPerYear = overheadExpenses.reduce((s, x) => s + (x.annual_amount || 0), 0)
   const overheadPerPeriod = overheadPerYear / n
   const totalOverhead = overheadPerYear * years.length
@@ -604,8 +595,8 @@ function CombinedTable({ combined, buildings, overheadExpenses = [], excludedIds
               </td>
             ))}
             <td style={{ textAlign: 'left', background: 'rgba(130,202,157,.15)', ...ft,
-              color: (totalProfit + totalLoan) >= 0 ? 'var(--tact-green)' : 'var(--tact-red,#e74c3c)' }}>
-              {ils(totalProfit + totalLoan)}
+              color: totalProfit >= 0 ? 'var(--tact-green)' : 'var(--tact-red,#e74c3c)' }}>
+              {ils(totalProfit)}
             </td>
           </tr>
 
@@ -623,22 +614,8 @@ function CombinedTable({ combined, buildings, overheadExpenses = [], excludedIds
             </tr>
           )}
 
-          {totalLoan > 0 && (
-            <tr style={{ background: 'rgba(231,76,60,.06)' }}>
-              <td style={{ textAlign: 'right', ...ft }}>החזר הלוואה</td>
-              {periodTotals.map((r) => (
-                <td key={r.period} style={{ textAlign: 'left', fontSize: 11, color: 'var(--tact-red,#e74c3c)', fontWeight: 600 }}>
-                  {r.loan > 0 ? ils(-r.loan) : ''}
-                </td>
-              ))}
-              <td style={{ textAlign: 'left', background: 'rgba(231,76,60,.1)', ...ft, color: 'var(--tact-red,#e74c3c)' }}>
-                {ils(-totalLoan)}
-              </td>
-            </tr>
-          )}
-
           <tr style={{ background: 'rgba(130,202,157,.10)' }}>
-            <td style={{ textAlign: 'right', ...ft }}>רווח נקי לאחר החזר הלוואה</td>
+            <td style={{ textAlign: 'right', ...ft }}>רווח נקי</td>
             {periods.map((p) => <td key={p.period} />)}
             <td style={{ textAlign: 'left', background: 'rgba(130,202,157,.2)', fontWeight: 800, fontSize: 13,
               color: (totalProfit - totalOverhead) >= 0 ? 'var(--tact-green)' : 'var(--tact-red,#e74c3c)' }}>
@@ -841,8 +818,7 @@ export default function BuildingCashflow({ loading: appLoading }) {
   const totalIncome5yr  = sumIncl('annual_income')
   const totalCapex5yr   = sumIncl('capex')
   const totalOpex5yr    = sumIncl('annual_opex')
-  const totalLoan5yr    = combined.reduce((s, r) => s + (r.loan_repayment || 0), 0)
-  const totalProfit5yr  = totalIncome5yr - totalCapex5yr - totalOpex5yr - totalLoan5yr
+  const totalProfit5yr  = totalIncome5yr - totalCapex5yr - totalOpex5yr
 
   return (
     <div className="building-cashflow-page">
