@@ -1121,27 +1121,6 @@ export default function BuildingCashflow({ loading: appLoading }) {
             {/* תצוגה כוללת */}
             {selectedId == null && (
               <div className="building-detail">
-                <div className="kpi-row" style={{ display: 'flex', gap: 16, flexWrap: 'wrap', marginBottom: 24 }}>
-                  <div className="tact-kpi">
-                    <div className="tact-kpi-label">סה"כ הכנסות (תחזית)</div>
-                    <div className="tact-kpi-value" style={{ color: 'var(--tact-green)' }}>{ils(totalIncome5yr)}</div>
-                  </div>
-                  <div className="tact-kpi">
-                    <div className="tact-kpi-label">סה"כ עלות התקנת מטענים</div>
-                    <div className="tact-kpi-value" style={{ color: 'var(--tact-red,#e74c3c)' }}>{ils(totalCapex5yr)}</div>
-                  </div>
-                  <div className="tact-kpi">
-                    <div className="tact-kpi-label">סה"כ עלות התאמה</div>
-                    <div className="tact-kpi-value" style={{ color: 'var(--tact-orange,#e67e22)' }}>{ils(totalOpex5yr)}</div>
-                  </div>
-                  <div className="tact-kpi">
-                    <div className="tact-kpi-label">סה"כ רווח (תחזית)</div>
-                    <div className="tact-kpi-value" style={{ color: totalProfit5yr >= 0 ? 'var(--tact-green)' : 'var(--tact-red,#e74c3c)' }}>
-                      {ils(totalProfit5yr)}
-                    </div>
-                  </div>
-                </div>
-
                 {buildings.length === 0 ? (
                   <div className="empty-state">
                     <p>אין בניינים עדיין. לחץ "הוסף בניין" כדי להתחיל.</p>
