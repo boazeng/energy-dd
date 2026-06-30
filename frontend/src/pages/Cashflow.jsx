@@ -613,7 +613,7 @@ export default function Cashflow({ loading: parentLoading, horizonMode = 'contra
                   </tr>
 
                   <tr>
-                    <td className="fin-rowlabel">עלויות תפעול</td>
+                    <td className="fin-rowlabel">עלויות התאמת מטענים קיימים</td>
                     {periods.map((r, i) => (
                       <td key={i} className={r.opex > 0 ? 'fin-neg' : ''} style={{ color: r.opex > 0 ? undefined : '#bbb' }}>
                         {r.opex > 0 ? ils(r.opex) : '—'}
