@@ -283,39 +283,40 @@ export default function Cashflow({ loading: parentLoading }) {
     let bal   = 0
     let pvBal = 0
     return expanded.map((p, idx) => {
-      const n           = periodsPerYear
-      const overheadPer = totalAnnualOverhead / n
-      const expense     = p.total_capex + p.total_opex + p.loan_repayment + overheadPer
-      const net         = p.total_income - expense
+      const n            = periodsPerYear
+      const overheadPer  = totalAnnualOverhead / n
+      const loan         = p.loan_repayment || 0
+      const netOperating = p.total_income - p.total_capex - p.total_opex - overheadPer
+      const net          = netOperating - loan
       bal += net
       const t        = idx / n
       const pvFactor = r > 0 ? 1 / Math.pow(1 + r, t) : 1
-      const pvNet    = net * pvFactor
-      pvBal += pvNet
+      const pvNetOp  = netOperating * pvFactor
+      pvBal += pvNetOp
       const chargers = Object.values(p.buildings || {}).reduce((s, b) => s + (b.total_chargers || 0), 0)
       return {
         period: p.period,
         income: p.total_income,
         capex:  p.total_capex,
         opex:   p.total_opex,
-        loan:   p.loan_repayment,
-        overhead: overheadPer,
-        expense, net, balance: bal,
-        pvNet, pvBalance: pvBal,
+        loan, overhead: overheadPer,
+        netOperating, net, balance: bal,
+        pvNetOp, pvBalance: pvBal,
         chargers,
       }
     })
   }, [combinedForecast, viewMode, discountRate, totalAnnualOverhead, periodsPerYear])
 
-  const chartData    = periods.map((r) => ({ period: r.period, הכנסות: r.income, הוצאות: r.expense, רווח: r.net }))
-  const totalIncome   = periods.reduce((s, r) => s + r.income, 0)
-  const totalCapex    = periods.reduce((s, r) => s + r.capex, 0)
-  const totalOpex     = periods.reduce((s, r) => s + r.opex, 0)
-  const totalOverhead = periods.reduce((s, r) => s + r.overhead, 0)
-  const totalLoan     = periods.reduce((s, r) => s + r.loan, 0)
-  const totalNet      = periods.reduce((s, r) => s + r.net, 0)
-  const npv           = periods.reduce((s, r) => s + r.pvNet, 0)
-  const endBalance    = periods.length ? periods[periods.length - 1].balance : 0
+  const chartData          = periods.map((r) => ({ period: r.period, הכנסות: r.income, הוצאות: r.capex + r.opex + r.overhead + r.loan, רווח: r.net }))
+  const totalIncome        = periods.reduce((s, r) => s + r.income, 0)
+  const totalCapex         = periods.reduce((s, r) => s + r.capex, 0)
+  const totalOpex          = periods.reduce((s, r) => s + r.opex, 0)
+  const totalOverhead      = periods.reduce((s, r) => s + r.overhead, 0)
+  const totalLoan          = periods.reduce((s, r) => s + r.loan, 0)
+  const totalNetOperating  = periods.reduce((s, r) => s + r.netOperating, 0)
+  const totalNet           = periods.reduce((s, r) => s + r.net, 0)
+  const npv                = periods.reduce((s, r) => s + r.pvNetOp, 0)
+  const endBalance         = periods.length ? periods[periods.length - 1].balance : 0
 
   if (loading || parentLoading) return <p className="muted">טוען…</p>
 
@@ -389,7 +390,7 @@ export default function Cashflow({ loading: parentLoading }) {
             <div style={{ overflowX: 'auto' }}>
               <table className="fin-table" style={{ width: '100%', tableLayout: 'fixed', minWidth: periods.length > 12 ? periods.length * 72 + 180 : 'auto' }}>
                 <colgroup>
-                  <col style={{ width: 170 }} />
+                  <col style={{ width: 190 }} />
                   {periods.map((_, i) => <col key={i} />)}
                   <col style={{ width: 110 }} />
                 </colgroup>
@@ -401,11 +402,18 @@ export default function Cashflow({ loading: parentLoading }) {
                         {r.period}
                       </th>
                     ))}
-                    <th style={{ textAlign: 'left', background: 'rgba(0,0,0,.04)' }}>סה"כ</th>
+                    <th style={{ background: 'rgba(0,0,0,.04)' }}>סה"כ</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {/* מטענים פעילים */}
+
+                  {/* ── תפעול ── */}
+                  <tr style={{ background: 'rgba(108,142,191,.07)' }}>
+                    <td colSpan={periods.length + 2} style={{ padding: '4px 10px', fontSize: 11, fontWeight: 700, color: 'var(--tact-text-dim,#888)', letterSpacing: '.04em' }}>
+                      הכנסות והוצאות תפעוליות
+                    </td>
+                  </tr>
+
                   <tr>
                     <td className="fin-rowlabel">מטענים פעילים</td>
                     {periods.map((r, i) => (
@@ -413,46 +421,42 @@ export default function Cashflow({ loading: parentLoading }) {
                         {Number.isInteger(r.chargers) ? r.chargers : r.chargers.toFixed(1)}
                       </td>
                     ))}
-                    <td style={{ textAlign: 'left', background: 'rgba(0,0,0,.04)', fontWeight: 600 }}>
+                    <td style={{ background: 'rgba(0,0,0,.04)', fontWeight: 600, textAlign: 'center' }}>
                       {Math.round(periods[periods.length - 1].chargers)}
                     </td>
                   </tr>
 
-                  {/* הכנסות */}
-                  <tr style={{ borderTop: '1px solid rgba(0,0,0,.08)' }}>
+                  <tr>
                     <td className="fin-rowlabel">הכנסות</td>
                     {periods.map((r, i) => <td key={i} className="fin-pos">{ils(r.income)}</td>)}
                     <td className="fin-pos" style={{ background: 'rgba(0,0,0,.04)', fontWeight: 700 }}>{ils(totalIncome)}</td>
                   </tr>
 
-                  {/* עלות התקנת מטענים */}
                   <tr>
                     <td className="fin-rowlabel">עלות התקנת מטענים</td>
                     {periods.map((r, i) => (
-                      <td key={i} className={r.capex > 0 ? 'fin-neg' : ''} style={{ color: r.capex > 0 ? undefined : '#aaa' }}>
+                      <td key={i} className={r.capex > 0 ? 'fin-neg' : ''} style={{ color: r.capex > 0 ? undefined : '#bbb' }}>
                         {r.capex > 0 ? ils(r.capex) : '—'}
                       </td>
                     ))}
                     <td className="fin-neg" style={{ background: 'rgba(0,0,0,.04)', fontWeight: 700 }}>{ils(totalCapex)}</td>
                   </tr>
 
-                  {/* עלויות תפעול */}
                   <tr>
                     <td className="fin-rowlabel">עלויות תפעול</td>
                     {periods.map((r, i) => (
-                      <td key={i} className={r.opex > 0 ? 'fin-neg' : ''} style={{ color: r.opex > 0 ? undefined : '#aaa' }}>
+                      <td key={i} className={r.opex > 0 ? 'fin-neg' : ''} style={{ color: r.opex > 0 ? undefined : '#bbb' }}>
                         {r.opex > 0 ? ils(r.opex) : '—'}
                       </td>
                     ))}
                     <td className="fin-neg" style={{ background: 'rgba(0,0,0,.04)', fontWeight: 700 }}>{ils(totalOpex)}</td>
                   </tr>
 
-                  {/* תקורות */}
                   {totalOverhead > 0 && (
                     <tr>
                       <td className="fin-rowlabel">תקורות</td>
                       {periods.map((r, i) => (
-                        <td key={i} className={r.overhead > 0 ? 'fin-neg' : ''} style={{ color: r.overhead > 0 ? undefined : '#aaa' }}>
+                        <td key={i} className={r.overhead > 0 ? 'fin-neg' : ''} style={{ color: r.overhead > 0 ? undefined : '#bbb' }}>
                           {r.overhead > 0 ? ils(r.overhead) : '—'}
                         </td>
                       ))}
@@ -460,20 +464,58 @@ export default function Cashflow({ loading: parentLoading }) {
                     </tr>
                   )}
 
-                  {/* החזר הלוואה */}
-                  {totalLoan > 0 && (
-                    <tr>
-                      <td className="fin-rowlabel">החזר הלוואה</td>
-                      {periods.map((r, i) => (
-                        <td key={i} className={r.loan > 0 ? 'fin-neg' : ''} style={{ color: r.loan > 0 ? undefined : '#aaa' }}>
-                          {r.loan > 0 ? ils(r.loan) : '—'}
+                  {/* סה"כ תפעולי */}
+                  <tr style={{ borderTop: '2px solid #c0c8d8', fontWeight: 700 }}>
+                    <td className="fin-rowlabel">סה"כ תפעולי</td>
+                    {periods.map((r, i) => (
+                      <td key={i} className={r.netOperating < 0 ? 'fin-neg' : 'fin-pos'}>{ils(r.netOperating)}</td>
+                    ))}
+                    <td className={totalNetOperating < 0 ? 'fin-neg' : 'fin-pos'} style={{ background: 'rgba(0,0,0,.04)', fontWeight: 800 }}>
+                      {ils(totalNetOperating)}
+                    </td>
+                  </tr>
+
+                  {/* ── היוון ── */}
+                  {discountRate > 0 && (
+                    <>
+                      <tr style={{ background: 'rgba(108,142,191,.07)' }}>
+                        <td colSpan={periods.length + 2} style={{ padding: '4px 10px', fontSize: 11, fontWeight: 700, color: 'var(--tact-text-dim,#888)', letterSpacing: '.04em' }}>
+                          היוון — שיעור {discountRate}%
                         </td>
-                      ))}
-                      <td className="fin-neg" style={{ background: 'rgba(0,0,0,.04)', fontWeight: 700 }}>{ils(totalLoan)}</td>
-                    </tr>
+                      </tr>
+                      <tr style={{ fontWeight: 600 }}>
+                        <td className="fin-rowlabel">ערך נוכחי (NPV)</td>
+                        {periods.map((r, i) => (
+                          <td key={i} className={r.pvNetOp < 0 ? 'fin-neg' : 'fin-pos'}>{ils(r.pvNetOp)}</td>
+                        ))}
+                        <td className={npv < 0 ? 'fin-neg' : 'fin-pos'} style={{ background: 'rgba(0,0,0,.04)', fontWeight: 700 }}>
+                          {ils(npv)}
+                        </td>
+                      </tr>
+                    </>
                   )}
 
-                  {/* נטו */}
+                  {/* ── מימון ── */}
+                  {totalLoan > 0 && (
+                    <>
+                      <tr style={{ background: 'rgba(108,142,191,.07)' }}>
+                        <td colSpan={periods.length + 2} style={{ padding: '4px 10px', fontSize: 11, fontWeight: 700, color: 'var(--tact-text-dim,#888)', letterSpacing: '.04em' }}>
+                          הוצאות מימון
+                        </td>
+                      </tr>
+                      <tr>
+                        <td className="fin-rowlabel">החזר הלוואה</td>
+                        {periods.map((r, i) => (
+                          <td key={i} className={r.loan > 0 ? 'fin-neg' : ''} style={{ color: r.loan > 0 ? undefined : '#bbb' }}>
+                            {r.loan > 0 ? ils(r.loan) : '—'}
+                          </td>
+                        ))}
+                        <td className="fin-neg" style={{ background: 'rgba(0,0,0,.04)', fontWeight: 700 }}>{ils(totalLoan)}</td>
+                      </tr>
+                    </>
+                  )}
+
+                  {/* ── נטו סופי ── */}
                   <tr style={{ borderTop: '2px solid #c0c8d8', fontWeight: 700 }}>
                     <td className="fin-rowlabel">נטו</td>
                     {periods.map((r, i) => (
@@ -484,20 +526,6 @@ export default function Cashflow({ loading: parentLoading }) {
                     </td>
                   </tr>
 
-                  {/* נטו מהוון */}
-                  {discountRate > 0 && (
-                    <tr style={{ fontWeight: 600 }}>
-                      <td className="fin-rowlabel">נטו מהוון</td>
-                      {periods.map((r, i) => (
-                        <td key={i} className={r.pvNet < 0 ? 'fin-neg' : 'fin-pos'}>{ils(r.pvNet)}</td>
-                      ))}
-                      <td className={npv < 0 ? 'fin-neg' : 'fin-pos'} style={{ background: 'rgba(0,0,0,.04)', fontWeight: 700 }}>
-                        {ils(npv)}
-                      </td>
-                    </tr>
-                  )}
-
-                  {/* יתרה מצטברת */}
                   <tr style={{ fontWeight: 700 }}>
                     <td className="fin-rowlabel">יתרה מצטברת</td>
                     {periods.map((r, i) => (
@@ -507,6 +535,7 @@ export default function Cashflow({ loading: parentLoading }) {
                       <strong>{ils(endBalance)}</strong>
                     </td>
                   </tr>
+
                 </tbody>
               </table>
             </div>
