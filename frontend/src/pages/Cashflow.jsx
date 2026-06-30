@@ -25,13 +25,28 @@ function periodWeights(prev, chargersAdded, n) {
   return { ws, wSum, chPerPeriod }
 }
 
-function expandCombined(combined, viewMode) {
-  if (viewMode === 'annual') return combined.map((r) => ({ ...r, period: String(r.year) }))
+function expandCombined(combined, viewMode, excludedNames = new Set()) {
+  const filterBldgs = (bldgs) => {
+    if (!excludedNames.size) return bldgs || {}
+    return Object.fromEntries(Object.entries(bldgs || {}).filter(([n]) => !excludedNames.has(n)))
+  }
+  const recompTotals = (bldgs) => ({
+    total_income: Object.values(bldgs).reduce((s, b) => s + (b.annual_income || 0), 0),
+    total_capex:  Object.values(bldgs).reduce((s, b) => s + (b.capex || 0), 0),
+    total_opex:   Object.values(bldgs).reduce((s, b) => s + (b.annual_opex || 0), 0),
+  })
+  if (viewMode === 'annual') {
+    return combined.map((r) => {
+      const buildings = filterBldgs(r.buildings)
+      return { ...r, ...recompTotals(buildings), buildings, period: String(r.year) }
+    })
+  }
   const n = viewMode === 'quarterly' ? 4 : 12
   const out = []
   for (const row of combined) {
     const bldgMeta = {}
-    for (const [name, bd] of Object.entries(row.buildings || {})) {
+    const filteredBldgs = filterBldgs(row.buildings)
+    for (const [name, bd] of Object.entries(filteredBldgs)) {
       const prev = (bd.total_chargers || 0) - (bd.chargers_added || 0)
       bldgMeta[name] = { prev, ...periodWeights(prev, bd.chargers_added || 0, n) }
     }
@@ -40,7 +55,7 @@ function expandCombined(combined, viewMode) {
         ? `Q${i + 1} ${row.year}`
         : `${MONTHS_SHORT[i]} '${String(row.year).slice(2)}`
       const buildings = {}
-      for (const [name, bd] of Object.entries(row.buildings || {})) {
+      for (const [name, bd] of Object.entries(filteredBldgs)) {
         const { ws, wSum, chPerPeriod, prev } = bldgMeta[name]
         const inc = wSum > 0 ? (bd.annual_income || 0) * ws[i] / wSum : (bd.annual_income || 0) / n
         const cpx = (bd.capex || 0) / n
@@ -191,14 +206,20 @@ function LoanTab({ loan, onChange }) {
 
 // ─── פאנל תקורות ─────────────────────────────────────────────────────────────
 
-function OverheadPanel({ items, onChange }) {
+function OverheadPanel({ items, onChange, adaptationCosts, onAdaptationChange }) {
   function addItem() { onChange([...items, { id: Date.now(), name: '', annual: 0 }]) }
   function removeItem(id) { onChange(items.filter((i) => i.id !== id)) }
   function patchItem(id, patch) { onChange(items.map((i) => i.id === id ? { ...i, ...patch } : i)) }
   const total = items.reduce((s, i) => s + (Number(i.annual) || 0), 0)
 
+  function addAdaptation() { onAdaptationChange([...adaptationCosts, { id: Date.now(), name: '', amount: 0 }]) }
+  function removeAdaptation(id) { onAdaptationChange(adaptationCosts.filter((i) => i.id !== id)) }
+  function patchAdaptation(id, patch) { onAdaptationChange(adaptationCosts.map((i) => i.id === id ? { ...i, ...patch } : i)) }
+  const totalAdaptation = adaptationCosts.reduce((s, i) => s + (Number(i.amount) || 0), 0)
+
   return (
     <div>
+      {/* ── תקורות שנתיות ── */}
       <div className="cf-items-head">
         <h2 className="block-title" style={{ margin: 0 }}>תקורות שנתיות</h2>
         <button className="tact-btn" onClick={addItem}>+ תקורה</button>
@@ -232,6 +253,44 @@ function OverheadPanel({ items, onChange }) {
           סה"כ תקורות שנתיות: <strong>{ils(total)}</strong>
         </p>
       )}
+
+      {/* ── עלויות התאמה חד פעמיות 2026 ── */}
+      <div className="cf-items-head" style={{ marginTop: 28 }}>
+        <h2 className="block-title" style={{ margin: 0 }}>עלויות התאמה — חד פעמי 2026</h2>
+        <button className="tact-btn" onClick={addAdaptation}>+ עלות</button>
+      </div>
+      <p className="muted" style={{ fontSize: '0.8rem', marginBottom: 8, marginTop: 4 }}>
+        הוצאות חד פעמיות שיחולו על שנת 2026 בלבד.
+      </p>
+      <div className="fin-table-wrap">
+        <table className="fin-table cf-items">
+          <thead><tr><th className="fin-rowlabel">שם</th><th>סכום ₪</th><th /></tr></thead>
+          <tbody>
+            {adaptationCosts.length === 0 ? (
+              <tr><td colSpan={3} className="muted" style={{ textAlign: 'center', padding: 16 }}>
+                אין עלויות התאמה — לחץ "+ עלות" להוספה.
+              </td></tr>
+            ) : adaptationCosts.map((it) => (
+              <tr key={it.id}>
+                <td className="fin-rowlabel">
+                  <input className="cf-in cf-in-lg" value={it.name} placeholder="שם העלות"
+                    onChange={(e) => patchAdaptation(it.id, { name: e.target.value })} />
+                </td>
+                <td>
+                  <input className="cf-in cf-in-num" type="number" value={it.amount}
+                    onChange={(e) => patchAdaptation(it.id, { amount: parseFloat(e.target.value) || 0 })} />
+                </td>
+                <td><button className="cf-del" onClick={() => removeAdaptation(it.id)}>✕</button></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      {adaptationCosts.length > 0 && (
+        <p className="muted" style={{ fontSize: '0.82rem', marginTop: 4 }}>
+          סה"כ עלויות התאמה: <strong>{ils(totalAdaptation)}</strong>
+        </p>
+      )}
     </div>
   )
 }
@@ -244,23 +303,30 @@ const BAR_DEFS   = [{ k: 'הכנסות', color: '#2e7d4f' }, { k: 'הוצאות'
 export default function Cashflow({ loading: parentLoading, horizonMode = 'contract' }) {
   const [loan, setLoan]                   = useState({ amount: 3000000, years: 5, prime: 6, margin: 2, start_month: '' })
   const [combinedForecast, setCombined]   = useState([])
+  const [buildings, setBuildings]         = useState([])
   const [loading, setLoading]             = useState(true)
   const [subTab, setSubTab]               = useState('forecast')
   const [viewMode, setViewMode]           = useState('annual')
-  const [discountRate, setDiscountRate]   = useState(0)
+  const [discountRate, setDiscountRate]   = useState(() => {
+    try { return parseFloat(localStorage.getItem('energy-cf-discount-rate') || '0') || 0 } catch { return 0 }
+  })
   const [visibleBars, setVisibleBars]     = useState({ הכנסות: true, הוצאות: true, רווח: true })
   const [includeLoan, setIncludeLoan]     = useState(true)
   const [overheadItems, setOverheadItems] = useState(() => {
     try { return JSON.parse(localStorage.getItem('energy-cf-overhead') || '[]') } catch { return [] }
   })
+  const [adaptationCosts, setAdaptationCosts] = useState(() => {
+    try { return JSON.parse(localStorage.getItem('energy-cf-adaptation-2026') || '[]') } catch { return [] }
+  })
   const timers = useRef({})
 
   useEffect(() => {
     const fy = horizonMode === '5yr' ? 5 : undefined
-    Promise.all([api.getCashflow(), api.getCombinedForecast(fy)])
-      .then(([cf, forecast]) => {
+    Promise.all([api.getCashflow(), api.getCombinedForecast(fy), api.listBuildingModels()])
+      .then(([cf, forecast, bms]) => {
         if (cf.loan) setLoan(cf.loan)
         setCombined(forecast || [])
+        setBuildings(bms || [])
         setLoading(false)
       }).catch(() => setLoading(false))
   }, [horizonMode])
@@ -276,20 +342,40 @@ export default function Cashflow({ loading: parentLoading, horizonMode = 'contra
     localStorage.setItem('energy-cf-overhead', JSON.stringify(next))
   }
 
+  function patchAdaptation(next) {
+    setAdaptationCosts(next)
+    localStorage.setItem('energy-cf-adaptation-2026', JSON.stringify(next))
+  }
+
+  function saveDiscountRate(v) {
+    setDiscountRate(v)
+    localStorage.setItem('energy-cf-discount-rate', String(v))
+  }
+
   const periodsPerYear = viewMode === 'annual' ? 1 : viewMode === 'quarterly' ? 4 : 12
   const totalAnnualOverhead = overheadItems.reduce((s, o) => s + (Number(o.annual) || 0), 0)
+  const totalAdaptation2026 = adaptationCosts.reduce((s, c) => s + (Number(c.amount) || 0), 0)
+
+  // בניינים שהוסרו מהתזרים — לפי localStorage של תזרים בניינים
+  const excludedNames = useMemo(() => {
+    try {
+      const ids = new Set(JSON.parse(localStorage.getItem('energy-excluded') || '[]'))
+      return new Set(buildings.filter((b) => ids.has(b.id)).map((b) => b.building_name))
+    } catch { return new Set() }
+  }, [buildings])
 
   const periods = useMemo(() => {
-    const expanded = expandCombined(combinedForecast, viewMode)
+    const expanded = expandCombined(combinedForecast, viewMode, excludedNames)
     const r = (discountRate || 0) / 100
     let bal   = 0
     let pvBal = 0
     return expanded.map((p, idx) => {
-      const n            = periodsPerYear
-      const overheadPer  = totalAnnualOverhead / n
-      const loan         = p.loan_repayment || 0
-      const netOperating = p.total_income - p.total_capex - p.total_opex - overheadPer
-      const net          = netOperating - loan
+      const n             = periodsPerYear
+      const overheadPer   = totalAnnualOverhead / n
+      const adaptationPer = p.year === 2026 ? totalAdaptation2026 / n : 0
+      const loan          = p.loan_repayment || 0
+      const netOperating  = p.total_income - p.total_capex - p.total_opex - overheadPer - adaptationPer
+      const net           = netOperating - loan
       bal += net
       const t        = idx / n
       const pvFactor = r > 0 ? 1 / Math.pow(1 + r, t) : 1
@@ -301,24 +387,25 @@ export default function Cashflow({ loading: parentLoading, horizonMode = 'contra
         income: p.total_income,
         capex:  p.total_capex,
         opex:   p.total_opex,
-        loan, overhead: overheadPer,
+        loan, overhead: overheadPer, adaptation: adaptationPer,
         netOperating, net, balance: bal,
         pvNetOp, pvBalance: pvBal,
         chargers,
       }
     })
-  }, [combinedForecast, viewMode, discountRate, totalAnnualOverhead, periodsPerYear])
+  }, [combinedForecast, viewMode, discountRate, totalAnnualOverhead, totalAdaptation2026, periodsPerYear, excludedNames])
 
   const chartData          = periods.map((r) => ({
     period: r.period,
     הכנסות: r.income,
-    הוצאות: r.capex + r.opex + r.overhead + (includeLoan ? r.loan : 0),
+    הוצאות: r.capex + r.opex + r.overhead + r.adaptation + (includeLoan ? r.loan : 0),
     רווח:   includeLoan ? r.net : r.netOperating,
   }))
   const totalIncome        = periods.reduce((s, r) => s + r.income, 0)
   const totalCapex         = periods.reduce((s, r) => s + r.capex, 0)
   const totalOpex          = periods.reduce((s, r) => s + r.opex, 0)
   const totalOverhead      = periods.reduce((s, r) => s + r.overhead, 0)
+  const totalAdaptation    = periods.reduce((s, r) => s + r.adaptation, 0)
   const totalLoan          = periods.reduce((s, r) => s + r.loan, 0)
   const totalNetOperating  = periods.reduce((s, r) => s + r.netOperating, 0)
   const totalNet           = periods.reduce((s, r) => s + r.net, 0)
@@ -332,13 +419,18 @@ export default function Cashflow({ loading: parentLoading, horizonMode = 'contra
       <div className="ta-head">
         <h1 className="home-title">תזרים מזומנים</h1>
         <span className="tact-badge tact-badge-on">{combinedForecast.length} שנים</span>
+        {excludedNames.size > 0 && (
+          <span className="tact-badge" style={{ background: 'rgba(253,121,168,.15)', color: '#fd79a8', border: '1px solid rgba(253,121,168,.3)' }}>
+            {excludedNames.size} בניינים מוסרים
+          </span>
+        )}
       </div>
       <p className="home-sub">תחזית תזרים מצרפית לכל הבניינים — נתונים מתזרים בניינים.</p>
 
       <div className="cf-open">
         <label><span>ריבית היוון %</span>
           <input type="number" min="0" max="50" step="0.5" value={discountRate}
-            onChange={(e) => setDiscountRate(parseFloat(e.target.value) || 0)} />
+            onChange={(e) => saveDiscountRate(parseFloat(e.target.value) || 0)} />
         </label>
       </div>
 
@@ -387,14 +479,21 @@ export default function Cashflow({ loading: parentLoading, horizonMode = 'contra
           onClick={() => setSubTab('forecast')}>תחזית</button>
         <button className={`cf-subtab ${subTab === 'overhead'  ? 'active' : ''}`}
           onClick={() => setSubTab('overhead')}>
-          תקורות {overheadItems.length > 0 && `(${overheadItems.length})`}
+          תקורות {(overheadItems.length + adaptationCosts.length) > 0 && `(${overheadItems.length + adaptationCosts.length})`}
         </button>
         <button className={`cf-subtab ${subTab === 'loan'      ? 'active' : ''}`}
           onClick={() => setSubTab('loan')}>הלוואת רכישה</button>
       </div>
 
       {subTab === 'loan'     && <LoanTab loan={loan} onChange={patchLoan} />}
-      {subTab === 'overhead' && <OverheadPanel items={overheadItems} onChange={patchOverhead} />}
+      {subTab === 'overhead' && (
+        <OverheadPanel
+          items={overheadItems}
+          onChange={patchOverhead}
+          adaptationCosts={adaptationCosts}
+          onAdaptationChange={patchAdaptation}
+        />
+      )}
 
       {subTab === 'forecast' && (
         <>
@@ -478,6 +577,18 @@ export default function Cashflow({ loading: parentLoading, horizonMode = 'contra
                         </td>
                       ))}
                       <td className="fin-neg" style={{ background: 'rgba(0,0,0,.04)', fontWeight: 700 }}>{ils(totalOverhead)}</td>
+                    </tr>
+                  )}
+
+                  {totalAdaptation > 0 && (
+                    <tr>
+                      <td className="fin-rowlabel">עלויות התאמה (2026)</td>
+                      {periods.map((r, i) => (
+                        <td key={i} className={r.adaptation > 0 ? 'fin-neg' : ''} style={{ color: r.adaptation > 0 ? undefined : '#bbb' }}>
+                          {r.adaptation > 0 ? ils(r.adaptation) : '—'}
+                        </td>
+                      ))}
+                      <td className="fin-neg" style={{ background: 'rgba(0,0,0,.04)', fontWeight: 700 }}>{ils(totalAdaptation)}</td>
                     </tr>
                   )}
 
