@@ -428,13 +428,26 @@ function BuildingSettings({ bm, globals, onChange }) {
 // ─── שורת בניין ──────────────────────────────────────────────────────────────
 
 function BuildingRow({ bm, selected, excluded, onSelect, onDelete }) {
+  const missingAgreement = bm.notes?.includes('חסר הסכם')
   return (
     <div
       className={`building-row ${selected ? 'selected' : ''}`}
       onClick={() => onSelect(bm.id)}
       style={excluded ? { opacity: 0.45 } : undefined}
     >
-      <div className="building-row-name">{bm.building_name}</div>
+      <div className="building-row-name">
+        {bm.building_name}
+        {missingAgreement && (
+          <span style={{
+            display: 'inline-block', marginInlineStart: 6,
+            fontSize: 9, fontWeight: 700, padding: '1px 5px',
+            borderRadius: 4, background: 'rgba(226,72,61,.18)',
+            color: '#e2483d', verticalAlign: 'middle',
+          }}>
+            חסר הסכם
+          </span>
+        )}
+      </div>
       <div className="building-row-meta">
         {bm.current_chargers} מטענים · {bm.potential_spots} פוטנציאל
       </div>
@@ -1141,7 +1154,18 @@ export default function BuildingCashflow({ loading: appLoading }) {
             {selected && (
               <div className="building-detail">
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-                  <h3 style={{ margin: 0 }}>{selected.building_name}</h3>
+                  <h3 style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 10 }}>
+                    {selected.building_name}
+                    {selected.notes?.includes('חסר הסכם') && (
+                      <span style={{
+                        fontSize: 11, fontWeight: 700, padding: '2px 8px',
+                        borderRadius: 5, background: 'rgba(226,72,61,.15)',
+                        color: '#e2483d', border: '1px solid rgba(226,72,61,.3)',
+                      }}>
+                        חסר הסכם
+                      </span>
+                    )}
+                  </h3>
                   <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, color: 'var(--tact-text-dim,#aaa)' }}>
                     <input
                       type="checkbox"

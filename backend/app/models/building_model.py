@@ -1,7 +1,7 @@
 """מודל תזרים פר-בניין — הגדרות גידול ועלויות מטענים."""
 from datetime import datetime, timezone
 
-from sqlalchemy import DateTime, Float, Integer, JSON, String
+from sqlalchemy import DateTime, Float, Integer, JSON, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.db import Base
@@ -59,6 +59,9 @@ class BuildingModel(Base):
     # פרטי ההסכם — אם מוגדרים, מחשבים forecast_years אוטומטית
     contract_start_year: Mapped[int | None] = mapped_column(Integer, nullable=True, default=None)
     contract_duration_years: Mapped[int | None] = mapped_column(Integer, nullable=True, default=None)
+
+    # הערות כלליות (לדוגמה: "חסר הסכם")
+    notes: Mapped[str] = mapped_column(Text, default="")
 
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now)

@@ -268,6 +268,84 @@ def sync_install_income(db: Session) -> int:
     return updated
 
 
+def sync_missing_agreement_buildings(db: Session, projects_path: str) -> int:
+    """מוסיף לתזרים בניינים שיש להם פרויקט אך חסר להם הסכם חתום.
+
+    ברירות מחדל: ₪30 ניהול, 30 אג'/kWh, 5 שנות הסכם.
+    מסומנים ב-notes='חסר הסכם'.
+    """
+    path = Path(projects_path)
+    if not path.is_file():
+        return 0
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return 0
+
+    projects = data.get("buildings", [])
+    if not projects:
+        return 0
+
+    # נרמול שמות ההסכמים
+    from app.models.tenant_agreement import TenantAgreement
+    agreements = list(db.scalars(select(TenantAgreement)))
+    agr_norms = {_normalize(a.building.split(",")[0].strip()) for a in agreements if a.building}
+
+    # שמות בניינים קיימים ב-building_models (מנורמלים לצורך השוואה)
+    existing = list(db.scalars(select(BuildingModel)))
+    existing_norms = {_normalize(bm.building_name.split(",")[0].strip()) for bm in existing}
+
+    added = 0
+    for p in projects:
+        proj_name = (p.get("project") or "").strip()
+        city = (p.get("city") or "").strip()
+        if not proj_name:
+            continue
+
+        proj_norm = _normalize(proj_name)
+
+        # יש הסכם — דלג
+        has_agreement = any(n and (n in proj_norm or proj_norm in n) for n in agr_norms)
+        if has_agreement:
+            continue
+
+        # כבר קיים ב-building_models — דלג
+        already_exists = any(n and (n in proj_norm or proj_norm in n) for n in existing_norms)
+        if already_exists:
+            continue
+
+        building_name = f"{proj_name}, {city}" if city else proj_name
+        chargers = int(p.get("chargers_installed") or 0)
+        park_total = int(p.get("park_total") or 0)
+
+        db.add(BuildingModel(
+            building_name=building_name,
+            current_chargers=chargers,
+            potential_spots=park_total,
+            annual_growth_rate=10.0,
+            mgmt_fee_per_charger=30.0,
+            electricity_rate_agorot=30.0,
+            avg_kwh_per_charger_monthly=150.0,
+            subscription_fee_per_charger=0.0,
+            cost_charger_unit=800,
+            cost_infra_per_charger=1200,
+            cost_install_per_charger=1300,
+            cost_elec_panel=6000,
+            cost_comm_panel=1000,
+            chargers_per_panel=10,
+            start_year=2026,
+            forecast_years=5,
+            contract_duration_years=5,
+            notes="חסר הסכם",
+        ))
+        existing_norms.add(proj_norm)
+        added += 1
+
+    if added:
+        db.commit()
+    return added
+
+
 def seed_building_models(db: Session) -> int:
     if db.scalar(select(BuildingModel.id).limit(1)) is not None:
         return 0

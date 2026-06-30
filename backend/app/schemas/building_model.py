@@ -34,6 +34,7 @@ class BuildingModelCreate(BaseModel):
     forecast_years: int = Field(default=5, ge=1, le=30)
     contract_start_year: int | None = None
     contract_duration_years: int | None = None
+    notes: str = ""
 
 
 class BuildingModelUpdate(BaseModel):
@@ -63,6 +64,7 @@ class BuildingModelUpdate(BaseModel):
     forecast_years: int | None = Field(default=None, ge=1, le=30)
     contract_start_year: int | None = None
     contract_duration_years: int | None = None
+    notes: str | None = None
 
 
 class BuildingModelOut(BaseModel):
@@ -93,6 +95,7 @@ class BuildingModelOut(BaseModel):
     forecast_years: int
     contract_start_year: int | None = None
     contract_duration_years: int | None = None
+    notes: str = ""
 
 
 class YearForecast(BaseModel):
