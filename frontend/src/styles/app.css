@@ -121,6 +121,8 @@
 .ta-row:hover { background: var(--color-bg); }
 .ta-row.open { background: var(--color-primary-soft); }
 .ta-row.open td { border-bottom-color: transparent; font-weight: 500; }
+.ta-row-saved { animation: ta-saved-flash .9s ease-out; }
+@keyframes ta-saved-flash { 0%,30% { background: rgba(40,180,100,.14); } 100% { background: transparent; } }
 
 .ta-detail-row td { padding: 0; }
 .ta-detail {

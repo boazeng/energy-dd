@@ -4,13 +4,13 @@ import { api } from '../api/client.js'
 
 const COLUMNS = [
   { key: 'building',      label: 'בניין' },
-  { key: 'term',          label: 'תקופה' },
-  { key: 'payment',       label: 'עלות מנוי' },
-  { key: 'pricing_model', label: 'עלות חשמל' },
-  { key: 'charger_cost',  label: 'רכישה והתקנת מטען' },
-  { key: 'notes',         label: 'הערות / אי-התאמות' },
-  { key: '_file',         label: 'קובץ ההסכם',  type: 'file' },
-  { key: 'review_notes',  label: 'הערות סקירה', type: 'editable' },
+  { key: 'term',          label: 'תקופה',               type: 'editable' },
+  { key: 'payment',       label: 'עלות מנוי',            type: 'editable' },
+  { key: 'pricing_model', label: 'עלות חשמל',            type: 'editable' },
+  { key: 'charger_cost',  label: 'רכישה והתקנת מטען',   type: 'editable' },
+  { key: 'notes',         label: 'הערות / אי-התאמות',   type: 'editable' },
+  { key: '_file',         label: 'קובץ ההסכם',           type: 'file' },
+  { key: 'review_notes',  label: 'הערות סקירה',          type: 'editable' },
 ]
 
 function ExpandedRow({ a }) {
@@ -18,7 +18,7 @@ function ExpandedRow({ a }) {
     <div className="ta-detail">
       {a.summary && <p className="ta-summary">{a.summary}</p>}
       <div className="ta-detail-grid">
-        {a.address    && <Field label="כתובת"       value={a.address} />}
+        {a.address     && <Field label="כתובת"        value={a.address} />}
         {a.termination && <Field label="סיום / חידוש" value={a.termination} />}
         {a.tenant_name && <Field label="נציג / חותם"  value={a.tenant_name} />}
       </div>
@@ -40,12 +40,7 @@ function ExpandedRow({ a }) {
       {(a.source_url || a.source_file) && (
         <p className="ta-source">
           {a.source_url ? (
-            <a
-              href={a.source_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="ta-source-link"
-            >
+            <a href={a.source_url} target="_blank" rel="noopener noreferrer" className="ta-source-link">
               <TactIcon name="link" size={15} />
               פתח את החוזה ב-SharePoint
               {a.source_file ? ` — ${a.source_file}` : ''}
@@ -74,30 +69,29 @@ function initialOpen() {
 }
 
 export default function TenantAgreements({ agreements, loading }) {
-  const [open, setOpen] = useState(initialOpen)
-  const [localAgreements, setLocalAgreements] = useState(agreements)
-  const [editing, setEditing] = useState(null) // { id, value }
-  const [saving, setSaving] = useState(null)   // agreement id being saved
+  const [open, setOpen]                   = useState(initialOpen)
+  const [localAgreements, setLocal]       = useState(agreements)
+  const [editing, setEditing]             = useState(null)  // { id, field, value }
+  const [saving, setSaving]               = useState(null)  // { id, field }
+  const [savedFlash, setSavedFlash]       = useState(null)  // id of last saved row
 
-  useEffect(() => {
-    setLocalAgreements(agreements)
-  }, [agreements])
+  useEffect(() => { setLocal(agreements) }, [agreements])
 
-  function startEdit(id, current, e) {
+  function startEdit(id, field, current, e) {
     e.stopPropagation()
-    setEditing({ id, value: current || '' })
+    setEditing({ id, field, value: current || '' })
   }
 
-  async function saveEdit(id) {
-    if (!editing || editing.id !== id) return
-    const value = editing.value
+  async function saveEdit() {
+    if (!editing) return
+    const { id, field, value } = editing
     setEditing(null)
     try {
-      setSaving(id)
-      await api.updateAgreement(id, { review_notes: value })
-      setLocalAgreements((prev) =>
-        prev.map((a) => (a.id === id ? { ...a, review_notes: value } : a))
-      )
+      setSaving({ id, field })
+      await api.updateAgreement(id, { [field]: value })
+      setLocal((prev) => prev.map((a) => a.id === id ? { ...a, [field]: value } : a))
+      setSavedFlash(id)
+      setTimeout(() => setSavedFlash((f) => f === id ? null : f), 1800)
     } catch (e) {
       console.error('שגיאה בשמירה', e)
     } finally {
@@ -110,33 +104,29 @@ export default function TenantAgreements({ agreements, loading }) {
       return (
         <td key={c.key} onClick={(e) => e.stopPropagation()}>
           {a.source_url ? (
-            <a
-              href={a.source_url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="ta-file-link"
-              title={a.source_file || 'פתח חוזה'}
-            >
+            <a href={a.source_url} target="_blank" rel="noopener noreferrer"
+              className="ta-file-link" title={a.source_file || 'פתח חוזה'}>
               <TactIcon name="link" size={14} />
               <span>{a.source_file || 'פתח'}</span>
             </a>
           ) : a.source_file ? (
             <span className="muted">{a.source_file}</span>
-          ) : (
-            '—'
-          )}
+          ) : '—'}
         </td>
       )
     }
 
     if (c.type === 'editable') {
-      const isEditing = editing?.id === a.id
-      const isSaving = saving === a.id
+      const isEditing = editing?.id === a.id && editing?.field === c.key
+      const isSaving  = saving?.id === a.id && saving?.field === c.key
+      const val       = a[c.key]
+      const isNoteWarn = c.key === 'notes' && val && val !== '—'
+
       return (
         <td
           key={c.key}
-          className={`ta-cell-editable${isEditing ? ' editing' : ''}`}
-          onClick={(e) => !isEditing && startEdit(a.id, a.review_notes, e)}
+          className={`ta-cell-editable${isEditing ? ' editing' : ''}${isNoteWarn ? ' ta-cell-warn' : ''}`}
+          onClick={(e) => !isEditing && startEdit(a.id, c.key, val, e)}
           title={isEditing ? '' : 'לחץ לעריכה'}
         >
           {isEditing ? (
@@ -145,21 +135,18 @@ export default function TenantAgreements({ agreements, loading }) {
               autoFocus
               value={editing.value}
               onChange={(e) => setEditing((prev) => ({ ...prev, value: e.target.value }))}
-              onBlur={() => saveEdit(a.id)}
+              onBlur={saveEdit}
               onKeyDown={(e) => {
                 e.stopPropagation()
                 if (e.key === 'Escape') setEditing(null)
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault()
-                  saveEdit(a.id)
-                }
+                if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); saveEdit() }
               }}
               onClick={(e) => e.stopPropagation()}
             />
           ) : isSaving ? (
             <span className="muted">שומר…</span>
-          ) : a.review_notes ? (
-            a.review_notes
+          ) : val ? (
+            val
           ) : (
             <span className="ta-edit-hint">לחץ לעריכה</span>
           )}
@@ -167,13 +154,8 @@ export default function TenantAgreements({ agreements, loading }) {
       )
     }
 
-    const val = a[c.key] || '—'
-    const isNote = c.key === 'notes' && val && val !== '—'
-    return (
-      <td key={c.key} className={isNote ? 'ta-cell-warn' : ''}>
-        {val}
-      </td>
-    )
+    // non-editable (building name)
+    return <td key={c.key}>{a[c.key] || '—'}</td>
   }
 
   return (
@@ -185,7 +167,7 @@ export default function TenantAgreements({ agreements, loading }) {
         </span>
       </div>
       <p className="home-sub">
-        סיכום ההסכמים המרכזיים. לחיצה על שורה פותחת את מלוא הפרטים.
+        לחיצה על שורה פותחת את מלוא הפרטים. לחיצה על תא לעריכתו — השינוי מסנכרן אוטומטית לתזרים הבניינים.
       </p>
 
       {loading ? (
@@ -193,16 +175,14 @@ export default function TenantAgreements({ agreements, loading }) {
       ) : localAgreements.length === 0 ? (
         <div className="ta-empty">
           <TactIcon name="document" size={28} />
-          <p>אין עדיין הסכמים. לאחר הוספת הסכמים הם יופיעו כאן.</p>
+          <p>אין עדיין הסכמים.</p>
         </div>
       ) : (
         <table className="ta-table">
           <thead>
             <tr>
               <th className="ta-expander" />
-              {COLUMNS.map((c) => (
-                <th key={c.key}>{c.label}</th>
-              ))}
+              {COLUMNS.map((c) => <th key={c.key}>{c.label}</th>)}
             </tr>
           </thead>
           <tbody>
@@ -211,7 +191,7 @@ export default function TenantAgreements({ agreements, loading }) {
               return (
                 <Fragment key={a.id}>
                   <tr
-                    className={`ta-row ${isOpen ? 'open' : ''}`}
+                    className={`ta-row ${isOpen ? 'open' : ''}${savedFlash === a.id ? ' ta-row-saved' : ''}`}
                     onClick={() => setOpen(isOpen ? null : a.id)}
                   >
                     <td className="ta-expander">
