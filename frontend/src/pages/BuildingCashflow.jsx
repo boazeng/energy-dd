@@ -20,29 +20,50 @@ const COLORS = ['#6c8ebf', '#82ca9d', '#ffc658', '#ff7c7c', '#a29bfe', '#fd79a8'
 
 const MONTHS_SHORT = ['ינ׳','פב׳','מר׳','אפ׳','מי׳','יו׳','יל׳','אג׳','ספ׳','אוק׳','נו׳','דצ׳']
 
+// מחשב משקל הכנסה לפי מספר המטענים בנקודת האמצע של כל תקופה
+function periodWeights(prev, chargersAdded, n) {
+  const chPerPeriod = chargersAdded / n
+  const ws = Array.from({ length: n }, (_, k) => prev + (k + 0.5) * chPerPeriod)
+  const wSum = ws.reduce((s, w) => s + w, 0)
+  return { ws, wSum, chPerPeriod }
+}
+
 function expandCombined(combined, viewMode) {
   if (viewMode === 'annual') return combined.map((r) => ({ ...r, period: String(r.year) }))
   const n = viewMode === 'quarterly' ? 4 : 12
   const out = []
   for (const row of combined) {
+    // מחשב משקלות פר-בניין מחוץ ללולאת התקופות
+    const bldgMeta = {}
+    for (const [name, bd] of Object.entries(row.buildings || {})) {
+      const prev = (bd.total_chargers || 0) - (bd.chargers_added || 0)
+      bldgMeta[name] = { prev, ...periodWeights(prev, bd.chargers_added || 0, n) }
+    }
+
     for (let i = 0; i < n; i++) {
       const label = viewMode === 'quarterly'
         ? `Q${i + 1} ${row.year}`
         : `${MONTHS_SHORT[i]} '${String(row.year).slice(2)}`
       const buildings = {}
       for (const [name, bd] of Object.entries(row.buildings || {})) {
-        const inc = (bd.annual_income || 0) / n
-        const cpx = i === 0 ? (bd.capex || 0) : 0
+        const { ws, wSum, chPerPeriod, prev } = bldgMeta[name]
+        const inc = wSum > 0 ? (bd.annual_income || 0) * ws[i] / wSum : (bd.annual_income || 0) / n
+        const cpx = (bd.capex || 0) / n
         const opx = (bd.annual_opex || 0) / n
-        buildings[name] = { annual_income: inc, capex: cpx, annual_opex: opx, profit: inc - cpx - opx }
+        buildings[name] = {
+          ...bd,
+          annual_income: inc, capex: cpx, annual_opex: opx, profit: inc - cpx - opx,
+          chargers_added: chPerPeriod, total_chargers: prev + (i + 1) * chPerPeriod,
+        }
       }
+      const totalIncome = Object.values(buildings).reduce((s, b) => s + b.annual_income, 0)
+      const totalCapex  = Object.values(buildings).reduce((s, b) => s + b.capex, 0)
+      const totalOpex   = Object.values(buildings).reduce((s, b) => s + b.annual_opex, 0)
+      const loanPer     = (row.loan_repayment || 0) / n
       out.push({
         ...row, period: label, buildings,
-        total_income: (row.total_income || 0) / n,
-        total_capex: i === 0 ? (row.total_capex || 0) : 0,
-        total_opex: (row.total_opex || 0) / n,
-        loan_repayment: (row.loan_repayment || 0) / n,
-        total_profit: (row.total_profit || 0) / n,
+        total_income: totalIncome, total_capex: totalCapex, total_opex: totalOpex,
+        loan_repayment: loanPer, total_profit: totalIncome - totalCapex - totalOpex - loanPer,
       })
     }
   }
@@ -54,14 +75,20 @@ function expandYears(years, viewMode) {
   const n = viewMode === 'quarterly' ? 4 : 12
   const out = []
   for (const y of years) {
+    const prev = (y.total_chargers || 0) - (y.chargers_added || 0)
+    const { ws, wSum, chPerPeriod } = periodWeights(prev, y.chargers_added || 0, n)
     for (let i = 0; i < n; i++) {
       const label = viewMode === 'quarterly'
         ? `Q${i + 1} ${y.year}`
         : `${MONTHS_SHORT[i]} '${String(y.year).slice(2)}`
-      const inc = y.annual_income / n
-      const cpx = i === 0 ? y.capex : 0
-      const opx = y.annual_opex / n
-      out.push({ ...y, period: label, annual_income: inc, capex: cpx, annual_opex: opx, profit: inc - cpx - opx, chargers_added: i === 0 ? y.chargers_added : 0 })
+      const inc = wSum > 0 ? (y.annual_income || 0) * ws[i] / wSum : (y.annual_income || 0) / n
+      const cpx = (y.capex || 0) / n
+      const opx = (y.annual_opex || 0) / n
+      out.push({
+        ...y, period: label,
+        annual_income: inc, capex: cpx, annual_opex: opx, profit: inc - cpx - opx,
+        chargers_added: chPerPeriod, total_chargers: prev + (i + 1) * chPerPeriod,
+      })
     }
   }
   return out
@@ -153,7 +180,7 @@ function ForecastTable({ years, viewMode = 'annual' }) {
           {rows.map((p, idx) => (
             <tr key={idx}>
               <td><strong>{p.period}</strong></td>
-              <td>{p.chargers_added > 0 ? `+${p.chargers_added}` : '—'}</td>
+              <td>{p.chargers_added > 0 ? `+${Number(p.chargers_added) % 1 === 0 ? p.chargers_added : Number(p.chargers_added).toFixed(1)}` : '—'}</td>
               {isAnnual && <td>{p.total_chargers}</td>}
               <td style={{ color: 'var(--tact-green)' }}>{ils(p.annual_income)}</td>
               <td style={{ color: p.capex > 0 ? 'var(--tact-red,#e74c3c)' : 'inherit' }}>
