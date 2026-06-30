@@ -674,7 +674,9 @@ export default function BuildingCashflow({ loading: appLoading, horizonMode = 'c
     try { return new Set(JSON.parse(localStorage.getItem('energy-excluded') || '[]')) } catch { return new Set() }
   })
   const [showInclusion, setShowInclusion] = useState(false)
-  const [viewMode, setViewMode] = useState('annual')
+  const [viewMode, setViewMode] = useState(
+    () => { const v = localStorage.getItem('energy-bcf-view-mode'); return ['annual','quarterly','monthly'].includes(v) ? v : 'annual' }
+  )
 
   const growthTimer = useRef(null)
   const kwhTimer = useRef(null)
@@ -871,7 +873,7 @@ export default function BuildingCashflow({ loading: appLoading, horizonMode = 'c
           {[['annual','שנתי'],['quarterly','רבעוני'],['monthly','חודשי']].map(([mode, label]) => (
             <button
               key={mode}
-              onClick={() => setViewMode(mode)}
+              onClick={() => { setViewMode(mode); localStorage.setItem('energy-bcf-view-mode', mode) }}
               style={{
                 padding: '5px 14px', fontSize: 12, fontWeight: 600, borderRadius: 6,
                 border: '1.5px solid', cursor: 'pointer',

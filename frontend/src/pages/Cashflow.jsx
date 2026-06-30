@@ -306,13 +306,19 @@ export default function Cashflow({ loading: parentLoading, horizonMode = 'contra
   const [buildings, setBuildings]         = useState([])
   const [loading, setLoading]             = useState(true)
   const [subTab, setSubTab]               = useState('forecast')
-  const [viewMode, setViewMode]           = useState('annual')
-  const [npvMode, setNpvMode]             = useState(null) // null | 'with_financing' | 'without_financing'
+  const [viewMode, setViewMode]           = useState(
+    () => { const v = localStorage.getItem('energy-cf-view-mode'); return ['annual','quarterly','monthly'].includes(v) ? v : 'annual' }
+  )
+  const [npvMode, setNpvMode]             = useState(
+    () => { const v = localStorage.getItem('energy-cf-npv-mode'); return ['with_financing','without_financing'].includes(v) ? v : null }
+  )
   const [discountRate, setDiscountRate]   = useState(() => {
     try { return parseFloat(localStorage.getItem('energy-cf-discount-rate') || '0') || 0 } catch { return 0 }
   })
   const [visibleBars, setVisibleBars]     = useState({ הכנסות: true, הוצאות: true, רווח: true })
-  const [includeLoan, setIncludeLoan]     = useState(true)
+  const [includeLoan, setIncludeLoan]     = useState(
+    () => localStorage.getItem('energy-cf-include-loan') !== 'false'
+  )
   const [overheadItems, setOverheadItems] = useState(() => {
     try { return JSON.parse(localStorage.getItem('energy-cf-overhead') || '[]') } catch { return [] }
   })
@@ -469,7 +475,7 @@ export default function Cashflow({ loading: parentLoading, horizonMode = 'contra
         <div className="cf-gran">
           {VIEW_OPTS.map((o) => (
             <button key={o.v} className={`filter-pill ${viewMode === o.v ? 'active' : ''}`}
-              onClick={() => setViewMode(o.v)}>{o.l}</button>
+              onClick={() => { setViewMode(o.v); localStorage.setItem('energy-cf-view-mode', o.v) }}>{o.l}</button>
           ))}
           <span style={{ margin: '0 8px', color: '#ccc' }}>|</span>
           {BAR_DEFS.map(({ k, color }) => (
@@ -485,7 +491,7 @@ export default function Cashflow({ loading: parentLoading, horizonMode = 'contra
               <span style={{ margin: '0 8px', color: '#ccc' }}>|</span>
               <button
                 className={`filter-pill ${includeLoan ? 'active' : ''}`}
-                onClick={() => setIncludeLoan((v) => !v)}>
+                onClick={() => setIncludeLoan((v) => { localStorage.setItem('energy-cf-include-loan', String(!v)); return !v })}>
                 {includeLoan ? 'כולל החזר הלוואה' : 'ללא החזר הלוואה'}
               </button>
             </>
@@ -531,7 +537,7 @@ export default function Cashflow({ loading: parentLoading, horizonMode = 'contra
           <div style={{ display: 'flex', gap: 8, margin: '16px 0 4px', flexWrap: 'wrap' }}>
             {[['with_financing','חישוב ערך נוכחי כולל מימון'],['without_financing','חישוב ערך נוכחי ללא מימון']].map(([mode, label]) => (
               <button key={mode}
-                onClick={() => setNpvMode((p) => p === mode ? null : mode)}
+                onClick={() => setNpvMode((p) => { const next = p === mode ? null : mode; localStorage.setItem('energy-cf-npv-mode', next || ''); return next })}
                 style={{
                   padding: '6px 14px', fontSize: 13, fontWeight: 600, borderRadius: 8,
                   border: `1px solid ${npvMode === mode ? '#6c8ebf' : '#d0d7e6'}`,

@@ -39,7 +39,9 @@ export default function App() {
   const [supplierLedger, setSupplierLedger] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [horizonMode, setHorizonMode] = useState('contract') // 'contract' | '5yr' — משותף לתזרים ותזרים בניינים
+  const [horizonMode, setHorizonMode] = useState(
+    () => localStorage.getItem('energy-horizon-mode') === '5yr' ? '5yr' : 'contract'
+  )
 
   async function refresh() {
     try {
@@ -120,7 +122,7 @@ export default function App() {
           />
         )}
         {tab === 'cashflow' && <Cashflow loading={loading} horizonMode={horizonMode} />}
-        {tab === 'building-cashflow' && <BuildingCashflow loading={loading} horizonMode={horizonMode} onHorizonChange={setHorizonMode} />}
+        {tab === 'building-cashflow' && <BuildingCashflow loading={loading} horizonMode={horizonMode} onHorizonChange={(m) => { setHorizonMode(m); localStorage.setItem('energy-horizon-mode', m) }} />}
         {tab === 'tasks' && (
           <Tasks
             tasks={tasks}
