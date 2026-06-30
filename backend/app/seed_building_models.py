@@ -193,6 +193,60 @@ def _parse_cost(text: str) -> float:
     return float(nums[0].replace(",", ""))
 
 
+def _parse_contract_term(term: str) -> tuple[int | None, int | None]:
+    """מחלץ (שנת_תחילה, משך_שנים) מטקסט כמו '10 שנים (2×5) — נחתם 16/10/2025'."""
+    if not term:
+        return None, None
+
+    # משך: המספר הראשון לפני "שנים"
+    m_dur = re.search(r'(\d+)\s*שנים', term)
+    duration = int(m_dur.group(1)) if m_dur else None
+
+    # שנה מתאריך DD/MM/YYYY
+    m_year = re.search(r'\d{1,2}/\d{1,2}/(\d{4})', term)
+    if m_year:
+        return int(m_year.group(1)), duration
+
+    # שנה מ-"כנראה YYYY" או "ינואר YYYY" וכד'
+    m_text = re.search(r'(?:כנראה|נחתם\s+\w+)\s+(\d{4})', term)
+    if m_text:
+        return int(m_text.group(1)), duration
+
+    # כל מספר 4-ספרתי כ-fallback
+    m_any = re.search(r'(20\d{2})', term)
+    if m_any:
+        return int(m_any.group(1)), duration
+
+    return None, duration
+
+
+def sync_contract_dates(db: Session) -> int:
+    """מסנכרן contract_start_year ו-contract_duration_years מ-tenant_agreements.term."""
+    agreements = list(db.scalars(select(TenantAgreement)))
+    models = list(db.scalars(select(BuildingModel)))
+    updated = 0
+    for bm in models:
+        street_part = bm.building_name.split(",")[0].strip()
+        norm_bm = _normalize(street_part)
+        for agr in agreements:
+            norm_agr = _normalize(agr.building.split(",")[0].strip())
+            if norm_agr and (norm_agr in norm_bm or norm_bm in norm_agr):
+                start_year, duration = _parse_contract_term(agr.term)
+                changed = False
+                if start_year and bm.contract_start_year != start_year:
+                    bm.contract_start_year = start_year
+                    changed = True
+                if duration and bm.contract_duration_years != duration:
+                    bm.contract_duration_years = duration
+                    changed = True
+                if changed:
+                    updated += 1
+                break
+    if updated:
+        db.commit()
+    return updated
+
+
 def sync_install_income(db: Session) -> int:
     """מסנכרן charger_install_income מ-tenant_agreements.charger_cost לפי שם בניין."""
     agreements = list(db.scalars(select(TenantAgreement)))
