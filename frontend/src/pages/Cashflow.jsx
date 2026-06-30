@@ -307,6 +307,7 @@ export default function Cashflow({ loading: parentLoading, horizonMode = 'contra
   const [loading, setLoading]             = useState(true)
   const [subTab, setSubTab]               = useState('forecast')
   const [viewMode, setViewMode]           = useState('annual')
+  const [npvMode, setNpvMode]             = useState(null) // null | 'with_financing' | 'without_financing'
   const [discountRate, setDiscountRate]   = useState(() => {
     try { return parseFloat(localStorage.getItem('energy-cf-discount-rate') || '0') || 0 } catch { return 0 }
   })
@@ -356,6 +357,24 @@ export default function Cashflow({ loading: parentLoading, horizonMode = 'contra
   const totalAnnualOverhead = overheadItems.reduce((s, o) => s + (Number(o.annual) || 0), 0)
   const totalAdaptation2026 = adaptationCosts.reduce((s, c) => s + (Number(c.amount) || 0), 0)
 
+  // ריבית וקרן לכל שנת לוח — לפיצול מימון/קרן בטבלה
+  const amortCalYear = useMemo(() => {
+    if (!loan.amount || !loan.years) return {}
+    const rate = Number(loan.prime || 0) + Number(loan.margin || 0)
+    const am   = buildAmort(Number(loan.amount), rate, Number(loan.years))
+    const startYear = loan.start_month ? parseInt(loan.start_month.slice(0, 4), 10) : 2026
+    const out = {}
+    for (let y = 1; y <= Number(loan.years); y++) {
+      const slice = am.rows.slice((y - 1) * 12, y * 12)
+      if (!slice.length) break
+      out[startYear + y - 1] = {
+        interest:  slice.reduce((s, r) => s + r.interest, 0),
+        principal: slice.reduce((s, r) => s + r.principal, 0),
+      }
+    }
+    return out
+  }, [loan])
+
   // בניינים שהוסרו מהתזרים — לפי localStorage של תזרים בניינים
   const excludedNames = useMemo(() => {
     try {
@@ -382,18 +401,22 @@ export default function Cashflow({ loading: parentLoading, horizonMode = 'contra
       const pvNetOp  = netOperating * pvFactor
       pvBal += pvNetOp
       const chargers = Object.values(p.buildings || {}).reduce((s, b) => s + (b.total_chargers || 0), 0)
+      const amYear   = amortCalYear[p.year] || { interest: 0, principal: 0 }
+      const loanInterest  = amYear.interest  / n
+      const loanPrincipal = amYear.principal / n
       return {
         period: p.period,
         income: p.total_income,
         capex:  p.total_capex,
         opex:   p.total_opex,
         loan, overhead: overheadPer, adaptation: adaptationPer,
+        loanInterest, loanPrincipal,
         netOperating, net, balance: bal,
         pvNetOp, pvBalance: pvBal,
         chargers,
       }
     })
-  }, [combinedForecast, viewMode, discountRate, totalAnnualOverhead, totalAdaptation2026, periodsPerYear, excludedNames])
+  }, [combinedForecast, viewMode, discountRate, totalAnnualOverhead, totalAdaptation2026, periodsPerYear, excludedNames, amortCalYear])
 
   const chartData          = periods.map((r) => ({
     period: r.period,
@@ -407,6 +430,8 @@ export default function Cashflow({ loading: parentLoading, horizonMode = 'contra
   const totalOverhead      = periods.reduce((s, r) => s + r.overhead, 0)
   const totalAdaptation    = periods.reduce((s, r) => s + r.adaptation, 0)
   const totalLoan          = periods.reduce((s, r) => s + r.loan, 0)
+  const totalLoanInterest  = periods.reduce((s, r) => s + r.loanInterest, 0)
+  const totalLoanPrincipal = periods.reduce((s, r) => s + r.loanPrincipal, 0)
   const totalNetOperating  = periods.reduce((s, r) => s + r.netOperating, 0)
   const totalNet           = periods.reduce((s, r) => s + r.net, 0)
   const npv                = periods.reduce((s, r) => s + r.pvNetOp, 0)
@@ -497,6 +522,20 @@ export default function Cashflow({ loading: parentLoading, horizonMode = 'contra
 
       {subTab === 'forecast' && (
         <>
+          <div style={{ display: 'flex', gap: 8, margin: '16px 0 4px', flexWrap: 'wrap' }}>
+            {[['with_financing','חישוב ערך נוכחי כולל מימון'],['without_financing','חישוב ערך נוכחי ללא מימון']].map(([mode, label]) => (
+              <button key={mode}
+                onClick={() => setNpvMode((p) => p === mode ? null : mode)}
+                style={{
+                  padding: '6px 14px', fontSize: 13, fontWeight: 600, borderRadius: 8,
+                  border: `1px solid ${npvMode === mode ? '#6c8ebf' : '#d0d7e6'}`,
+                  background: npvMode === mode ? 'rgba(108,142,191,.15)' : 'transparent',
+                  color: npvMode === mode ? '#4a6fa5' : 'var(--tact-text-dim,#666)',
+                  cursor: 'pointer', transition: 'all .15s',
+                }}
+              >{label}</button>
+            ))}
+          </div>
           <h2 className="block-title">תחזית מצרפית</h2>
           {periods.length === 0 ? (
             <p className="muted" style={{ padding: '1.5rem 0' }}>
@@ -568,6 +607,18 @@ export default function Cashflow({ loading: parentLoading, horizonMode = 'contra
                     <td className="fin-neg" style={{ background: 'rgba(0,0,0,.04)', fontWeight: 700 }}>{ils(totalOpex)}</td>
                   </tr>
 
+                  {npvMode === 'with_financing' && totalLoan > 0 && (
+                    <tr>
+                      <td className="fin-rowlabel">מימון (ריבית)</td>
+                      {periods.map((r, i) => (
+                        <td key={i} className={r.loanInterest > 0 ? 'fin-neg' : ''} style={{ color: r.loanInterest > 0 ? undefined : '#bbb' }}>
+                          {r.loanInterest > 0 ? ils(r.loanInterest) : '—'}
+                        </td>
+                      ))}
+                      <td className="fin-neg" style={{ background: 'rgba(0,0,0,.04)', fontWeight: 700 }}>{ils(totalLoanInterest)}</td>
+                    </tr>
+                  )}
+
                   {totalOverhead > 0 && (
                     <tr>
                       <td className="fin-rowlabel">תקורות</td>
@@ -632,13 +683,20 @@ export default function Cashflow({ loading: parentLoading, horizonMode = 'contra
                         </td>
                       </tr>
                       <tr>
-                        <td className="fin-rowlabel">החזר הלוואה</td>
-                        {periods.map((r, i) => (
-                          <td key={i} className={r.loan > 0 ? 'fin-neg' : ''} style={{ color: r.loan > 0 ? undefined : '#bbb' }}>
-                            {r.loan > 0 ? ils(r.loan) : '—'}
-                          </td>
-                        ))}
-                        <td className="fin-neg" style={{ background: 'rgba(0,0,0,.04)', fontWeight: 700 }}>{ils(totalLoan)}</td>
+                        <td className="fin-rowlabel">
+                          {npvMode === 'without_financing' ? 'עלויות' : 'החזר הלוואה'}
+                        </td>
+                        {periods.map((r, i) => {
+                          const val = npvMode === 'with_financing' ? r.loanPrincipal : r.loan
+                          return (
+                            <td key={i} className={val > 0 ? 'fin-neg' : ''} style={{ color: val > 0 ? undefined : '#bbb' }}>
+                              {val > 0 ? ils(val) : '—'}
+                            </td>
+                          )
+                        })}
+                        <td className="fin-neg" style={{ background: 'rgba(0,0,0,.04)', fontWeight: 700 }}>
+                          {ils(npvMode === 'with_financing' ? totalLoanPrincipal : totalLoan)}
+                        </td>
                       </tr>
                     </>
                   )}

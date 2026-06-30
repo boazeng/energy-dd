@@ -20,6 +20,8 @@ export const api = {
     request('/api/tasks', { method: 'POST', body: JSON.stringify(data) }),
   updateTask: (id, data) =>
     request(`/api/tasks/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  deleteTask: (id) =>
+    request(`/api/tasks/${id}`, { method: 'DELETE' }),
 
   getProjects: () => request('/api/projects'),
   getFinancials: () => request('/api/financials'),

@@ -37,3 +37,12 @@ def update_task(task_id: int, payload: TaskUpdate, db: Session = Depends(get_db)
     db.commit()
     db.refresh(task)
     return task
+
+
+@router.delete("/{task_id}", status_code=204)
+def delete_task(task_id: int, db: Session = Depends(get_db)):
+    task = db.get(Task, task_id)
+    if task is None:
+        raise HTTPException(status_code=404, detail="מטלה לא נמצאה")
+    db.delete(task)
+    db.commit()

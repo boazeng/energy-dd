@@ -33,6 +33,12 @@ export default function Tasks({ tasks, questions, loading, onChange, onQuestions
   const shown =
     filter === 'all' ? tasks : tasks.filter((t) => t.category === filter)
 
+  async function deleteTask(id) {
+    if (!window.confirm('למחוק את המטלה?')) return
+    await api.deleteTask(id)
+    onChange()
+  }
+
   async function changeStatus(task, status) {
     await api.updateTask(task.id, { status })
     onChange()
@@ -143,6 +149,7 @@ export default function Tasks({ tasks, questions, loading, onChange, onQuestions
               <th>מטלה</th>
               <th>סטטוס</th>
               <th>שינוי סטטוס</th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
@@ -166,6 +173,15 @@ export default function Tasks({ tasks, questions, loading, onChange, onQuestions
                       </option>
                     ))}
                   </select>
+                </td>
+                <td>
+                  <button
+                    className="cf-del"
+                    title="מחק מטלה"
+                    onClick={() => deleteTask(t.id)}
+                  >
+                    ✕
+                  </button>
                 </td>
               </tr>
             ))}
