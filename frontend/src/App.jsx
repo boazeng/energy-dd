@@ -39,9 +39,10 @@ export default function App() {
   const [supplierLedger, setSupplierLedger] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
-  const [horizonMode, setHorizonMode] = useState(
-    () => localStorage.getItem('energy-horizon-mode') === '5yr' ? '5yr' : 'contract'
-  )
+  const [horizonMode, setHorizonMode] = useState(() => {
+    const s = localStorage.getItem('energy-horizon-mode')
+    return ['5yr', 'contract', '10yr'].includes(s) ? s : 'contract'
+  })
   const [excludedIds, setExcludedIds] = useState(() => {
     try { return new Set(JSON.parse(localStorage.getItem('energy-excluded') || '[]')) } catch { return new Set() }
   })

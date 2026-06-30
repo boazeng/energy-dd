@@ -746,7 +746,7 @@ export default function BuildingCashflow({ loading: appLoading, horizonMode = 'c
   }
 
   async function load() {
-    const fy = horizonMode === '5yr' ? 5 : undefined
+    const fy = horizonMode === '5yr' ? 5 : horizonMode === '10yr' ? 10 : undefined
     setLoading(true)
     try {
       const [bms, comb] = await Promise.all([
@@ -783,12 +783,12 @@ export default function BuildingCashflow({ loading: appLoading, horizonMode = 'c
 
   useEffect(() => {
     if (selectedId == null) { setForecast(null); return }
-    const fy = horizonMode === '5yr' ? 5 : undefined
+    const fy = horizonMode === '5yr' ? 5 : horizonMode === '10yr' ? 10 : undefined
     api.getBuildingForecast(selectedId, fy).then(setForecast).catch(() => setForecast(null))
   }, [selectedId, horizonMode])
 
   async function handleRefresh() {
-    const fy = horizonMode === '5yr' ? 5 : undefined
+    const fy = horizonMode === '5yr' ? 5 : horizonMode === '10yr' ? 10 : undefined
     const [bms, comb] = await Promise.all([
       api.listBuildingModels(),
       api.getCombinedForecast(fy),
@@ -846,7 +846,7 @@ export default function BuildingCashflow({ loading: appLoading, horizonMode = 'c
         <div style={{ marginInlineStart: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
           {/* toggle אופק תחזית */}
           <div style={{ display: 'flex', gap: 2, background: 'rgba(255,255,255,.06)', borderRadius: 7, padding: 3 }}>
-            {[['contract','לפי הסכם'],['5yr','5 שנים']].map(([mode, label]) => (
+            {[['5yr','5 שנים'],['contract','לפי הסכם'],['10yr','10 שנים']].map(([mode, label]) => (
               <button
                 key={mode}
                 onClick={() => onHorizonChange(mode)}
