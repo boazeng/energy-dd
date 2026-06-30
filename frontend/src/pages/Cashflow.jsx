@@ -310,7 +310,7 @@ export default function Cashflow({ loading: parentLoading, horizonMode = 'contra
     () => { const v = localStorage.getItem('energy-cf-view-mode'); return ['annual','quarterly','monthly'].includes(v) ? v : 'annual' }
   )
   const [npvMode, setNpvMode]             = useState(
-    () => { const v = localStorage.getItem('energy-cf-npv-mode'); return ['with_financing','without_financing'].includes(v) ? v : null }
+    () => { const v = localStorage.getItem('energy-cf-npv-mode'); return ['with_financing','without_financing'].includes(v) ? v : 'with_financing' }
   )
   const [discountRate, setDiscountRate]   = useState(() => {
     try { return parseFloat(localStorage.getItem('energy-cf-discount-rate') || '0') || 0 } catch { return 0 }
@@ -409,6 +409,8 @@ export default function Cashflow({ loading: parentLoading, horizonMode = 'contra
       const amYear   = amortCalYear[p.year] || { interest: 0, principal: 0 }
       const loanInterest  = amYear.interest  / n
       const loanPrincipal = amYear.principal / n
+      const netMinusInterest   = netOperating - loanInterest
+      const pvNetMinusInterest = netMinusInterest * pvFactor
       return {
         period: p.period,
         income: p.total_income,
@@ -416,8 +418,8 @@ export default function Cashflow({ loading: parentLoading, horizonMode = 'contra
         opex:   p.total_opex,
         loan, overhead: overheadPer, adaptation: adaptationPer,
         loanInterest, loanPrincipal,
-        netOperating, net, balance: bal,
-        pvNetOp, pvNet, pvBalance: pvBal,
+        netOperating, netMinusInterest, net, balance: bal,
+        pvNetOp, pvNetMinusInterest, pvNet, pvBalance: pvBal,
         chargers,
       }
     })
@@ -437,14 +439,15 @@ export default function Cashflow({ loading: parentLoading, horizonMode = 'contra
   const totalLoan          = periods.reduce((s, r) => s + r.loan, 0)
   const totalLoanInterest  = periods.reduce((s, r) => s + r.loanInterest, 0)
   const totalLoanPrincipal = periods.reduce((s, r) => s + r.loanPrincipal, 0)
-  const totalNetOperating  = periods.reduce((s, r) => s + r.netOperating, 0)
-  const totalNet           = periods.reduce((s, r) => s + r.net, 0)
-  const npv                    = periods.reduce((s, r) => s + r.pvNetOp, 0)
-  const npvWithFinancing       = periods.reduce((s, r) => s + r.pvNet,   0)
-  const endBalance             = periods.length ? periods[periods.length - 1].balance : 0
+  const totalNetOperating     = periods.reduce((s, r) => s + r.netOperating, 0)
+  const totalNetMinusInterest = periods.reduce((s, r) => s + r.netMinusInterest, 0)
+  const totalNet              = periods.reduce((s, r) => s + r.net, 0)
+  const npv                   = periods.reduce((s, r) => s + r.pvNetOp, 0)
+  const npvWithFinancing      = periods.reduce((s, r) => s + r.pvNetMinusInterest, 0)
+  const endBalance            = periods.length ? periods[periods.length - 1].balance : 0
 
   const activeNpv    = npvMode === 'with_financing' ? npvWithFinancing : npv
-  const activePvKey  = npvMode === 'with_financing' ? 'pvNet' : 'pvNetOp'
+  const activePvKey  = npvMode === 'with_financing' ? 'pvNetMinusInterest' : 'pvNetOp'
   const npvLabel     = npvMode === 'with_financing' ? 'ערך נוכחי כולל מימון (NPV)' : 'ערך נוכחי ללא מימון (NPV)'
 
   if (loading || parentLoading) return <p className="muted">טוען…</p>
@@ -641,24 +644,26 @@ export default function Cashflow({ loading: parentLoading, horizonMode = 'contra
                     </tr>
                   )}
 
-                  {/* החזר הלוואה — מוצג לפני סה"כ רווח רק במצב כולל מימון */}
-                  {npvMode === 'with_financing' && totalLoan > 0 && (
+                  {/* עלות מימון (ריבית בלבד) — מוצגת לפני סה"כ רווח כשבמצב כולל מימון */}
+                  {npvMode === 'with_financing' && totalLoanInterest > 0 && (
                     <tr>
-                      <td className="fin-rowlabel">החזר הלוואה</td>
+                      <td className="fin-rowlabel">עלות מימון (ריבית)</td>
                       {periods.map((r, i) => (
-                        <td key={i} className={r.loan > 0 ? 'fin-neg' : ''} style={{ color: r.loan > 0 ? undefined : '#bbb' }}>
-                          {r.loan > 0 ? ils(r.loan) : '—'}
+                        <td key={i} className={r.loanInterest > 0 ? 'fin-neg' : ''} style={{ color: r.loanInterest > 0 ? undefined : '#bbb' }}>
+                          {r.loanInterest > 0 ? ils(r.loanInterest) : '—'}
                         </td>
                       ))}
-                      <td className="fin-neg" style={{ background: 'rgba(0,0,0,.04)', fontWeight: 700 }}>{ils(totalLoan)}</td>
+                      <td className="fin-neg" style={{ background: 'rgba(0,0,0,.04)', fontWeight: 700 }}>{ils(totalLoanInterest)}</td>
                     </tr>
                   )}
 
-                  {/* סה"כ רווח = הכנסות פחות כל ההוצאות (כולל מימון אם במצב כולל מימון) */}
+                  {/* סה"כ רווח:
+                      כולל מימון → הכנסות − capex − opex − overhead − adaptation − ריבית
+                      ללא מימון  → הכנסות − capex − opex − overhead − adaptation */}
                   {(() => {
-                    const withFin = npvMode === 'with_financing' && totalLoan > 0
-                    const rowVal  = (r) => withFin ? r.net : r.netOperating
-                    const total   = withFin ? totalNet : totalNetOperating
+                    const withFin = npvMode === 'with_financing' && totalLoanInterest > 0
+                    const rowVal  = (r) => withFin ? r.netMinusInterest : r.netOperating
+                    const total   = withFin ? totalNetMinusInterest : totalNetOperating
                     return (
                       <tr style={{ borderTop: '2px solid #c0c8d8', fontWeight: 700 }}>
                         <td className="fin-rowlabel">סה"כ רווח</td>
@@ -693,34 +698,28 @@ export default function Cashflow({ loading: parentLoading, horizonMode = 'contra
                     </>
                   )}
 
-                  {/* ── הוצאות מימון — רק במצב ללא מימון (במצב כולל מימון ההלוואה כבר למעלה) ── */}
-                  {totalLoan > 0 && npvMode !== 'with_financing' && (
-                    <>
-                      <tr style={{ background: 'rgba(108,142,191,.07)' }}>
-                        <td colSpan={periods.length + 2} style={{ padding: '4px 10px', fontSize: 11, fontWeight: 700, color: 'var(--tact-text-dim,#888)', letterSpacing: '.04em' }}>
-                          הוצאות מימון
-                        </td>
-                      </tr>
-                      <tr>
-                        <td className="fin-rowlabel">החזר הלוואה</td>
-                        {periods.map((r, i) => (
-                          <td key={i} className={r.loan > 0 ? 'fin-neg' : ''} style={{ color: r.loan > 0 ? undefined : '#bbb' }}>
-                            {r.loan > 0 ? ils(r.loan) : '—'}
+                  {/* ── החזר הלוואה אחרי NPV ──
+                      כולל מימון → קרן בלבד (הריבית כבר נוכתה למעלה)
+                      ללא מימון  → קרן וריבית (כל ההחזר) */}
+                  {totalLoan > 0 && (
+                    <tr>
+                      <td className="fin-rowlabel">
+                        {npvMode === 'with_financing'
+                          ? 'החזר הלוואה (קרן בלבד)'
+                          : 'החזר הלוואה (קרן וריבית)'}
+                      </td>
+                      {periods.map((r, i) => {
+                        const val = npvMode === 'with_financing' ? r.loanPrincipal : r.loan
+                        return (
+                          <td key={i} className={val > 0 ? 'fin-neg' : ''} style={{ color: val > 0 ? undefined : '#bbb' }}>
+                            {val > 0 ? ils(val) : '—'}
                           </td>
-                        ))}
-                        <td className="fin-neg" style={{ background: 'rgba(0,0,0,.04)', fontWeight: 700 }}>{ils(totalLoan)}</td>
-                      </tr>
-                      {/* נטו — רק כשהלוואה נפרדת מהסה"כ */}
-                      <tr style={{ borderTop: '2px solid #c0c8d8', fontWeight: 700 }}>
-                        <td className="fin-rowlabel">נטו</td>
-                        {periods.map((r, i) => (
-                          <td key={i} className={r.net < 0 ? 'fin-neg' : 'fin-pos'}>{ils(r.net)}</td>
-                        ))}
-                        <td className={totalNet < 0 ? 'fin-neg' : 'fin-pos'} style={{ background: 'rgba(0,0,0,.04)', fontWeight: 800 }}>
-                          {ils(totalNet)}
-                        </td>
-                      </tr>
-                    </>
+                        )
+                      })}
+                      <td className="fin-neg" style={{ background: 'rgba(0,0,0,.04)', fontWeight: 700 }}>
+                        {ils(npvMode === 'with_financing' ? totalLoanPrincipal : totalLoan)}
+                      </td>
+                    </tr>
                   )}
 
                   <tr style={{ fontWeight: 700 }}>
