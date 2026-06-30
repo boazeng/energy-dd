@@ -643,7 +643,7 @@ function CombinedTable({ combined, buildings, overheadExpenses = [], excludedIds
 
 // ─── קומפוננט ראשי ───────────────────────────────────────────────────────────
 
-export default function BuildingCashflow({ loading: appLoading, horizonMode = 'contract', onHorizonChange }) {
+export default function BuildingCashflow({ loading: appLoading, horizonMode = 'contract', onHorizonChange, excludedIds = new Set(), onExcludedChange }) {
   const [buildings, setBuildings] = useState([])
   const [selectedId, setSelectedId] = useState(null)
   const [forecast, setForecast] = useState(null)
@@ -670,9 +670,6 @@ export default function BuildingCashflow({ loading: appLoading, horizonMode = 'c
   const [overheadExpenses, setOverheadExpenses] = useState(() => {
     try { return JSON.parse(localStorage.getItem('energy-overhead') || '[]') } catch { return [] }
   })
-  const [excludedIds, setExcludedIds] = useState(() => {
-    try { return new Set(JSON.parse(localStorage.getItem('energy-excluded') || '[]')) } catch { return new Set() }
-  })
   const [showInclusion, setShowInclusion] = useState(false)
   const [viewMode, setViewMode] = useState(
     () => { const v = localStorage.getItem('energy-bcf-view-mode'); return ['annual','quarterly','monthly'].includes(v) ? v : 'annual' }
@@ -689,19 +686,14 @@ export default function BuildingCashflow({ loading: appLoading, horizonMode = 'c
   }
 
   function toggleExclude(id) {
-    setExcludedIds((prev) => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id); else next.add(id)
-      localStorage.setItem('energy-excluded', JSON.stringify([...next]))
-      return next
-    })
+    const next = new Set(excludedIds)
+    if (next.has(id)) next.delete(id); else next.add(id)
+    onExcludedChange?.(next)
   }
 
-  // בחר הכל / נקה הכל — כל הפרויקטים נכנסים/יוצאים מהתזרים
   function setAllIncluded(includeAll) {
     const next = includeAll ? new Set() : new Set(buildings.map((b) => b.id))
-    setExcludedIds(next)
-    localStorage.setItem('energy-excluded', JSON.stringify([...next]))
+    onExcludedChange?.(next)
   }
 
   async function applyGlobalGrowth(rate) {

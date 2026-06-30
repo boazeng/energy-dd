@@ -300,7 +300,7 @@ function OverheadPanel({ items, onChange, adaptationCosts, onAdaptationChange })
 const VIEW_OPTS  = [{ v: 'annual', l: 'שנתי' }, { v: 'quarterly', l: 'רבעוני' }, { v: 'monthly', l: 'חודשי' }]
 const BAR_DEFS   = [{ k: 'הכנסות', color: '#2e7d4f' }, { k: 'הוצאות', color: '#d64a2e' }, { k: 'רווח', color: '#1f3a5f' }]
 
-export default function Cashflow({ loading: parentLoading, horizonMode = 'contract' }) {
+export default function Cashflow({ loading: parentLoading, horizonMode = 'contract', excludedIds = new Set() }) {
   const [loan, setLoan]                   = useState({ amount: 3000000, years: 5, prime: 6, margin: 2, start_month: '' })
   const [combinedForecast, setCombined]   = useState([])
   const [buildings, setBuildings]         = useState([])
@@ -381,13 +381,11 @@ export default function Cashflow({ loading: parentLoading, horizonMode = 'contra
     return out
   }, [loan])
 
-  // בניינים שהוסרו מהתזרים — לפי localStorage של תזרים בניינים
+  // בניינים שהוסרו מהתזרים — מ-excludedIds שמגיע מ-App.jsx (מעודכן בזמן-אמת)
   const excludedNames = useMemo(() => {
-    try {
-      const ids = new Set(JSON.parse(localStorage.getItem('energy-excluded') || '[]'))
-      return new Set(buildings.filter((b) => ids.has(b.id)).map((b) => b.building_name))
-    } catch { return new Set() }
-  }, [buildings])
+    if (!excludedIds.size) return new Set()
+    return new Set(buildings.filter((b) => excludedIds.has(b.id)).map((b) => b.building_name))
+  }, [buildings, excludedIds])
 
   const periods = useMemo(() => {
     const expanded = expandCombined(combinedForecast, viewMode, excludedNames)
