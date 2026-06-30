@@ -1,7 +1,7 @@
 """נתיבי API לתזרים פר-בניין — CRUD + חישוב תחזית שנתית."""
 import math
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -30,7 +30,7 @@ def _effective_forecast_years(bm: BuildingModel) -> int:
     return bm.forecast_years
 
 
-def _calc_forecast(bm: BuildingModel) -> list[YearForecast]:
+def _calc_forecast(bm: BuildingModel, override_years: int | None = None) -> list[YearForecast]:
     """מחשב תחזית שנתית לבניין — גידול מטענים, הכנסות, CAPEX ו-OPEX."""
     monthly_income_per_charger = (
         bm.mgmt_fee_per_charger
@@ -63,7 +63,7 @@ def _calc_forecast(bm: BuildingModel) -> list[YearForecast]:
     total = bm.current_chargers
     years: list[YearForecast] = []
 
-    for i in range(_effective_forecast_years(bm)):
+    for i in range(override_years if override_years else _effective_forecast_years(bm)):
         # שנה ראשונה = מצב קיים, OPEX חד-פעמי; שנים הבאות = גידול, OPEX=0
         if i == 0:
             added = 0
@@ -154,8 +154,13 @@ def _shpitzer_annual(loan: CashflowLoan) -> float:
 # ─── תחזית ───────────────────────────────────────────────────────────────────
 
 @router.get("/forecast/combined", response_model=list[CombinedForecastYear])
-def combined_forecast(db: Session = Depends(get_db)):
-    """תחזית מאוחדת לכל הבניינים — לפי שנה, כולל החזר הלוואה."""
+def combined_forecast(
+    force_years: int | None = Query(None, ge=1, le=50, description="אחיד לכל הבניינים"),
+    db: Session = Depends(get_db),
+):
+    """תחזית מאוחדת לכל הבניינים — לפי שנה, כולל החזר הלוואה.
+    force_years: אם מסופק, מחליף את תקופת ההסכם של כל בניין בערך אחיד.
+    """
     buildings = list(db.scalars(select(BuildingModel)))
     if not buildings:
         return []
@@ -168,14 +173,15 @@ def combined_forecast(db: Session = Depends(get_db)):
     loan_start_year = int(loan.start_month[:4]) if loan.start_month else min(b.start_year for b in buildings)
     loan_end_year = loan_start_year + loan.years - 1
 
-    # מציאת טווח שנים מקסימלי — לפי תקופת ההסכם בכל בניין
+    # מציאת טווח שנים מקסימלי — לפי תקופת ההסכם בכל בניין, או force_years
+    effective = lambda b: force_years if force_years else _effective_forecast_years(b)
     min_year = min(b.start_year for b in buildings)
-    max_year = max(b.start_year + _effective_forecast_years(b) - 1 for b in buildings)
+    max_year = max(b.start_year + effective(b) - 1 for b in buildings)
 
     # מיפוי תחזית לכל בניין
     forecasts: dict[str, dict[int, YearForecast]] = {}
     for bm in buildings:
-        years = _calc_forecast(bm)
+        years = _calc_forecast(bm, override_years=force_years)
         forecasts[bm.building_name] = {yf.year: yf for yf in years}
 
     result: list[CombinedForecastYear] = []
@@ -209,11 +215,15 @@ def combined_forecast(db: Session = Depends(get_db)):
 
 
 @router.get("/{bm_id}/forecast", response_model=BuildingForecastOut)
-def building_forecast(bm_id: int, db: Session = Depends(get_db)):
+def building_forecast(
+    bm_id: int,
+    force_years: int | None = Query(None, ge=1, le=50),
+    db: Session = Depends(get_db),
+):
     bm = db.get(BuildingModel, bm_id)
     if bm is None:
         raise HTTPException(status_code=404, detail="בניין לא נמצא")
-    years = _calc_forecast(bm)
+    years = _calc_forecast(bm, override_years=force_years)
     return BuildingForecastOut(
         building=BuildingModelOut.model_validate(bm),
         years=years,

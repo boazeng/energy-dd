@@ -675,6 +675,7 @@ export default function BuildingCashflow({ loading: appLoading }) {
   })
   const [showInclusion, setShowInclusion] = useState(false)
   const [viewMode, setViewMode] = useState('annual')
+  const [horizonMode, setHorizonMode] = useState('contract') // 'contract' | '5yr'
 
   const growthTimer = useRef(null)
   const kwhTimer = useRef(null)
@@ -751,12 +752,13 @@ export default function BuildingCashflow({ loading: appLoading }) {
     }, 600)
   }
 
-  async function load() {
+  async function load(horizon) {
+    const fy = (horizon ?? horizonMode) === '5yr' ? 5 : undefined
     setLoading(true)
     try {
       const [bms, comb] = await Promise.all([
         api.listBuildingModels(),
-        api.getCombinedForecast(),
+        api.getCombinedForecast(fy),
       ])
       setBuildings(bms)
       setCombined(comb)
@@ -788,18 +790,20 @@ export default function BuildingCashflow({ loading: appLoading }) {
 
   useEffect(() => {
     if (selectedId == null) { setForecast(null); return }
-    api.getBuildingForecast(selectedId).then(setForecast).catch(() => setForecast(null))
-  }, [selectedId])
+    const fy = horizonMode === '5yr' ? 5 : undefined
+    api.getBuildingForecast(selectedId, fy).then(setForecast).catch(() => setForecast(null))
+  }, [selectedId, horizonMode])
 
   async function handleRefresh() {
+    const fy = horizonMode === '5yr' ? 5 : undefined
     const [bms, comb] = await Promise.all([
       api.listBuildingModels(),
-      api.getCombinedForecast(),
+      api.getCombinedForecast(fy),
     ])
     setBuildings(bms)
     setCombined(comb)
     if (selectedId != null) {
-      const fc = await api.getBuildingForecast(selectedId)
+      const fc = await api.getBuildingForecast(selectedId, fy)
       setForecast(fc)
     }
   }
@@ -846,7 +850,25 @@ export default function BuildingCashflow({ loading: appLoading }) {
           <TactIcon name="plus" size={14} />
           <span style={{ marginInlineStart: 4 }}>הוסף בניין</span>
         </button>
-        <div style={{ marginInlineStart: 'auto', display: 'flex', gap: 4 }}>
+        <div style={{ marginInlineStart: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
+          {/* toggle אופק תחזית */}
+          <div style={{ display: 'flex', gap: 2, background: 'rgba(255,255,255,.06)', borderRadius: 7, padding: 3 }}>
+            {[['contract','לפי הסכם'],['5yr','5 שנים']].map(([mode, label]) => (
+              <button
+                key={mode}
+                onClick={() => { setHorizonMode(mode); load(mode) }}
+                style={{
+                  padding: '4px 12px', fontSize: 12, fontWeight: 600, borderRadius: 5,
+                  border: 'none', cursor: 'pointer',
+                  background: horizonMode === mode ? 'var(--tact-accent,#6c8ebf)' : 'transparent',
+                  color: horizonMode === mode ? '#fff' : 'var(--tact-text-dim,#888)',
+                  transition: 'all .15s',
+                }}
+              >{label}</button>
+            ))}
+          </div>
+          <div style={{ width: 1, height: 22, background: 'rgba(255,255,255,.12)' }} />
+          {/* toggle תקופת תצוגה */}
           {[['annual','שנתי'],['quarterly','רבעוני'],['monthly','חודשי']].map(([mode, label]) => (
             <button
               key={mode}

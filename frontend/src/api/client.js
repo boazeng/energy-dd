@@ -79,6 +79,8 @@ export const api = {
     request(`/api/building-models/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   deleteBuildingModel: (id) =>
     request(`/api/building-models/${id}`, { method: 'DELETE' }),
-  getBuildingForecast: (id) => request(`/api/building-models/${id}/forecast`),
-  getCombinedForecast: () => request('/api/building-models/forecast/combined'),
+  getBuildingForecast: (id, forceYears) =>
+    request(`/api/building-models/${id}/forecast${forceYears ? `?force_years=${forceYears}` : ''}`),
+  getCombinedForecast: (forceYears) =>
+    request(`/api/building-models/forecast/combined${forceYears ? `?force_years=${forceYears}` : ''}`),
 }
