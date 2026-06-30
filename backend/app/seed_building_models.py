@@ -295,6 +295,15 @@ def sync_missing_agreement_buildings(db: Session, projects_path: str) -> int:
     existing = list(db.scalars(select(BuildingModel)))
     existing_norms = {_normalize(bm.building_name.split(",")[0].strip()) for bm in existing}
 
+    # עדכן בניינים קיימים "חסר הסכם" שנוספו לפני שהוגדר ברירת מחדל 2000 ₪
+    updated = 0
+    for bm in existing:
+        if "חסר הסכם" in (bm.notes or "") and (bm.charger_install_income or 0) == 0:
+            bm.charger_install_income = 2000.0
+            updated += 1
+    if updated:
+        db.commit()
+
     added = 0
     for p in projects:
         proj_name = (p.get("project") or "").strip()
@@ -336,6 +345,7 @@ def sync_missing_agreement_buildings(db: Session, projects_path: str) -> int:
             start_year=2026,
             forecast_years=5,
             contract_duration_years=5,
+            charger_install_income=2000.0,
             notes="חסר הסכם",
         ))
         existing_norms.add(proj_norm)
