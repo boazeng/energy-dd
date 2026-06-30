@@ -399,6 +399,7 @@ export default function Cashflow({ loading: parentLoading, horizonMode = 'contra
       const t        = idx / n
       const pvFactor = r > 0 ? 1 / Math.pow(1 + r, t) : 1
       const pvNetOp  = netOperating * pvFactor
+      const pvNet    = net * pvFactor           // ערך נוכחי כולל מימון
       pvBal += pvNetOp
       const chargers = Object.values(p.buildings || {}).reduce((s, b) => s + (b.total_chargers || 0), 0)
       const amYear   = amortCalYear[p.year] || { interest: 0, principal: 0 }
@@ -412,7 +413,7 @@ export default function Cashflow({ loading: parentLoading, horizonMode = 'contra
         loan, overhead: overheadPer, adaptation: adaptationPer,
         loanInterest, loanPrincipal,
         netOperating, net, balance: bal,
-        pvNetOp, pvBalance: pvBal,
+        pvNetOp, pvNet, pvBalance: pvBal,
         chargers,
       }
     })
@@ -434,8 +435,13 @@ export default function Cashflow({ loading: parentLoading, horizonMode = 'contra
   const totalLoanPrincipal = periods.reduce((s, r) => s + r.loanPrincipal, 0)
   const totalNetOperating  = periods.reduce((s, r) => s + r.netOperating, 0)
   const totalNet           = periods.reduce((s, r) => s + r.net, 0)
-  const npv                = periods.reduce((s, r) => s + r.pvNetOp, 0)
-  const endBalance         = periods.length ? periods[periods.length - 1].balance : 0
+  const npv                    = periods.reduce((s, r) => s + r.pvNetOp, 0)
+  const npvWithFinancing       = periods.reduce((s, r) => s + r.pvNet,   0)
+  const endBalance             = periods.length ? periods[periods.length - 1].balance : 0
+
+  const activeNpv    = npvMode === 'with_financing' ? npvWithFinancing : npv
+  const activePvKey  = npvMode === 'with_financing' ? 'pvNet' : 'pvNetOp'
+  const npvLabel     = npvMode === 'with_financing' ? 'ערך נוכחי כולל מימון (NPV)' : 'ערך נוכחי ללא מימון (NPV)'
 
   if (loading || parentLoading) return <p className="muted">טוען…</p>
 
@@ -659,16 +665,17 @@ export default function Cashflow({ loading: parentLoading, horizonMode = 'contra
                     <>
                       <tr style={{ background: 'rgba(108,142,191,.07)' }}>
                         <td colSpan={periods.length + 2} style={{ padding: '4px 10px', fontSize: 11, fontWeight: 700, color: 'var(--tact-text-dim,#888)', letterSpacing: '.04em' }}>
-                          היוון — שיעור {discountRate}%
+                          היוון — שיעור {discountRate}%{npvMode ? ` · ${npvMode === 'with_financing' ? 'כולל מימון' : 'ללא מימון'}` : ''}
                         </td>
                       </tr>
                       <tr style={{ fontWeight: 600 }}>
-                        <td className="fin-rowlabel">ערך נוכחי (NPV)</td>
-                        {periods.map((r, i) => (
-                          <td key={i} className={r.pvNetOp < 0 ? 'fin-neg' : 'fin-pos'}>{ils(r.pvNetOp)}</td>
-                        ))}
-                        <td className={npv < 0 ? 'fin-neg' : 'fin-pos'} style={{ background: 'rgba(0,0,0,.04)', fontWeight: 700 }}>
-                          {ils(npv)}
+                        <td className="fin-rowlabel">{npvLabel}</td>
+                        {periods.map((r, i) => {
+                          const val = r[activePvKey]
+                          return <td key={i} className={val < 0 ? 'fin-neg' : 'fin-pos'}>{ils(val)}</td>
+                        })}
+                        <td className={activeNpv < 0 ? 'fin-neg' : 'fin-pos'} style={{ background: 'rgba(0,0,0,.04)', fontWeight: 700 }}>
+                          {ils(activeNpv)}
                         </td>
                       </tr>
                     </>
