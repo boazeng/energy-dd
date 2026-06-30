@@ -32,6 +32,8 @@ class BuildingModelCreate(BaseModel):
     extra_costs: list[ExtraCostItem] = []
     start_year: int = Field(default=2025, ge=2000, le=2100)
     forecast_years: int = Field(default=5, ge=1, le=30)
+    contract_start_year: int | None = None
+    contract_duration_years: int | None = None
 
 
 class BuildingModelUpdate(BaseModel):
@@ -59,6 +61,8 @@ class BuildingModelUpdate(BaseModel):
     extra_costs: list[ExtraCostItem] | None = None
     start_year: int | None = Field(default=None, ge=2000, le=2100)
     forecast_years: int | None = Field(default=None, ge=1, le=30)
+    contract_start_year: int | None = None
+    contract_duration_years: int | None = None
 
 
 class BuildingModelOut(BaseModel):
@@ -87,6 +91,8 @@ class BuildingModelOut(BaseModel):
     extra_costs: list[ExtraCostItem] = []
     start_year: int
     forecast_years: int
+    contract_start_year: int | None = None
+    contract_duration_years: int | None = None
 
 
 class YearForecast(BaseModel):

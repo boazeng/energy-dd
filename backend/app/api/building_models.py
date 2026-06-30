@@ -22,6 +22,14 @@ from app.seed_building_models import sync_projects_data
 router = APIRouter(prefix="/api/building-models", tags=["building-models"])
 
 
+def _effective_forecast_years(bm: BuildingModel) -> int:
+    """מחשב מספר שנות תחזית: לפי הסכם אם מוגדר, אחרת forecast_years."""
+    if bm.contract_start_year and bm.contract_duration_years:
+        contract_end = bm.contract_start_year + bm.contract_duration_years
+        return max(1, contract_end - bm.start_year)
+    return bm.forecast_years
+
+
 def _calc_forecast(bm: BuildingModel) -> list[YearForecast]:
     """מחשב תחזית שנתית לבניין — גידול מטענים, הכנסות, CAPEX ו-OPEX."""
     monthly_income_per_charger = (
@@ -55,7 +63,7 @@ def _calc_forecast(bm: BuildingModel) -> list[YearForecast]:
     total = bm.current_chargers
     years: list[YearForecast] = []
 
-    for i in range(bm.forecast_years):
+    for i in range(_effective_forecast_years(bm)):
         # שנה ראשונה = מצב קיים, OPEX חד-פעמי; שנים הבאות = גידול, OPEX=0
         if i == 0:
             added = 0

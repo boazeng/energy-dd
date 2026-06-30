@@ -18,6 +18,55 @@ const fmtK = (v) => {
 
 const COLORS = ['#6c8ebf', '#82ca9d', '#ffc658', '#ff7c7c', '#a29bfe', '#fd79a8', '#00cec9', '#fdcb6e']
 
+const MONTHS_SHORT = ['ינ׳','פב׳','מר׳','אפ׳','מי׳','יו׳','יל׳','אג׳','ספ׳','אוק׳','נו׳','דצ׳']
+
+function expandCombined(combined, viewMode) {
+  if (viewMode === 'annual') return combined.map((r) => ({ ...r, period: String(r.year) }))
+  const n = viewMode === 'quarterly' ? 4 : 12
+  const out = []
+  for (const row of combined) {
+    for (let i = 0; i < n; i++) {
+      const label = viewMode === 'quarterly'
+        ? `Q${i + 1} ${row.year}`
+        : `${MONTHS_SHORT[i]} '${String(row.year).slice(2)}`
+      const buildings = {}
+      for (const [name, bd] of Object.entries(row.buildings || {})) {
+        const inc = (bd.annual_income || 0) / n
+        const cpx = i === 0 ? (bd.capex || 0) : 0
+        const opx = (bd.annual_opex || 0) / n
+        buildings[name] = { annual_income: inc, capex: cpx, annual_opex: opx, profit: inc - cpx - opx }
+      }
+      out.push({
+        ...row, period: label, buildings,
+        total_income: (row.total_income || 0) / n,
+        total_capex: i === 0 ? (row.total_capex || 0) : 0,
+        total_opex: (row.total_opex || 0) / n,
+        loan_repayment: (row.loan_repayment || 0) / n,
+        total_profit: (row.total_profit || 0) / n,
+      })
+    }
+  }
+  return out
+}
+
+function expandYears(years, viewMode) {
+  if (viewMode === 'annual') return years.map((y) => ({ ...y, period: String(y.year) }))
+  const n = viewMode === 'quarterly' ? 4 : 12
+  const out = []
+  for (const y of years) {
+    for (let i = 0; i < n; i++) {
+      const label = viewMode === 'quarterly'
+        ? `Q${i + 1} ${y.year}`
+        : `${MONTHS_SHORT[i]} '${String(y.year).slice(2)}`
+      const inc = y.annual_income / n
+      const cpx = i === 0 ? y.capex : 0
+      const opx = y.annual_opex / n
+      out.push({ ...y, period: label, annual_income: inc, capex: cpx, annual_opex: opx, profit: inc - cpx - opx, chargers_added: i === 0 ? y.chargers_added : 0 })
+    }
+  }
+  return out
+}
+
 // שדות ספציפיים לבניין בודד (כולל תעריפים לפי הסכם דייר)
 const BUILDING_SPECIFIC_FIELDS = [
   { key: 'current_chargers',             label: 'מטענים נוכחיים',     unit: '',         step: 1,   type: 'int',   note: 'מסונכרן מפרויקטים' },
@@ -79,43 +128,45 @@ function useDebounce(fn, delay = 600) {
 
 // ─── טבלת תחזית לבניין בודד ──────────────────────────────────────────────────
 
-function ForecastTable({ years }) {
+function ForecastTable({ years, viewMode = 'annual' }) {
   if (!years?.length) return <p className="dim-text" style={{ padding: '1rem' }}>אין נתונים</p>
+  const periods = expandYears(years, viewMode)
   let cum = 0
-  const rows = years.map((y) => { cum += y.profit; return { ...y, cumulative: cum } })
+  const rows = periods.map((p) => { cum += p.profit; return { ...p, cumulative: cum } })
+  const isAnnual = viewMode === 'annual'
   return (
     <div className="table-wrap" style={{ overflowX: 'auto' }}>
-      <table className="tact-table" style={{ minWidth: 780 }}>
+      <table className="tact-table" style={{ minWidth: isAnnual ? 780 : 640 }}>
         <thead>
           <tr>
-            <th>שנה</th>
+            <th>{isAnnual ? 'שנה' : 'תקופה'}</th>
             <th>מטענים חדשים</th>
-            <th>סה"כ מטענים</th>
-            <th>הכנסה שנתית</th>
+            {isAnnual && <th>סה"כ מטענים</th>}
+            <th>הכנסה</th>
             <th>עלות התקנת מטענים</th>
             <th>עלות התאמה</th>
-            <th>רווח שנתי</th>
+            <th>רווח</th>
             <th>רווח מצטבר</th>
           </tr>
         </thead>
         <tbody>
-          {rows.map((y) => (
-            <tr key={y.year}>
-              <td><strong>{y.year}</strong></td>
-              <td>{y.chargers_added > 0 ? `+${y.chargers_added}` : '—'}</td>
-              <td>{y.total_chargers}</td>
-              <td style={{ color: 'var(--tact-green)' }}>{ils(y.annual_income)}</td>
-              <td style={{ color: y.capex > 0 ? 'var(--tact-red,#e74c3c)' : 'inherit' }}>
-                {y.capex > 0 ? ils(-y.capex) : '—'}
+          {rows.map((p, idx) => (
+            <tr key={idx}>
+              <td><strong>{p.period}</strong></td>
+              <td>{p.chargers_added > 0 ? `+${p.chargers_added}` : '—'}</td>
+              {isAnnual && <td>{p.total_chargers}</td>}
+              <td style={{ color: 'var(--tact-green)' }}>{ils(p.annual_income)}</td>
+              <td style={{ color: p.capex > 0 ? 'var(--tact-red,#e74c3c)' : 'inherit' }}>
+                {p.capex > 0 ? ils(-p.capex) : '—'}
               </td>
               <td style={{ color: 'var(--tact-orange,#e67e22)' }}>
-                {y.annual_opex > 0 ? ils(-y.annual_opex) : '—'}
+                {p.annual_opex > 0 ? ils(-p.annual_opex) : '—'}
               </td>
-              <td style={{ fontWeight: 600, color: y.profit >= 0 ? 'var(--tact-green)' : 'var(--tact-red,#e74c3c)' }}>
-                {ils(y.profit)}
+              <td style={{ fontWeight: 600, color: p.profit >= 0 ? 'var(--tact-green)' : 'var(--tact-red,#e74c3c)' }}>
+                {ils(p.profit)}
               </td>
-              <td style={{ fontWeight: 700, color: y.cumulative >= 0 ? 'var(--tact-green)' : 'var(--tact-red,#e74c3c)' }}>
-                {ils(y.cumulative)}
+              <td style={{ fontWeight: 700, color: p.cumulative >= 0 ? 'var(--tact-green)' : 'var(--tact-red,#e74c3c)' }}>
+                {ils(p.cumulative)}
               </td>
             </tr>
           ))}
@@ -127,20 +178,23 @@ function ForecastTable({ years }) {
 
 // ─── גרף לבניין בודד ─────────────────────────────────────────────────────────
 
-function ForecastChart({ years }) {
+function ForecastChart({ years, viewMode = 'annual' }) {
   if (!years?.length) return null
-  const data = years.map((y) => ({
-    name: String(y.year),
-    'הכנסה': y.annual_income,
-    'עלות התקנת מטענים': y.capex,
-    'עלות התאמה': y.annual_opex,
-    'רווח': y.profit,
+  const periods = expandYears(years, viewMode)
+  const data = periods.map((p) => ({
+    name: p.period,
+    'הכנסה': p.annual_income,
+    'עלות התקנת מטענים': p.capex,
+    'עלות התאמה': p.annual_opex,
+    'רווח': p.profit,
   }))
+  const monthly = viewMode === 'monthly'
   return (
     <ResponsiveContainer width="100%" height={260}>
-      <BarChart data={data} margin={{ top: 8, right: 16, left: 8, bottom: 4 }}>
+      <BarChart data={data} margin={{ top: 8, right: 16, left: 8, bottom: monthly ? 44 : 4 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,.1)" />
-        <XAxis dataKey="name" tick={{ fill: 'var(--tact-text-dim,#888)', fontSize: 12 }} />
+        <XAxis dataKey="name" tick={{ fill: 'var(--tact-text-dim,#888)', fontSize: monthly ? 9 : 12 }}
+          interval={monthly ? 2 : 0} angle={monthly ? -45 : 0} textAnchor={monthly ? 'end' : 'middle'} />
         <YAxis tickFormatter={fmtK} tick={{ fill: 'var(--tact-text-dim,#888)', fontSize: 11 }} width={72} />
         <Tooltip formatter={(v) => ils(v)} labelStyle={{ color: '#222' }} />
         <Legend />
@@ -191,6 +245,12 @@ function BuildingSettings({ bm, globals, onChange }) {
   function handle(key, raw) {
     const def = BUILDING_SPECIFIC_FIELDS.find((f) => f.key === key)
     const value = def?.type === 'int' ? parseInt(raw, 10) || 0 : parseFloat(raw) || 0
+    setLocal((prev) => ({ ...prev, [key]: value }))
+    save({ [key]: value })
+  }
+
+  function handleContract(key, raw) {
+    const value = parseInt(raw, 10) || null
     setLocal((prev) => ({ ...prev, [key]: value }))
     save({ [key]: value })
   }
@@ -273,6 +333,53 @@ function BuildingSettings({ bm, globals, onChange }) {
         ))}
       </div>
 
+      {/* ─── פרטי הסכם ─── */}
+      <div className="settings-section-title" style={{ marginTop: 16 }}>תקופת הסכם</div>
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 7 }}>
+        <label className="setting-row">
+          <span className="setting-label">שנת תחילת הסכם</span>
+          <span className="setting-input-wrap">
+            <input
+              type="number" step={1} min={2000} max={2100}
+              value={local.contract_start_year || ''}
+              placeholder="—"
+              onChange={(e) => handleContract('contract_start_year', e.target.value)}
+              className="tact-input setting-input"
+            />
+          </span>
+        </label>
+        <label className="setting-row">
+          <span className="setting-label">משך ההסכם</span>
+          <span className="setting-input-wrap">
+            <input
+              type="number" step={1} min={1} max={50}
+              value={local.contract_duration_years || ''}
+              placeholder="—"
+              onChange={(e) => handleContract('contract_duration_years', e.target.value)}
+              className="tact-input setting-input"
+            />
+            <span className="setting-unit">שנים</span>
+          </span>
+        </label>
+        {local.contract_start_year > 0 && local.contract_duration_years > 0 && (
+          <div style={{ fontSize: 12, color: 'var(--tact-text-dim,#aaa)', padding: '4px 0' }}>
+            תום חוזה:{' '}
+            <strong style={{ color: 'var(--tact-green)' }}>
+              {local.contract_start_year + local.contract_duration_years}
+            </strong>
+            {' · '}שנות תחזית:{' '}
+            <strong style={{ color: 'var(--tact-accent,#6c8ebf)' }}>
+              {Math.max(1, local.contract_start_year + local.contract_duration_years - (local.start_year || bm.start_year))}
+            </strong>
+          </div>
+        )}
+        {!(local.contract_start_year > 0 && local.contract_duration_years > 0) && (
+          <div className="dim-text" style={{ fontSize: 11, padding: '2px 0' }}>
+            לא הוגדר — משתמשים ב-{local.forecast_years || bm.forecast_years} שנות תחזית ברירת מחדל
+          </div>
+        )}
+      </div>
+
       <div className="income-summary" style={{ marginTop: 14 }}>
         <div style={{ fontSize: 12, color: 'var(--tact-text-dim,#aaa)', marginBottom: 4 }}>
           הכנסה חודשית למטען:
@@ -318,34 +425,28 @@ function BuildingRow({ bm, selected, excluded, onSelect, onDelete }) {
 
 // ─── גרף הכנסות stacked ──────────────────────────────────────────────────────
 
-function CombinedChart({ combined, buildings }) {
+function CombinedChart({ combined, buildings, viewMode = 'annual' }) {
   if (!combined?.length) return <p className="dim-text" style={{ padding: '1rem' }}>אין נתונים</p>
+  const periods = expandCombined(combined, viewMode)
   const names = buildings.map((b) => b.building_name)
-
-  const data = combined.map((row) => {
-    const entry = { name: String(row.year) }
-    for (const name of names) {
-      entry[name] = row.buildings[name]?.annual_income || 0
-    }
+  const data = periods.map((row) => {
+    const entry = { name: row.period }
+    for (const name of names) { entry[name] = row.buildings[name]?.annual_income || 0 }
     return entry
   })
-
+  const monthly = viewMode === 'monthly'
   return (
     <ResponsiveContainer width="100%" height={300}>
-      <BarChart data={data} margin={{ top: 8, right: 16, left: 8, bottom: 4 }}>
+      <BarChart data={data} margin={{ top: 8, right: 16, left: 8, bottom: monthly ? 44 : 4 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,.1)" />
-        <XAxis dataKey="name" tick={{ fill: 'var(--tact-text-dim,#888)', fontSize: 12 }} />
+        <XAxis dataKey="name" tick={{ fill: 'var(--tact-text-dim,#888)', fontSize: monthly ? 9 : 12 }}
+          interval={monthly ? 2 : 0} angle={monthly ? -45 : 0} textAnchor={monthly ? 'end' : 'middle'} />
         <YAxis tickFormatter={fmtK} tick={{ fill: 'var(--tact-text-dim,#888)', fontSize: 11 }} width={72} />
         <Tooltip formatter={(v) => ils(v)} labelStyle={{ color: '#222' }} />
         <Legend />
         {names.map((name, i) => (
-          <Bar
-            key={name}
-            dataKey={name}
-            stackId="income"
-            fill={COLORS[i % COLORS.length]}
-            radius={i === names.length - 1 ? [3,3,0,0] : [0,0,0,0]}
-          />
+          <Bar key={name} dataKey={name} stackId="income" fill={COLORS[i % COLORS.length]}
+            radius={i === names.length - 1 ? [3,3,0,0] : [0,0,0,0]} />
         ))}
       </BarChart>
     </ResponsiveContainer>
@@ -354,37 +455,32 @@ function CombinedChart({ combined, buildings }) {
 
 // ─── גרף רווח מצטבר ──────────────────────────────────────────────────────────
 
-function CumulativeChart({ combined }) {
+function CumulativeChart({ combined, viewMode = 'annual' }) {
   if (!combined?.length) return null
-
+  const periods = expandCombined(combined, viewMode)
   let cum = 0
-  const data = combined.map((row) => {
+  const data = periods.map((row) => {
     cum += row.total_profit
     return {
-      name: String(row.year),
-      'רווח שנתי': row.total_profit,
+      name: row.period,
+      'רווח': row.total_profit,
       'החזר הלוואה': row.loan_repayment > 0 ? -row.loan_repayment : null,
       'מצטבר': cum,
     }
   })
-
+  const monthly = viewMode === 'monthly'
   return (
     <ResponsiveContainer width="100%" height={260}>
-      <ComposedChart data={data} margin={{ top: 8, right: 16, left: 8, bottom: 4 }}>
+      <ComposedChart data={data} margin={{ top: 8, right: 16, left: 8, bottom: monthly ? 44 : 4 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,.1)" />
-        <XAxis dataKey="name" tick={{ fill: 'var(--tact-text-dim,#888)', fontSize: 12 }} />
+        <XAxis dataKey="name" tick={{ fill: 'var(--tact-text-dim,#888)', fontSize: monthly ? 9 : 12 }}
+          interval={monthly ? 2 : 0} angle={monthly ? -45 : 0} textAnchor={monthly ? 'end' : 'middle'} />
         <YAxis tickFormatter={fmtK} tick={{ fill: 'var(--tact-text-dim,#888)', fontSize: 11 }} width={80} />
         <Tooltip formatter={(v) => ils(v)} labelStyle={{ color: '#222' }} />
         <Legend />
-        <Bar dataKey="רווח שנתי" fill="#6c8ebf" radius={[3,3,0,0]} />
+        <Bar dataKey="רווח" fill="#6c8ebf" radius={[3,3,0,0]} />
         <Bar dataKey="החזר הלוואה" fill="#e74c3c" radius={[3,3,0,0]} />
-        <Line
-          type="monotone"
-          dataKey="מצטבר"
-          stroke="#82ca9d"
-          strokeWidth={2.5}
-          dot={{ fill: '#82ca9d', r: 4 }}
-        />
+        <Line type="monotone" dataKey="מצטבר" stroke="#82ca9d" strokeWidth={2.5} dot={{ fill: '#82ca9d', r: 4 }} />
       </ComposedChart>
     </ResponsiveContainer>
   )
@@ -392,134 +488,139 @@ function CumulativeChart({ combined }) {
 
 // ─── טבלת ריכוז: בניינים כשורות, שנים כעמודות + סיכום רווח לבניין ────────────
 
-function CombinedTable({ combined, buildings, overheadExpenses = [], excludedIds = new Set() }) {
+function CombinedTable({ combined, buildings, overheadExpenses = [], excludedIds = new Set(), viewMode = 'annual' }) {
   if (!combined?.length) return null
   const years = combined.map((r) => r.year)
+  const periods = expandCombined(combined, viewMode)
+  const n = viewMode === 'quarterly' ? 4 : viewMode === 'monthly' ? 12 : 1
 
   const includedBuildings = buildings.filter((b) => !excludedIds.has(b.id))
 
-  function buildingProfit(name) {
+  function buildingTotalProfit(name) {
     return combined.reduce((s, r) => s + (r.buildings[name]?.profit || 0), 0)
   }
 
   const sortedBuildings = [...includedBuildings].sort(
-    (a, b) => buildingProfit(b.building_name) - buildingProfit(a.building_name)
+    (a, b) => buildingTotalProfit(b.building_name) - buildingTotalProfit(a.building_name)
   )
 
-  // חישוב סה"כ רק מהבניינים הכלולים
-  const yearTotals = combined.map((row) => {
-    const inc  = includedBuildings.reduce((s, b) => s + (row.buildings[b.building_name]?.annual_income || 0), 0)
-    const exp  = includedBuildings.reduce((s, b) => s + (row.buildings[b.building_name]?.capex || 0) + (row.buildings[b.building_name]?.annual_opex || 0), 0)
-    const profit = includedBuildings.reduce((s, b) => s + (row.buildings[b.building_name]?.profit || 0), 0)
-    return { year: row.year, inc, exp, profit, loan: row.loan_repayment }
-  })
+  const periodTotals = periods.map((row) => ({
+    period: row.period,
+    inc: includedBuildings.reduce((s, b) => s + (row.buildings[b.building_name]?.annual_income || 0), 0),
+    exp: includedBuildings.reduce((s, b) => s + (row.buildings[b.building_name]?.capex || 0) + (row.buildings[b.building_name]?.annual_opex || 0), 0),
+    loan: row.loan_repayment,
+  }))
 
+  const totalProfit  = combined.reduce((s, r) => s + includedBuildings.reduce((ss, b) => ss + (r.buildings[b.building_name]?.profit || 0), 0), 0)
+  const totalLoan    = combined.reduce((s, r) => s + r.loan_repayment, 0)
   const overheadPerYear = overheadExpenses.reduce((s, x) => s + (x.annual_amount || 0), 0)
-  const totalProfit  = yearTotals.reduce((s, r) => s + r.profit, 0)
-  const totalLoan    = yearTotals.reduce((s, r) => s + r.loan, 0)
+  const overheadPerPeriod = overheadPerYear / n
   const totalOverhead = overheadPerYear * years.length
 
   const ft = { fontSize: 12, fontWeight: 700 }
   const cell = { verticalAlign: 'top', paddingTop: 6, paddingBottom: 6 }
+  const monthly = viewMode === 'monthly'
 
   return (
-    <table className="tact-table" style={{ width: '100%', tableLayout: 'fixed' }}>
-      <colgroup>
-        <col style={{ width: '22%' }} />
-        {years.map((y) => <col key={y} style={{ width: `${62 / years.length}%` }} />)}
-        <col style={{ width: '16%' }} />
-      </colgroup>
-      <thead>
-        <tr>
-          <th style={{ textAlign: 'right' }}>בניין</th>
-          {years.map((y) => <th key={y} style={{ textAlign: 'center', fontSize: 12 }}>{y}</th>)}
-          <th style={{ textAlign: 'left', background: 'rgba(130,202,157,.12)' }}>רווח נקי</th>
-        </tr>
-      </thead>
-      <tbody>
-        {sortedBuildings.map((b) => {
-          const profit = buildingProfit(b.building_name)
-          return (
-            <tr key={b.id}>
-              <td style={{ fontWeight: 500, textAlign: 'right', fontSize: 12 }}>{b.building_name}</td>
-              {combined.map((row) => {
-                const bd  = row.buildings[b.building_name]
-                const inc = bd?.annual_income || 0
-                const exp = (bd?.capex || 0) + (bd?.annual_opex || 0)
-                return (
-                  <td key={row.year} style={{ ...cell, textAlign: 'left' }}>
-                    <div style={{ fontSize: 11, color: inc > 0 ? 'var(--tact-green)' : 'var(--tact-text-dim,#888)' }}>
-                      {inc > 0 ? ils(inc) : '—'}
-                    </div>
-                    {exp > 0 && (
-                      <div style={{ fontSize: 10, color: 'var(--tact-red,#e74c3c)', opacity: .85 }}>
-                        {ils(-exp)}
+    <div style={{ overflowX: 'auto' }}>
+      <table className="tact-table" style={{ width: '100%', tableLayout: 'fixed', minWidth: monthly ? 1400 : viewMode === 'quarterly' ? 860 : 'auto' }}>
+        <colgroup>
+          <col style={{ width: monthly ? 130 : 160 }} />
+          {periods.map((p) => <col key={p.period} style={{ width: monthly ? 66 : viewMode === 'quarterly' ? 88 : 'auto' }} />)}
+          <col style={{ width: 110 }} />
+        </colgroup>
+        <thead>
+          <tr>
+            <th style={{ textAlign: 'right' }}>בניין</th>
+            {periods.map((p) => <th key={p.period} style={{ textAlign: 'center', fontSize: monthly ? 10 : 12, whiteSpace: 'nowrap' }}>{p.period}</th>)}
+            <th style={{ textAlign: 'left', background: 'rgba(130,202,157,.12)' }}>רווח נקי</th>
+          </tr>
+        </thead>
+        <tbody>
+          {sortedBuildings.map((b) => {
+            const profit = buildingTotalProfit(b.building_name)
+            return (
+              <tr key={b.id}>
+                <td style={{ fontWeight: 500, textAlign: 'right', fontSize: 12 }}>{b.building_name}</td>
+                {periods.map((p) => {
+                  const bd  = p.buildings[b.building_name]
+                  const inc = bd?.annual_income || 0
+                  const exp = (bd?.capex || 0) + (bd?.annual_opex || 0)
+                  return (
+                    <td key={p.period} style={{ ...cell, textAlign: 'left' }}>
+                      <div style={{ fontSize: 11, color: inc > 0 ? 'var(--tact-green)' : 'var(--tact-text-dim,#888)' }}>
+                        {inc > 0 ? ils(inc) : '—'}
                       </div>
-                    )}
-                  </td>
-                )
-              })}
-              <td style={{ textAlign: 'left', fontWeight: 700, fontSize: 12, background: 'rgba(130,202,157,.08)',
-                color: profit >= 0 ? 'var(--tact-green)' : 'var(--tact-red,#e74c3c)' }}>
-                {ils(profit)}
-              </td>
-            </tr>
-          )
-        })}
-      </tbody>
-      <tfoot>
-        {/* שורת סה"כ בניינים */}
-        <tr style={{ borderTop: '2px solid rgba(255,255,255,.2)', background: 'rgba(108,142,191,.08)' }}>
-          <td style={{ textAlign: 'right', ...ft }}>סה"כ בניינים</td>
-          {yearTotals.map((r) => (
-            <td key={r.year} style={{ ...cell, textAlign: 'left' }}>
-              <div style={{ fontSize: 11, color: 'var(--tact-green)', fontWeight: 600 }}>{ils(r.inc)}</div>
-              <div style={{ fontSize: 10, color: 'var(--tact-red,#e74c3c)', opacity: .85 }}>{ils(-r.exp)}</div>
-            </td>
-          ))}
-          <td style={{ textAlign: 'left', background: 'rgba(130,202,157,.15)', ...ft,
-            color: (totalProfit + totalLoan) >= 0 ? 'var(--tact-green)' : 'var(--tact-red,#e74c3c)' }}>
-            {ils(totalProfit + totalLoan)}
-          </td>
-        </tr>
-
-        {/* הוצאות תקורה */}
-        {overheadPerYear > 0 && (
-          <tr style={{ background: 'rgba(253,121,168,.06)' }}>
-            <td style={{ textAlign: 'right', ...ft }}>הוצאות תקורה</td>
-            {years.map((y) => (
-              <td key={y} style={{ textAlign: 'left', fontSize: 11, color: 'var(--tact-red,#e74c3c)', fontWeight: 600 }}>
-                {ils(-overheadPerYear)}
+                      {exp > 0 && (
+                        <div style={{ fontSize: 10, color: 'var(--tact-red,#e74c3c)', opacity: .85 }}>
+                          {ils(-exp)}
+                        </div>
+                      )}
+                    </td>
+                  )
+                })}
+                <td style={{ textAlign: 'left', fontWeight: 700, fontSize: 12, background: 'rgba(130,202,157,.08)',
+                  color: profit >= 0 ? 'var(--tact-green)' : 'var(--tact-red,#e74c3c)' }}>
+                  {ils(profit)}
+                </td>
+              </tr>
+            )
+          })}
+        </tbody>
+        <tfoot>
+          <tr style={{ borderTop: '2px solid rgba(255,255,255,.2)', background: 'rgba(108,142,191,.08)' }}>
+            <td style={{ textAlign: 'right', ...ft }}>סה"כ בניינים</td>
+            {periodTotals.map((r) => (
+              <td key={r.period} style={{ ...cell, textAlign: 'left' }}>
+                <div style={{ fontSize: 11, color: 'var(--tact-green)', fontWeight: 600 }}>{ils(r.inc)}</div>
+                <div style={{ fontSize: 10, color: 'var(--tact-red,#e74c3c)', opacity: .85 }}>{ils(-r.exp)}</div>
               </td>
             ))}
-            <td style={{ textAlign: 'left', ...ft, color: 'var(--tact-red,#e74c3c)', background: 'rgba(253,121,168,.1)' }}>
-              {ils(-totalOverhead)}
+            <td style={{ textAlign: 'left', background: 'rgba(130,202,157,.15)', ...ft,
+              color: (totalProfit + totalLoan) >= 0 ? 'var(--tact-green)' : 'var(--tact-red,#e74c3c)' }}>
+              {ils(totalProfit + totalLoan)}
             </td>
           </tr>
-        )}
 
-        {/* החזר הלוואה */}
-        {totalLoan > 0 && (
-          <tr style={{ background: 'rgba(231,76,60,.06)' }}>
-            <td style={{ textAlign: 'right', ...ft }}>החזר הלוואה</td>
-            {years.map((y) => <td key={y} />)}
-            <td style={{ textAlign: 'left', background: 'rgba(231,76,60,.1)', ...ft, color: 'var(--tact-red,#e74c3c)' }}>
-              {ils(-totalLoan)}
+          {overheadPerYear > 0 && (
+            <tr style={{ background: 'rgba(253,121,168,.06)' }}>
+              <td style={{ textAlign: 'right', ...ft }}>הוצאות תקורה</td>
+              {periods.map((p) => (
+                <td key={p.period} style={{ textAlign: 'left', fontSize: 11, color: 'var(--tact-red,#e74c3c)', fontWeight: 600 }}>
+                  {ils(-overheadPerPeriod)}
+                </td>
+              ))}
+              <td style={{ textAlign: 'left', ...ft, color: 'var(--tact-red,#e74c3c)', background: 'rgba(253,121,168,.1)' }}>
+                {ils(-totalOverhead)}
+              </td>
+            </tr>
+          )}
+
+          {totalLoan > 0 && (
+            <tr style={{ background: 'rgba(231,76,60,.06)' }}>
+              <td style={{ textAlign: 'right', ...ft }}>החזר הלוואה</td>
+              {periodTotals.map((r) => (
+                <td key={r.period} style={{ textAlign: 'left', fontSize: 11, color: 'var(--tact-red,#e74c3c)', fontWeight: 600 }}>
+                  {r.loan > 0 ? ils(-r.loan) : ''}
+                </td>
+              ))}
+              <td style={{ textAlign: 'left', background: 'rgba(231,76,60,.1)', ...ft, color: 'var(--tact-red,#e74c3c)' }}>
+                {ils(-totalLoan)}
+              </td>
+            </tr>
+          )}
+
+          <tr style={{ background: 'rgba(130,202,157,.10)' }}>
+            <td style={{ textAlign: 'right', ...ft }}>רווח נקי לאחר החזר הלוואה</td>
+            {periods.map((p) => <td key={p.period} />)}
+            <td style={{ textAlign: 'left', background: 'rgba(130,202,157,.2)', fontWeight: 800, fontSize: 13,
+              color: (totalProfit - totalOverhead) >= 0 ? 'var(--tact-green)' : 'var(--tact-red,#e74c3c)' }}>
+              {ils(totalProfit - totalOverhead)}
             </td>
           </tr>
-        )}
-
-        {/* רווח נקי סופי */}
-        <tr style={{ background: 'rgba(130,202,157,.10)' }}>
-          <td style={{ textAlign: 'right', ...ft }}>רווח נקי לאחר החזר הלוואה</td>
-          {years.map((y) => <td key={y} />)}
-          <td style={{ textAlign: 'left', background: 'rgba(130,202,157,.2)', fontWeight: 800, fontSize: 13,
-            color: (totalProfit - totalOverhead) >= 0 ? 'var(--tact-green)' : 'var(--tact-red,#e74c3c)' }}>
-            {ils(totalProfit - totalOverhead)}
-          </td>
-        </tr>
-      </tfoot>
-    </table>
+        </tfoot>
+      </table>
+    </div>
   )
 }
 
@@ -556,6 +657,7 @@ export default function BuildingCashflow({ loading: appLoading }) {
     try { return new Set(JSON.parse(localStorage.getItem('energy-excluded') || '[]')) } catch { return new Set() }
   })
   const [showInclusion, setShowInclusion] = useState(false)
+  const [viewMode, setViewMode] = useState('annual')
 
   const growthTimer = useRef(null)
   const kwhTimer = useRef(null)
@@ -728,6 +830,22 @@ export default function BuildingCashflow({ loading: appLoading }) {
           <TactIcon name="plus" size={14} />
           <span style={{ marginInlineStart: 4 }}>הוסף בניין</span>
         </button>
+        <div style={{ marginInlineStart: 'auto', display: 'flex', gap: 4 }}>
+          {[['annual','שנתי'],['quarterly','רבעוני'],['monthly','חודשי']].map(([mode, label]) => (
+            <button
+              key={mode}
+              onClick={() => setViewMode(mode)}
+              style={{
+                padding: '5px 14px', fontSize: 12, fontWeight: 600, borderRadius: 6,
+                border: '1.5px solid', cursor: 'pointer',
+                borderColor: viewMode === mode ? 'var(--tact-accent,#6c8ebf)' : 'rgba(255,255,255,.18)',
+                background: viewMode === mode ? 'rgba(108,142,191,.2)' : 'transparent',
+                color: viewMode === mode ? 'var(--tact-accent,#6c8ebf)' : 'var(--tact-text-dim,#888)',
+                transition: 'all .15s',
+              }}
+            >{label}</button>
+          ))}
+        </div>
         {adding && (
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <input
@@ -1031,6 +1149,7 @@ export default function BuildingCashflow({ loading: appLoading }) {
                     buildings={buildings}
                     overheadExpenses={overheadExpenses}
                     excludedIds={excludedIds}
+                    viewMode={viewMode}
                   />
                 )}
               </div>
@@ -1058,13 +1177,13 @@ export default function BuildingCashflow({ loading: appLoading }) {
                   </div>
                   <div className="building-chart-panel">
                     <h4 style={{ marginTop: 0 }}>פירוט שנתי</h4>
-                    {forecast ? <ForecastTable years={forecast.years} /> : <div className="dim-text">טוען...</div>}
+                    {forecast ? <ForecastTable years={forecast.years} viewMode={viewMode} /> : <div className="dim-text">טוען...</div>}
                   </div>
                 </div>
 
                 <div style={{ marginTop: 24, marginBottom: 20 }}>
                   <h4 style={{ marginTop: 0, marginBottom: 12 }}>תחזית גרפית</h4>
-                  {forecast ? <ForecastChart years={forecast.years} /> : <div className="dim-text">טוען...</div>}
+                  {forecast ? <ForecastChart years={forecast.years} viewMode={viewMode} /> : <div className="dim-text">טוען...</div>}
                 </div>
               </div>
             )}

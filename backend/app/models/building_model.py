@@ -56,5 +56,9 @@ class BuildingModel(Base):
     start_year: Mapped[int] = mapped_column(Integer, default=2025)
     forecast_years: Mapped[int] = mapped_column(Integer, default=5)
 
+    # פרטי ההסכם — אם מוגדרים, מחשבים forecast_years אוטומטית
+    contract_start_year: Mapped[int | None] = mapped_column(Integer, nullable=True, default=None)
+    contract_duration_years: Mapped[int | None] = mapped_column(Integer, nullable=True, default=None)
+
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now)
