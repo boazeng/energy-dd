@@ -242,7 +242,6 @@ const VIEW_OPTS  = [{ v: 'annual', l: 'שנתי' }, { v: 'quarterly', l: 'רבע
 const BAR_DEFS   = [{ k: 'הכנסות', color: '#2e7d4f' }, { k: 'הוצאות', color: '#d64a2e' }, { k: 'רווח', color: '#1f3a5f' }]
 
 export default function Cashflow({ loading: parentLoading }) {
-  const [settings, setSettings]           = useState({ opening_balance: 0, balance_date: '' })
   const [loan, setLoan]                   = useState({ amount: 3000000, years: 5, prime: 6, margin: 2, start_month: '' })
   const [combinedForecast, setCombined]   = useState([])
   const [loading, setLoading]             = useState(true)
@@ -258,19 +257,11 @@ export default function Cashflow({ loading: parentLoading }) {
   useEffect(() => {
     Promise.all([api.getCashflow(), api.getCombinedForecast()])
       .then(([cf, forecast]) => {
-        setSettings(cf.settings || { opening_balance: 0, balance_date: '' })
         if (cf.loan) setLoan(cf.loan)
         setCombined(forecast || [])
         setLoading(false)
       }).catch(() => setLoading(false))
   }, [])
-
-  function patchSettings(patch) {
-    const next = { ...settings, ...patch }
-    setSettings(next)
-    clearTimeout(timers.current.settings)
-    timers.current.settings = setTimeout(() => api.updateCashflowSettings(next).catch(() => {}), 600)
-  }
 
   function patchLoan(patch) {
     setLoan((prev) => ({ ...prev, ...patch }))
@@ -289,8 +280,8 @@ export default function Cashflow({ loading: parentLoading }) {
   const periods = useMemo(() => {
     const expanded = expandCombined(combinedForecast, viewMode)
     const r = (discountRate || 0) / 100
-    let bal   = Number(settings.opening_balance || 0)
-    let pvBal = Number(settings.opening_balance || 0)
+    let bal   = 0
+    let pvBal = 0
     return expanded.map((p, idx) => {
       const n           = periodsPerYear
       const overheadPer = totalAnnualOverhead / n
@@ -312,7 +303,7 @@ export default function Cashflow({ loading: parentLoading }) {
         pvNet, pvBalance: pvBal,
       }
     })
-  }, [combinedForecast, viewMode, discountRate, settings.opening_balance, totalAnnualOverhead, periodsPerYear])
+  }, [combinedForecast, viewMode, discountRate, totalAnnualOverhead, periodsPerYear])
 
   const chartData    = periods.map((r) => ({ period: r.period, הכנסות: r.income, הוצאות: r.expense, רווח: r.net }))
   const totalIncome   = periods.reduce((s, r) => s + r.income, 0)
@@ -322,7 +313,7 @@ export default function Cashflow({ loading: parentLoading }) {
   const totalLoan     = periods.reduce((s, r) => s + r.loan, 0)
   const totalNet      = periods.reduce((s, r) => s + r.net, 0)
   const npv           = periods.reduce((s, r) => s + r.pvNet, 0)
-  const endBalance    = periods.length ? periods[periods.length - 1].balance : Number(settings.opening_balance || 0)
+  const endBalance    = periods.length ? periods[periods.length - 1].balance : 0
 
   if (loading || parentLoading) return <p className="muted">טוען…</p>
 
@@ -335,14 +326,6 @@ export default function Cashflow({ loading: parentLoading }) {
       <p className="home-sub">תחזית תזרים מצרפית לכל הבניינים — נתונים מתזרים בניינים.</p>
 
       <div className="cf-open">
-        <label><span>יתרת פתיחה ₪</span>
-          <input type="number" value={settings.opening_balance ?? 0}
-            onChange={(e) => patchSettings({ opening_balance: parseFloat(e.target.value) || 0 })} />
-        </label>
-        <label><span>נכון לתאריך</span>
-          <input type="date" value={settings.balance_date || ''}
-            onChange={(e) => patchSettings({ balance_date: e.target.value })} />
-        </label>
         <label><span>ריבית היוון %</span>
           <input type="number" min="0" max="50" step="0.5" value={discountRate}
             onChange={(e) => setDiscountRate(parseFloat(e.target.value) || 0)} />
