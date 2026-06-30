@@ -358,6 +358,110 @@ def sync_missing_agreement_buildings(db: Session, projects_path: str) -> int:
     return added
 
 
+def sync_tenants_data_sites(db: Session) -> int:
+    """מסנכרן בניינים ממקור tenants_data.json (מ-contracts_temp, בתוך ה-repo).
+
+    לכל בניין שאין לו הסכם תואם ב-tenant_agreements ואינו קיים ב-building_models —
+    מוסיף רשומה עם notes='חסר הסכם' וברירות מחדל.
+    מטרה: לוודא שאתרים ציבוריים (כגון ארנה נהריה, סטאר סנטר) מופיעים בתזרים בניינים.
+    """
+    # בדוקר: /app/app/seed.py → parents[1]=/app/ → /app/contracts_temp/tenants_data.json
+    # לוקאלית: .../backend/app/seed.py → parents[2]=energy-dd/ → .../contracts_temp/tenants_data.json
+    _base = Path(__file__).resolve().parent
+    tenants_path = None
+    for candidate_base in [_base.parent, _base.parents[1]]:
+        p = candidate_base / "contracts_temp" / "tenants_data.json"
+        if p.is_file():
+            tenants_path = p
+            break
+    if tenants_path is None:
+        return 0
+
+    try:
+        data = json.loads(tenants_path.read_text(encoding="utf-8"))
+    except Exception:
+        return 0
+
+    rows = data.get("tenants", {}).get("סטטוס בניינים", [])
+    if not rows:
+        return 0
+
+    agreements = list(db.scalars(select(TenantAgreement)))
+    agr_norms = {_normalize(a.building.split(",")[0].strip()) for a in agreements if a.building}
+
+    existing = list(db.scalars(select(BuildingModel)))
+    existing_norms = {_normalize(bm.building_name.split(",")[0].strip()) for bm in existing}
+
+    added = 0
+    for row in rows:
+        if not isinstance(row, list) or len(row) < 6:
+            continue
+
+        # זיהוי שורת נתונים: col 1 = מס"ד מספרי, col 2 = שם פרויקט
+        row_num = row[1] if len(row) > 1 else None
+        try:
+            int(str(row_num).strip())
+        except (ValueError, TypeError):
+            continue
+
+        proj_name = (row[2] or "").strip() if len(row) > 2 else ""
+        city = (row[3] or "").strip() if len(row) > 3 else ""
+        if not proj_name:
+            continue
+
+        proj_norm = _normalize(proj_name)
+
+        # יש הסכם חתום תואם → כבר מטופל ב-BUILDING_SEEDS
+        has_agreement = any(n and (n in proj_norm or proj_norm in n) for n in agr_norms)
+        if has_agreement:
+            continue
+
+        # כבר קיים ב-building_models (ממיגרציה קודמת או sync אחר)
+        already_exists = any(n and (n in proj_norm or proj_norm in n) for n in existing_norms)
+        if already_exists:
+            continue
+
+        # חשב כמות מטענים וחניות
+        try:
+            chargers = int(str(row[5]).strip()) if len(row) > 5 and row[5] else 0
+        except (ValueError, TypeError):
+            chargers = 0
+        try:
+            park_total = int(str(row[11]).strip()) if len(row) > 11 and row[11] else 0
+        except (ValueError, TypeError):
+            park_total = 0
+
+        building_name = f"{proj_name}, {city}" if city else proj_name
+
+        db.add(BuildingModel(
+            building_name=building_name,
+            current_chargers=chargers,
+            potential_spots=park_total,
+            annual_growth_rate=10.0,
+            mgmt_fee_per_charger=30.0,
+            electricity_rate_agorot=30.0,
+            avg_kwh_per_charger_monthly=150.0,
+            subscription_fee_per_charger=0.0,
+            cost_charger_unit=800,
+            cost_infra_per_charger=1200,
+            cost_install_per_charger=1300,
+            cost_elec_panel=6000,
+            cost_comm_panel=1000,
+            chargers_per_panel=10,
+            start_year=2026,
+            forecast_years=5,
+            contract_duration_years=5,
+            charger_install_income=2000.0,
+            notes="חסר הסכם",
+        ))
+        existing_norms.add(proj_norm)
+        added += 1
+
+    if added:
+        db.commit()
+    return added
+
+
 def seed_building_models(db: Session) -> int:
     if db.scalar(select(BuildingModel.id).limit(1)) is not None:
         return 0

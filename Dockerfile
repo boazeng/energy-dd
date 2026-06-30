@@ -18,6 +18,7 @@ RUN pip install --no-cache-dir -r requirements.txt tzdata
 COPY backend/app ./app
 COPY backend/shared_auth ./shared_auth
 COPY --from=frontend /frontend/dist ./static
+COPY contracts_temp/tenants_data.json ./contracts_temp/tenants_data.json
 RUN mkdir -p /app/database
 
 EXPOSE 8000
