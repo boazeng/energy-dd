@@ -381,65 +381,136 @@ export default function Cashflow({ loading: parentLoading }) {
       {subTab === 'forecast' && (
         <>
           <h2 className="block-title">תחזית מצרפית</h2>
-          <div className="fin-table-wrap">
-            <table className="fin-table cf-fc">
-              <thead>
-                <tr>
-                  <th className="fin-rowlabel">תקופה</th>
-                  <th>מטענים</th>
-                  <th>הכנסות</th>
-                  <th>CAPEX</th>
-                  <th>OPEX</th>
-                  <th>תקורות</th>
-                  <th>החזר הלוואה</th>
-                  <th>נטו</th>
-                  {discountRate > 0 && <th>נטו מהוון</th>}
-                  <th>יתרה מצטברת</th>
-                </tr>
-              </thead>
-              <tbody>
-                {periods.length === 0 ? (
-                  <tr><td colSpan={discountRate > 0 ? 10 : 9} className="muted"
-                    style={{ textAlign: 'center', padding: 24 }}>
-                    אין נתוני תחזית. הגדר בניינים בלשונית "תזרים בניינים".
-                  </td></tr>
-                ) : periods.map((r, i) => (
-                  <tr key={i}>
-                    <td className="fin-rowlabel">{r.period}</td>
-                    <td style={{ textAlign: 'center' }}>{Math.round(r.chargers)}</td>
-                    <td className="fin-pos">{ils(r.income)}</td>
-                    <td className="fin-neg">{ils(r.capex)}</td>
-                    <td className="fin-neg">{ils(r.opex)}</td>
-                    <td className="fin-neg">{ils(r.overhead)}</td>
-                    <td className="fin-neg">{ils(r.loan)}</td>
-                    <td className={r.net < 0 ? 'fin-neg' : 'fin-pos'}>{ils(r.net)}</td>
-                    {discountRate > 0 && (
-                      <td className={r.pvNet < 0 ? 'fin-neg' : 'fin-pos'}>{ils(r.pvNet)}</td>
-                    )}
-                    <td className={r.balance < 0 ? 'fin-neg' : ''}><strong>{ils(r.balance)}</strong></td>
+          {periods.length === 0 ? (
+            <p className="muted" style={{ padding: '1.5rem 0' }}>
+              אין נתוני תחזית. הגדר בניינים בלשונית "תזרים בניינים".
+            </p>
+          ) : (
+            <div style={{ overflowX: 'auto' }}>
+              <table className="fin-table" style={{ width: '100%', tableLayout: 'fixed', minWidth: periods.length > 12 ? periods.length * 72 + 180 : 'auto' }}>
+                <colgroup>
+                  <col style={{ width: 170 }} />
+                  {periods.map((_, i) => <col key={i} />)}
+                  <col style={{ width: 110 }} />
+                </colgroup>
+                <thead>
+                  <tr>
+                    <th style={{ textAlign: 'right' }} />
+                    {periods.map((r) => (
+                      <th key={r.period} style={{ textAlign: 'center', fontSize: viewMode === 'monthly' ? 10 : 12, whiteSpace: 'nowrap' }}>
+                        {r.period}
+                      </th>
+                    ))}
+                    <th style={{ textAlign: 'left', background: 'rgba(0,0,0,.04)' }}>סה"כ</th>
                   </tr>
-                ))}
-              </tbody>
-              {periods.length > 0 && (
-                <tfoot>
-                  <tr style={{ fontWeight: 700, borderTop: '2px solid #c0c8d8' }}>
-                    <td className="fin-rowlabel">סה"כ</td>
-                    <td style={{ textAlign: 'center' }}>{Math.round(periods[periods.length - 1].chargers)}</td>
-                    <td className="fin-pos">{ils(totalIncome)}</td>
-                    <td className="fin-neg">{ils(totalCapex)}</td>
-                    <td className="fin-neg">{ils(totalOpex)}</td>
-                    <td className="fin-neg">{ils(totalOverhead)}</td>
-                    <td className="fin-neg">{ils(totalLoan)}</td>
-                    <td className={totalNet < 0 ? 'fin-neg' : 'fin-pos'}>{ils(totalNet)}</td>
-                    {discountRate > 0 && (
-                      <td className={npv < 0 ? 'fin-neg' : 'fin-pos'}>{ils(npv)}</td>
-                    )}
-                    <td className={endBalance < 0 ? 'fin-neg' : ''}><strong>{ils(endBalance)}</strong></td>
+                </thead>
+                <tbody>
+                  {/* מטענים פעילים */}
+                  <tr>
+                    <td className="fin-rowlabel">מטענים פעילים</td>
+                    {periods.map((r, i) => (
+                      <td key={i} style={{ textAlign: 'center', fontSize: 12 }}>
+                        {Number.isInteger(r.chargers) ? r.chargers : r.chargers.toFixed(1)}
+                      </td>
+                    ))}
+                    <td style={{ textAlign: 'left', background: 'rgba(0,0,0,.04)', fontWeight: 600 }}>
+                      {Math.round(periods[periods.length - 1].chargers)}
+                    </td>
                   </tr>
-                </tfoot>
-              )}
-            </table>
-          </div>
+
+                  {/* הכנסות */}
+                  <tr style={{ borderTop: '1px solid rgba(0,0,0,.08)' }}>
+                    <td className="fin-rowlabel">הכנסות</td>
+                    {periods.map((r, i) => <td key={i} className="fin-pos">{ils(r.income)}</td>)}
+                    <td className="fin-pos" style={{ background: 'rgba(0,0,0,.04)', fontWeight: 700 }}>{ils(totalIncome)}</td>
+                  </tr>
+
+                  {/* עלות התקנת מטענים */}
+                  <tr>
+                    <td className="fin-rowlabel">עלות התקנת מטענים</td>
+                    {periods.map((r, i) => (
+                      <td key={i} className={r.capex > 0 ? 'fin-neg' : ''} style={{ color: r.capex > 0 ? undefined : '#aaa' }}>
+                        {r.capex > 0 ? ils(r.capex) : '—'}
+                      </td>
+                    ))}
+                    <td className="fin-neg" style={{ background: 'rgba(0,0,0,.04)', fontWeight: 700 }}>{ils(totalCapex)}</td>
+                  </tr>
+
+                  {/* עלויות תפעול */}
+                  <tr>
+                    <td className="fin-rowlabel">עלויות תפעול</td>
+                    {periods.map((r, i) => (
+                      <td key={i} className={r.opex > 0 ? 'fin-neg' : ''} style={{ color: r.opex > 0 ? undefined : '#aaa' }}>
+                        {r.opex > 0 ? ils(r.opex) : '—'}
+                      </td>
+                    ))}
+                    <td className="fin-neg" style={{ background: 'rgba(0,0,0,.04)', fontWeight: 700 }}>{ils(totalOpex)}</td>
+                  </tr>
+
+                  {/* תקורות */}
+                  {totalOverhead > 0 && (
+                    <tr>
+                      <td className="fin-rowlabel">תקורות</td>
+                      {periods.map((r, i) => (
+                        <td key={i} className={r.overhead > 0 ? 'fin-neg' : ''} style={{ color: r.overhead > 0 ? undefined : '#aaa' }}>
+                          {r.overhead > 0 ? ils(r.overhead) : '—'}
+                        </td>
+                      ))}
+                      <td className="fin-neg" style={{ background: 'rgba(0,0,0,.04)', fontWeight: 700 }}>{ils(totalOverhead)}</td>
+                    </tr>
+                  )}
+
+                  {/* החזר הלוואה */}
+                  {totalLoan > 0 && (
+                    <tr>
+                      <td className="fin-rowlabel">החזר הלוואה</td>
+                      {periods.map((r, i) => (
+                        <td key={i} className={r.loan > 0 ? 'fin-neg' : ''} style={{ color: r.loan > 0 ? undefined : '#aaa' }}>
+                          {r.loan > 0 ? ils(r.loan) : '—'}
+                        </td>
+                      ))}
+                      <td className="fin-neg" style={{ background: 'rgba(0,0,0,.04)', fontWeight: 700 }}>{ils(totalLoan)}</td>
+                    </tr>
+                  )}
+
+                  {/* נטו */}
+                  <tr style={{ borderTop: '2px solid #c0c8d8', fontWeight: 700 }}>
+                    <td className="fin-rowlabel">נטו</td>
+                    {periods.map((r, i) => (
+                      <td key={i} className={r.net < 0 ? 'fin-neg' : 'fin-pos'}>{ils(r.net)}</td>
+                    ))}
+                    <td className={totalNet < 0 ? 'fin-neg' : 'fin-pos'} style={{ background: 'rgba(0,0,0,.04)', fontWeight: 800 }}>
+                      {ils(totalNet)}
+                    </td>
+                  </tr>
+
+                  {/* נטו מהוון */}
+                  {discountRate > 0 && (
+                    <tr style={{ fontWeight: 600 }}>
+                      <td className="fin-rowlabel">נטו מהוון</td>
+                      {periods.map((r, i) => (
+                        <td key={i} className={r.pvNet < 0 ? 'fin-neg' : 'fin-pos'}>{ils(r.pvNet)}</td>
+                      ))}
+                      <td className={npv < 0 ? 'fin-neg' : 'fin-pos'} style={{ background: 'rgba(0,0,0,.04)', fontWeight: 700 }}>
+                        {ils(npv)}
+                      </td>
+                    </tr>
+                  )}
+
+                  {/* יתרה מצטברת */}
+                  <tr style={{ fontWeight: 700 }}>
+                    <td className="fin-rowlabel">יתרה מצטברת</td>
+                    {periods.map((r, i) => (
+                      <td key={i} className={r.balance < 0 ? 'fin-neg' : ''}><strong>{ils(r.balance)}</strong></td>
+                    ))}
+                    <td className={endBalance < 0 ? 'fin-neg' : ''} style={{ background: 'rgba(0,0,0,.04)' }}>
+                      <strong>{ils(endBalance)}</strong>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          )}
         </>
       )}
     </section>
