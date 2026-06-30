@@ -52,24 +52,25 @@ def migrate_building_models(engine: Engine) -> None:
             conn.execute(text("ALTER TABLE building_models ADD COLUMN notes TEXT DEFAULT ''"))
         # עדכן start_year ל-2026 בכל הרשומות הקיימות (שנת התחלה = מצב נוכחי)
         conn.execute(text("UPDATE building_models SET start_year = 2026 WHERE start_year = 2025"))
-        # תיקון שגיאת הקלדה: "גן עמר 4A" → "ג'ו עמר 4A" (שם הרחוב הנכון).
-        # פרמטרים מקושרים — נמנעים מבעיית escaping של גרש בתוך מחרוזת SQLite.
-        _gamar = {"old": "גן עמר 4A", "new": "ג'ו עמר 4A", "like": "%גן עמר 4A%"}
-        conn.execute(text(
-            "UPDATE building_models SET building_name = REPLACE(building_name, :old, :new)"
-            " WHERE building_name LIKE :like"
-        ), _gamar)
-        conn.execute(text(
-            "UPDATE tenant_agreements SET building = REPLACE(building, :old, :new)"
-            " WHERE building LIKE :like"
-        ), _gamar)
-        # תיקון קיצור "שד' היובל" → "שדרות היובל" (תואם ל-projects.json שמשתמש בשם המלא)
-        conn.execute(text(
-            "UPDATE building_models SET building_name = REPLACE(building_name, 'שד׳ היובל', 'שדרות היובל')"
-            " WHERE building_name LIKE '%היובל%'"
-        ))
-        conn.execute(text(
-            "UPDATE tenant_agreements SET building = REPLACE(building, 'שד׳ היובל', 'שדרות היובל')"
-            " WHERE building LIKE '%היובל%'"
-        ))
+        # תיקוני שמות בניינים (typo/קיצור). פרמטרים מקושרים (נמנעים מ-escaping של גרש),
+        # ועמידות בפני כפילות: אם השם המתוקן כבר קיים בשורה אחרת, מוחקים את שורת ה-typo
+        # (building_models.building_name הוא UNIQUE — שינוי-שם לכפילות מפיל את האפליקציה).
+        for _old, _new, _like in [
+            ("גן עמר 4A", "ג'ו עמר 4A", "%גן עמר 4A%"),
+            ("שד׳ היובל",  "שדרות היובל", "%שד׳ היובל%"),
+        ]:
+            p = {"old": _old, "new": _new, "like": _like}
+            conn.execute(text(
+                "DELETE FROM building_models WHERE building_name LIKE :like AND EXISTS ("
+                " SELECT 1 FROM building_models b WHERE b.id <> building_models.id"
+                " AND b.building_name = REPLACE(building_models.building_name, :old, :new))"
+            ), p)
+            conn.execute(text(
+                "UPDATE building_models SET building_name = REPLACE(building_name, :old, :new)"
+                " WHERE building_name LIKE :like"
+            ), p)
+            conn.execute(text(
+                "UPDATE tenant_agreements SET building = REPLACE(building, :old, :new)"
+                " WHERE building LIKE :like"
+            ), p)
         conn.commit()
