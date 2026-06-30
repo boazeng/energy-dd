@@ -290,6 +290,7 @@ export default function Projects({ data, loading }) {
             <th>מטענים</th>
             <th>דיירים</th>
             <th>תאריך חתימה</th>
+            <th>הסכם</th>
             <th>הכנסה חודשית</th>
           </tr>
         </thead>
@@ -316,11 +317,14 @@ export default function Projects({ data, loading }) {
                   <td>{num(b.chargers_installed)}</td>
                   <td>{num(b.residents)}</td>
                   <td>{txt(b.sign_date)}</td>
+                  <td style={{ textAlign: 'center', fontWeight: 700, color: b.has_agreement ? '#22a06b' : '#e2483d' }}>
+                    {b.has_agreement === undefined ? '—' : b.has_agreement ? '✓' : '✗'}
+                  </td>
                   <td>{rev ? money(rev) : '—'}</td>
                 </tr>
                 {isOpen && (
                   <tr className="ta-detail-row">
-                    <td colSpan={9}>
+                    <td colSpan={10}>
                       <BuildingDetail b={b} chargers={bch} />
                     </td>
                   </tr>
@@ -344,6 +348,7 @@ export default function Projects({ data, loading }) {
                 <td>{num(totBuildings)}</td>
                 <td>{num(totChargers)}</td>
                 <td>{num(totResidents)}</td>
+                <td />
                 <td />
                 <td>{money(totRev)}</td>
               </tr>
