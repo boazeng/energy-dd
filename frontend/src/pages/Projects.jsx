@@ -329,6 +329,27 @@ export default function Projects({ data, loading }) {
             )
           })}
         </tbody>
+        {shown.length > 0 && (() => {
+          const totBuildings = shown.reduce((s, b) => s + (b.buildings || 0), 0)
+          const totChargers  = shown.reduce((s, b) => s + (b.chargers_installed || 0), 0)
+          const totResidents = shown.reduce((s, b) => s + (b.residents || 0), 0)
+          const totRev       = shown.reduce((s, b) => s + (b.rev_mgmt_monthly || 0) + (b.rev_elec_fee || 0), 0)
+          return (
+            <tfoot>
+              <tr style={{ fontWeight: 700, borderTop: '2px solid #c0c8d8' }}>
+                <td />
+                <td />
+                <td>סה"כ ({shown.length} פרויקטים)</td>
+                <td />
+                <td>{num(totBuildings)}</td>
+                <td>{num(totChargers)}</td>
+                <td>{num(totResidents)}</td>
+                <td />
+                <td>{money(totRev)}</td>
+              </tr>
+            </tfoot>
+          )
+        })()}
       </table>
 
       {data?.source_file && (
