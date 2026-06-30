@@ -18,7 +18,9 @@ RUN pip install --no-cache-dir -r requirements.txt tzdata
 COPY backend/app ./app
 COPY backend/shared_auth ./shared_auth
 COPY --from=frontend /frontend/dist ./static
-COPY contracts_temp/tenants_data.json ./contracts_temp/tenants_data.json
+# הערה: contracts_temp/tenants_data.json הוא gitignored (מידע דיירים, לא ב-repo),
+# לכן אין להעתיקו ל-image — ה-build נכשל אם הקובץ חסר. sync_tenants_data_sites
+# מדלג בחן כשהקובץ לא קיים. אם צריך אותו בפרודקשן — להעלות ל-volume ולקרוא משם.
 RUN mkdir -p /app/database
 
 EXPOSE 8000
