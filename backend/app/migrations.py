@@ -23,6 +23,15 @@ def migrate_building_models(engine: Engine) -> None:
             row[1]
             for row in conn.execute(text("PRAGMA table_info(building_models)"))
         }
+        # הסר עמודות legacy שהוחלפו ב-CAPEX המפורט. הן הוגדרו NOT NULL ללא default,
+        # ולכן INSERT של בניין חדש (seed) נכשל עליהן. SQLite תומך DROP COLUMN.
+        for legacy in ("charger_purchase_cost", "charger_install_cost"):
+            if legacy in existing:
+                try:
+                    conn.execute(text(f"ALTER TABLE building_models DROP COLUMN {legacy}"))
+                    existing.discard(legacy)
+                except Exception:  # noqa: BLE001 — מיגרציה best-effort
+                    pass
         for col_name, col_type, default in new_cols:
             if col_name not in existing:
                 conn.execute(text(
