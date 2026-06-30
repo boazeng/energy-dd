@@ -44,7 +44,7 @@ BUILDING_SEEDS = [
         purchase=3800, install=0,
     ),
     dict(
-        building_name="גן עמר 4A, אשדוד",
+        building_name="ג'ו עמר 4A, אשדוד",
         mgmt_fee=20, elec_rate=35, avg_kwh=150,
         purchase=0, install=750,
     ),

@@ -52,4 +52,13 @@ def migrate_building_models(engine: Engine) -> None:
             conn.execute(text("ALTER TABLE building_models ADD COLUMN notes TEXT DEFAULT ''"))
         # עדכן start_year ל-2026 בכל הרשומות הקיימות (שנת התחלה = מצב נוכחי)
         conn.execute(text("UPDATE building_models SET start_year = 2026 WHERE start_year = 2025"))
+        # תיקון שגיאת הקלדה: "גן עמר 4A" → "ג'ו עמר 4A" (שם הרחוב הנכון)
+        conn.execute(text(
+            "UPDATE building_models SET building_name = REPLACE(building_name, 'גן עמר 4A', 'ג\\'ו עמר 4A')"
+            " WHERE building_name LIKE '%גן עמר 4A%'"
+        ))
+        conn.execute(text(
+            "UPDATE tenant_agreements SET building = REPLACE(building, 'גן עמר 4A', 'ג\\'ו עמר 4A')"
+            " WHERE building LIKE '%גן עמר 4A%'"
+        ))
         conn.commit()
