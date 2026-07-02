@@ -204,6 +204,17 @@ def migrate_building_models(engine: Engine) -> None:
                     "cdy":     src["contract_duration_years"],
                 })
 
+        # עדכן current_chargers לבניינים שנוצרו מהפיצול ונשארו עם 0 (מ-tenants_data.json)
+        for _bname, _cur in [
+            ("בן גוריון 7, אשקלון",  13),
+            ("בן גוריון 9, אשקלון",   1),
+            ("גבע 2, אשקלון",        26),
+        ]:
+            conn.execute(
+                text("UPDATE building_models SET current_chargers = :c WHERE building_name = :n AND current_chargers = 0"),
+                {"c": _cur, "n": _bname},
+            )
+
         # עדכן potential_spots לבניינים אשקלון (מ-tenants_data.json — כמות דיירים)
         for _bname, _spots in [
             ("בן גוריון 7, אשקלון",  77),
