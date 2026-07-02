@@ -193,6 +193,7 @@ def combined_forecast(
         total_income = 0.0
         total_capex = 0.0
         total_opex = 0.0
+        total_maint = 0.0
         total_profit = 0.0
         bldg_map: dict[str, YearForecast] = {}
         for bm in buildings:
@@ -202,6 +203,7 @@ def combined_forecast(
                 total_income += yf.annual_income
                 total_capex += yf.capex
                 total_opex += yf.annual_opex
+                total_maint += yf.maintenance_opex
                 total_profit += yf.profit
 
         loan_repay = round(annual_loan, 2) if loan_start_year <= year <= loan_end_year else 0.0
@@ -211,6 +213,7 @@ def combined_forecast(
             total_income=round(total_income, 2),
             total_capex=round(total_capex, 2),
             total_opex=round(total_opex, 2),
+            total_maint=round(total_maint, 2),
             loan_repayment=loan_repay,
             total_profit=round(total_profit - loan_repay, 2),
         ))

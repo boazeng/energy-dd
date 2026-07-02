@@ -34,6 +34,7 @@ function expandCombined(combined, viewMode, excludedNames = new Set()) {
     total_income: Object.values(bldgs).reduce((s, b) => s + (b.annual_income || 0), 0),
     total_capex:  Object.values(bldgs).reduce((s, b) => s + (b.capex || 0), 0),
     total_opex:   Object.values(bldgs).reduce((s, b) => s + (b.annual_opex || 0), 0),
+    total_maint:  Object.values(bldgs).reduce((s, b) => s + (b.maintenance_opex || 0), 0),
   })
   if (viewMode === 'annual') {
     return combined.map((r) => {
@@ -60,20 +61,24 @@ function expandCombined(combined, viewMode, excludedNames = new Set()) {
         const inc = wSum > 0 ? (bd.annual_income || 0) * ws[i] / wSum : (bd.annual_income || 0) / n
         const cpx = (bd.capex || 0) / n
         const opx = (bd.annual_opex || 0) / n
+        const mnt = (bd.maintenance_opex || 0) / n
         buildings[name] = {
           ...bd,
-          annual_income: inc, capex: cpx, annual_opex: opx, profit: inc - cpx - opx,
+          annual_income: inc, capex: cpx, annual_opex: opx, maintenance_opex: mnt,
+          profit: inc - cpx - opx - mnt,
           chargers_added: chPerPeriod, total_chargers: prev + (i + 1) * chPerPeriod,
         }
       }
       const totalIncome = Object.values(buildings).reduce((s, b) => s + b.annual_income, 0)
       const totalCapex  = Object.values(buildings).reduce((s, b) => s + b.capex, 0)
       const totalOpex   = Object.values(buildings).reduce((s, b) => s + b.annual_opex, 0)
+      const totalMaint  = Object.values(buildings).reduce((s, b) => s + (b.maintenance_opex || 0), 0)
       const loanPer     = (row.loan_repayment || 0) / n
       out.push({
         ...row, period: label, buildings,
         total_income: totalIncome, total_capex: totalCapex, total_opex: totalOpex,
-        loan_repayment: loanPer, total_profit: totalIncome - totalCapex - totalOpex - loanPer,
+        total_maint: totalMaint,
+        loan_repayment: loanPer, total_profit: totalIncome - totalCapex - totalOpex - totalMaint - loanPer,
       })
     }
   }
@@ -398,7 +403,7 @@ export default function Cashflow({ loading: parentLoading, horizonMode = 'contra
       const overheadByItem = overheadItems.map(o => (Number(o.annual) || 0) / n)
       const adaptationPer = p.year === 2026 ? totalAdaptation2026 / n : 0
       const loan          = p.loan_repayment || 0
-      const netOperating  = p.total_income - p.total_capex - p.total_opex - overheadPer - adaptationPer
+      const netOperating  = p.total_income - p.total_capex - p.total_opex - (p.total_maint || 0) - overheadPer - adaptationPer
       const net           = netOperating - loan
       bal += net
       const t        = idx / n

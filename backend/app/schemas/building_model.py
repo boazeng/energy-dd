@@ -130,5 +130,6 @@ class CombinedForecastYear(BaseModel):
     total_income: float
     total_capex: float
     total_opex: float
+    total_maint: float = 0
     loan_repayment: float = 0
     total_profit: float
