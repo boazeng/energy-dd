@@ -43,6 +43,7 @@ export default function App() {
     const s = localStorage.getItem('energy-horizon-mode')
     return ['5yr', 'contract', '10yr'].includes(s) ? s : 'contract'
   })
+  const [agreementVersion, setAgreementVersion] = useState(0)
   const [excludedIds, setExcludedIds] = useState(() => {
     try { return new Set(JSON.parse(localStorage.getItem('energy-excluded') || '[]')) } catch { return new Set() }
   })
@@ -130,8 +131,8 @@ export default function App() {
             onSupplierChange={refreshSuppliers}
           />
         )}
-        {tab === 'cashflow' && <Cashflow loading={loading} horizonMode={horizonMode} excludedIds={excludedIds} />}
-        {tab === 'building-cashflow' && <BuildingCashflow loading={loading} horizonMode={horizonMode} onHorizonChange={(m) => { setHorizonMode(m); localStorage.setItem('energy-horizon-mode', m) }} excludedIds={excludedIds} onExcludedChange={changeExcludedIds} />}
+        {tab === 'cashflow' && <Cashflow loading={loading} horizonMode={horizonMode} excludedIds={excludedIds} agreementVersion={agreementVersion} />}
+        {tab === 'building-cashflow' && <BuildingCashflow loading={loading} horizonMode={horizonMode} onHorizonChange={(m) => { setHorizonMode(m); localStorage.setItem('energy-horizon-mode', m) }} excludedIds={excludedIds} onExcludedChange={changeExcludedIds} agreementVersion={agreementVersion} />}
         {tab === 'tasks' && (
           <Tasks
             tasks={tasks}
@@ -140,7 +141,7 @@ export default function App() {
           />
         )}
         {tab === 'agreements' && (
-          <TenantAgreements agreements={agreements} loading={loading} />
+          <TenantAgreements agreements={agreements} loading={loading} onSave={() => setAgreementVersion((v) => v + 1)} />
         )}
       </main>
 

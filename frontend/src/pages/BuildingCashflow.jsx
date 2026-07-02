@@ -643,7 +643,7 @@ function CombinedTable({ combined, buildings, overheadExpenses = [], excludedIds
 
 // ─── קומפוננט ראשי ───────────────────────────────────────────────────────────
 
-export default function BuildingCashflow({ loading: appLoading, horizonMode = 'contract', onHorizonChange, excludedIds = new Set(), onExcludedChange }) {
+export default function BuildingCashflow({ loading: appLoading, horizonMode = 'contract', onHorizonChange, excludedIds = new Set(), onExcludedChange, agreementVersion = 0 }) {
   const [buildings, setBuildings] = useState([])
   const [selectedId, setSelectedId] = useState(null)
   const [forecast, setForecast] = useState(null)
@@ -779,7 +779,7 @@ export default function BuildingCashflow({ loading: appLoading, horizonMode = 'c
     }
   }
 
-  useEffect(() => { load() }, [horizonMode])
+  useEffect(() => { load() }, [horizonMode, agreementVersion])
 
   useEffect(() => {
     if (selectedId == null) { setForecast(null); return }

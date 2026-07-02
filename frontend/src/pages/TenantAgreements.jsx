@@ -68,7 +68,7 @@ function initialOpen() {
   return v ? Number(v) : null
 }
 
-export default function TenantAgreements({ agreements, loading }) {
+export default function TenantAgreements({ agreements, loading, onSave }) {
   const [open, setOpen]                   = useState(initialOpen)
   const [localAgreements, setLocal]       = useState(agreements)
   const [editing, setEditing]             = useState(null)  // { id, field, value }
@@ -92,6 +92,7 @@ export default function TenantAgreements({ agreements, loading }) {
       setLocal((prev) => prev.map((a) => a.id === id ? { ...a, [field]: value } : a))
       setSavedFlash(id)
       setTimeout(() => setSavedFlash((f) => f === id ? null : f), 1800)
+      onSave?.()
     } catch (e) {
       console.error('שגיאה בשמירה', e)
     } finally {
