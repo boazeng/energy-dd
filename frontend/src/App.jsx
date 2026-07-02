@@ -12,7 +12,6 @@ import BuildingCashflow from './pages/BuildingCashflow.jsx'
 import { api } from './api/client.js'
 
 const TABS = [
-  { key: 'home', label: 'בית', icon: 'dashboard' },
   { key: 'projects', label: 'סטטוס פרויקטים', icon: 'bolt' },
   { key: 'financials', label: 'ניתוח כספי', icon: 'reports' },
   { key: 'cashflow', label: 'תזרים', icon: 'trending' },
@@ -25,7 +24,7 @@ const VALID_TABS = TABS.map((t) => t.key)
 
 function initialTab() {
   const t = new URLSearchParams(window.location.search).get('tab')
-  return VALID_TABS.includes(t) ? t : 'home'
+  return VALID_TABS.includes(t) ? t : 'projects'
 }
 
 export default function App() {
