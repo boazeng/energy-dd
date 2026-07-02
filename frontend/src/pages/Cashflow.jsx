@@ -421,7 +421,8 @@ export default function Cashflow({ loading: parentLoading, horizonMode = 'contra
         period: p.period,
         income: p.total_income,
         capex:  p.total_capex,
-        opex:   p.total_opex + (p.total_maint || 0),
+        opex:   p.total_opex,
+        maint:  p.total_maint || 0,
         loan, overhead: overheadPer, overheadByItem, adaptation: adaptationPer,
         loanInterest, loanPrincipal,
         netOperating, netMinusInterest, net, balance: bal,
@@ -434,12 +435,13 @@ export default function Cashflow({ loading: parentLoading, horizonMode = 'contra
   const chartData          = periods.map((r) => ({
     period: r.period,
     הכנסות: r.income,
-    הוצאות: r.capex + r.opex + r.overhead + r.adaptation + (includeLoan ? r.loan : 0),
+    הוצאות: r.capex + r.opex + r.maint + r.overhead + r.adaptation + (includeLoan ? r.loan : 0),
     רווח:   includeLoan ? r.net : r.netOperating,
   }))
   const totalIncome        = periods.reduce((s, r) => s + r.income, 0)
   const totalCapex         = periods.reduce((s, r) => s + r.capex, 0)
   const totalOpex          = periods.reduce((s, r) => s + r.opex, 0)
+  const totalMaint         = periods.reduce((s, r) => s + r.maint, 0)
   const totalOverhead      = periods.reduce((s, r) => s + r.overhead, 0)
   const totalAdaptation    = periods.reduce((s, r) => s + r.adaptation, 0)
   const totalLoan          = periods.reduce((s, r) => s + r.loan, 0)
@@ -619,13 +621,23 @@ export default function Cashflow({ loading: parentLoading, horizonMode = 'contra
                   </tr>
 
                   <tr>
-                    <td className="fin-rowlabel">עלות תחזוקה שוטפת למטענים</td>
+                    <td className="fin-rowlabel">עלות חד פעמית להתאמת מטענים</td>
                     {periods.map((r, i) => (
                       <td key={i} className={r.opex > 0 ? 'fin-neg' : ''} style={{ color: r.opex > 0 ? undefined : '#bbb' }}>
                         {r.opex > 0 ? ils(r.opex) : '—'}
                       </td>
                     ))}
                     <td className="fin-neg" style={{ background: 'rgba(0,0,0,.04)', fontWeight: 700 }}>{ils(totalOpex)}</td>
+                  </tr>
+
+                  <tr>
+                    <td className="fin-rowlabel">עלות תחזוקה שוטפת למטענים</td>
+                    {periods.map((r, i) => (
+                      <td key={i} className={r.maint > 0 ? 'fin-neg' : ''} style={{ color: r.maint > 0 ? undefined : '#bbb' }}>
+                        {r.maint > 0 ? ils(r.maint) : '—'}
+                      </td>
+                    ))}
+                    <td className="fin-neg" style={{ background: 'rgba(0,0,0,.04)', fontWeight: 700 }}>{ils(totalMaint)}</td>
                   </tr>
 
                   {overheadItems.map((item, itemIdx) => {
