@@ -41,22 +41,22 @@ BUILDING_SEEDS = [
     dict(
         building_name="בן גוריון 7, אשקלון",
         mgmt_fee=50, elec_rate=30, avg_kwh=150,
-        purchase=3800, install=0,
+        purchase=3800, install=0, potential=77,
     ),
     dict(
         building_name="בן גוריון 9, אשקלון",
         mgmt_fee=50, elec_rate=30, avg_kwh=150,
-        purchase=3800, install=0,
+        purchase=3800, install=0, potential=65,
     ),
     dict(
         building_name="גבע 2, אשקלון",
         mgmt_fee=50, elec_rate=30, avg_kwh=150,
-        purchase=3800, install=0,
+        purchase=3800, install=0, potential=390,
     ),
     dict(
         building_name="אשתאול 1, אשקלון",
         mgmt_fee=50, elec_rate=30, avg_kwh=150,
-        purchase=3800, install=0,
+        purchase=3800, install=0, potential=65,
     ),
     dict(
         building_name="קין קאורין 9, אשקלון",
@@ -500,7 +500,7 @@ def seed_building_models(db: Session) -> int:
         db.add(BuildingModel(
             building_name=b["building_name"],
             current_chargers=0,
-            potential_spots=0,
+            potential_spots=b.get("potential", 0),
             annual_growth_rate=10.0,
             mgmt_fee_per_charger=b["mgmt_fee"],
             electricity_rate_agorot=b["elec_rate"],

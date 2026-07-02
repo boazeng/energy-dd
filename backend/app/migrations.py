@@ -204,6 +204,17 @@ def migrate_building_models(engine: Engine) -> None:
                     "cdy":     src["contract_duration_years"],
                 })
 
+        # עדכן potential_spots לבניינים אשקלון שחסר להם נתון (מ-tenants_data.json)
+        for _bname, _spots in [
+            ("בן גוריון 7, אשקלון",  77),
+            ("בן גוריון 9, אשקלון",  65),
+            ("אשתאול 1, אשקלון",     65),
+        ]:
+            conn.execute(
+                text("UPDATE building_models SET potential_spots = :s WHERE building_name = :n AND potential_spots = 0"),
+                {"s": _spots, "n": _bname},
+            )
+
         # הוסף בניינים SLS Sails אם חסרים — מודל חלוקת הכנסות (55% SER)
         for _sls_name in ("סטאר סנטר אשדוד", "ארנה נהריה"):
             if not conn.execute(
