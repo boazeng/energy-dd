@@ -63,6 +63,17 @@ BUILDING_SEEDS = [
         mgmt_fee=50, elec_rate=30, avg_kwh=150,
         purchase=3800, install=0,
     ),
+    # SLS Sails — מודל חלוקת הכנסות (55% SER); elec_rate=0 — לעדכן ע"פ תעריף גביה בפועל
+    dict(
+        building_name="סטאר סנטר אשדוד",
+        mgmt_fee=0, elec_rate=0, avg_kwh=200,
+        purchase=0, install=0,
+    ),
+    dict(
+        building_name="ארנה נהריה",
+        mgmt_fee=0, elec_rate=0, avg_kwh=200,
+        purchase=0, install=0,
+    ),
     dict(
         building_name="ג'ו עמר 4A, אשדוד",
         mgmt_fee=20, elec_rate=35, avg_kwh=150,

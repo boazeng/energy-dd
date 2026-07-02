@@ -454,6 +454,56 @@ CONTRACTS = [
         status="confirmed",
     ),
     dict(
+        tenant_name='אס.אל.אס מפרשים בע"מ (S.L.S Sails Ltd.), ח.פ. 512821133',
+        building="סטאר סנטר אשדוד",
+        address="מתחם הסטאר סנטר, אשדוד",
+        units="4 עמדות בשלב ראשון",
+        term="10 שנים (2×5) — נחתם 26/08/2022",
+        payment="הנכס מקבל 45% מהכנסות חשמל AC (SER שומר 55%); ניכוי 15₪/עמדה/חודש תוכנה בשנתיים הראשונות",
+        pricing_model='חלוקת הכנסות: 55% לSER / 45% לנכס (AC); 45% לSER / 55% לנכס (DC) — תמחור ע"י SER',
+        termination="הודעה 60 ימים מראש; אופציה 2×5 שנים",
+        summary='הסכם 10 שנים שנחתם אוגוסט 2022 — מודל חלוקת הכנסות (לא עמלה קבועה). SER גובה מהמשתמשים ומשלם לנכס 45% מהכנסות חשמל AC. הנכס (SLS) משלם חח"י ישירות. ניכוי 15₪/עמדה/חודש תוכנה בשנתיים הראשונות. SER מתקין על חשבונו.',
+        flags='מודל חלוקת הכנסות — לא עמלה קבועה,SER גובה מהמשתמשים,הנכס משלם חח"י ישירות,ביטול 60 ימים,SER מתקין על חשבונו',
+        details_json=d([
+            {"title": "מודל הכנסה", "content": "AC: SER שומר 55%, הנכס מקבל 45% מהכנסות חשמל; DC: SER שומר 45%, הנכס מקבל 55%"},
+            {"title": "עמדות ראשוניות", "content": "4 עמדות 22AC בשלב ראשון; ניתן להוסיף"},
+            {"title": "ניכוי תוכנה", "content": "15₪/עמדה/חודש — בשנתיים הראשונות בלבד"},
+            {"title": "עלות עמדה", "content": 'ע"ח SER (היזם)'},
+            {"title": "תשלום חשמל", "content": "הלקוח (SLS) משלם לחח\"י ישירות"},
+            {"title": "אחריות ותחזוקה", "content": "SER מנהל ומתחזק; טיפול בתקלה תוך 72 שעות"},
+        ]),
+        charger_cost='ע"ח SER',
+        notes="",
+        source_file="חוזה SLS - חתום.pdf",
+        source_url=SP_FOLDER,
+        status="confirmed",
+    ),
+    dict(
+        tenant_name='אס.אל.אס מפרשים בע"מ (S.L.S Sails Ltd.), ח.פ. 512821133',
+        building="ארנה נהריה",
+        address="קניון ארנה, נהריה",
+        units="4 עמדות בשלב ראשון",
+        term="10 שנים (2×5) — נחתם 26/08/2022",
+        payment="הנכס מקבל 45% מהכנסות חשמל AC (SER שומר 55%); ניכוי 15₪/עמדה/חודש תוכנה בשנתיים הראשונות",
+        pricing_model='חלוקת הכנסות: 55% לSER / 45% לנכס (AC); 45% לSER / 55% לנכס (DC) — תמחור ע"י SER',
+        termination="הודעה 60 ימים מראש; אופציה 2×5 שנים",
+        summary='הסכם 10 שנים שנחתם אוגוסט 2022 — מודל חלוקת הכנסות (לא עמלה קבועה). SER גובה מהמשתמשים ומשלם לנכס 45% מהכנסות חשמל AC. הנכס (SLS) משלם חח"י ישירות. ניכוי 15₪/עמדה/חודש תוכנה בשנתיים הראשונות. SER מתקין על חשבונו.',
+        flags='מודל חלוקת הכנסות — לא עמלה קבועה,SER גובה מהמשתמשים,הנכס משלם חח"י ישירות,ביטול 60 ימים,SER מתקין על חשבונו',
+        details_json=d([
+            {"title": "מודל הכנסה", "content": "AC: SER שומר 55%, הנכס מקבל 45% מהכנסות חשמל; DC: SER שומר 45%, הנכס מקבל 55%"},
+            {"title": "עמדות ראשוניות", "content": "4 עמדות 22AC בשלב ראשון; ניתן להוסיף"},
+            {"title": "ניכוי תוכנה", "content": "15₪/עמדה/חודש — בשנתיים הראשונות בלבד"},
+            {"title": "עלות עמדה", "content": 'ע"ח SER (היזם)'},
+            {"title": "תשלום חשמל", "content": "הלקוח (SLS) משלם לחח\"י ישירות"},
+            {"title": "אחריות ותחזוקה", "content": "SER מנהל ומתחזק; טיפול בתקלה תוך 72 שעות"},
+        ]),
+        charger_cost='ע"ח SER',
+        notes="",
+        source_file="חוזה SLS - חתום.pdf",
+        source_url=SP_FOLDER,
+        status="confirmed",
+    ),
+    dict(
         tenant_name="שי דקל ת.ז. 033021312; סוזי ספיבק ת.ז. 307293647",
         building="תפוז 13, אשדוד",
         address="תפוז 13, אשדוד",
@@ -487,11 +537,13 @@ def seed_contracts(db: Session) -> int:
         db.commit()
         return len(CONTRACTS)
 
-    # טבלה קיימת — עדכן שדות שנוספו לאחר ה-seed הראשוני
-    updated = 0
+    # טבלה קיימת — הוסף חוזים חדשים שאינם קיימים; עדכן שדות שנוספו
+    added = updated = 0
     for c in CONTRACTS:
         row = db.scalar(select(TenantAgreement).where(TenantAgreement.building == c["building"]))
         if row is None:
+            db.add(TenantAgreement(**c))
+            added += 1
             continue
         changed = False
         if not row.charger_cost and c.get("charger_cost"):
@@ -502,6 +554,6 @@ def seed_contracts(db: Session) -> int:
             changed = True
         if changed:
             updated += 1
-    if updated:
+    if added or updated:
         db.commit()
-    return 0
+    return added

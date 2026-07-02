@@ -202,4 +202,35 @@ def migrate_building_models(engine: Engine) -> None:
                     "cdy":     src["contract_duration_years"],
                 })
 
+        # הוסף בניינים SLS Sails אם חסרים — מודל חלוקת הכנסות (55% SER)
+        for _sls_name in ("סטאר סנטר אשדוד", "ארנה נהריה"):
+            if not conn.execute(
+                text("SELECT id FROM building_models WHERE building_name = :n"), {"n": _sls_name}
+            ).fetchone():
+                conn.execute(text("""
+                    INSERT INTO building_models (
+                        building_name, current_chargers, potential_spots,
+                        annual_growth_rate, mgmt_fee_per_charger, electricity_rate_agorot,
+                        avg_kwh_per_charger_monthly, subscription_fee_per_charger,
+                        cost_charger_unit, cost_infra_per_charger, cost_install_per_charger,
+                        cost_elec_panel, cost_comm_panel, chargers_per_panel,
+                        chargers_no_rcd, cost_rcd_per_charger, cost_internet_per_charger,
+                        cost_inspector_per_charger, charger_install_income, extra_costs,
+                        start_year, forecast_years, contract_start_year, contract_duration_years,
+                        notes, created_at, updated_at
+                    ) VALUES (
+                        :name, 0, 0,
+                        10, 0, 0,
+                        200, 0,
+                        800, 1200, 1300,
+                        6000, 1000, 10,
+                        0, 300, 400, 250,
+                        0, '[]',
+                        2026, 5, 2022, 10,
+                        '',
+                        strftime('%Y-%m-%d %H:%M:%S', 'now'),
+                        strftime('%Y-%m-%d %H:%M:%S', 'now')
+                    )
+                """), {"name": _sls_name})
+
         conn.commit()
