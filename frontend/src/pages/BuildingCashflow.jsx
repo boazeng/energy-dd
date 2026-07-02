@@ -121,10 +121,9 @@ const CAPEX_FIELDS = [
 
 // שדות גלובליים — OPEX (עלויות זהות לכל הבניינים)
 const GLOBAL_OPEX_FIELDS = [
-  { key: 'cost_rcd_per_charger',            label: 'עלות פחת חסר',    unit: '₪/שנה', step: 10, type: 'float' },
-  { key: 'cost_internet_per_charger',       label: 'עלות אינטרנט',    unit: '₪/שנה', step: 10, type: 'float' },
-  { key: 'cost_inspector_per_charger',      label: 'עלות אישור בודק', unit: '₪/שנה', step: 10, type: 'float' },
-  { key: 'cost_maintenance_per_charger',    label: 'עלות תחזוקה',     unit: '₪/שנה', step: 50, type: 'float' },
+  { key: 'cost_rcd_per_charger',       label: 'עלות פחת חסר',    unit: '₪/שנה', step: 10, type: 'float' },
+  { key: 'cost_internet_per_charger',  label: 'עלות אינטרנט',    unit: '₪/שנה', step: 10, type: 'float' },
+  { key: 'cost_inspector_per_charger', label: 'עלות אישור בודק', unit: '₪/שנה', step: 10, type: 'float' },
 ]
 
 function monthlyIncome(bm) {
@@ -562,6 +561,12 @@ function CombinedTable({ combined, buildings, overheadExpenses = [], excludedIds
   const overheadPerPeriod = overheadPerYear / n
   const totalOverhead = overheadPerYear * years.length
 
+  const maintenanceByPeriod = periods.map((p) =>
+    includedBuildings.reduce((s, b) => s + (p.buildings[b.building_name]?.maintenance_opex || 0), 0)
+  )
+  const totalMaintenanceAll = combined.reduce((s, r) =>
+    s + includedBuildings.reduce((ss, b) => ss + (r.buildings[b.building_name]?.maintenance_opex || 0), 0), 0)
+
   const ft = { fontSize: 12, fontWeight: 700 }
   const cell = { verticalAlign: 'top', paddingTop: 6, paddingBottom: 6 }
   const monthly = viewMode === 'monthly'
@@ -626,6 +631,20 @@ function CombinedTable({ combined, buildings, overheadExpenses = [], excludedIds
               {ils(totalProfit)}
             </td>
           </tr>
+
+          {totalMaintenanceAll > 0 && (
+            <tr style={{ background: 'rgba(162,155,254,.07)' }}>
+              <td style={{ textAlign: 'right', ...ft }}>עלות תחזוקה</td>
+              {maintenanceByPeriod.map((m, idx) => (
+                <td key={idx} style={{ textAlign: 'left', fontSize: 11, color: 'var(--tact-red,#e74c3c)', fontWeight: 600 }}>
+                  {ils(-m)}
+                </td>
+              ))}
+              <td style={{ textAlign: 'left', ...ft, color: 'var(--tact-red,#e74c3c)', background: 'rgba(162,155,254,.15)' }}>
+                {ils(-totalMaintenanceAll)}
+              </td>
+            </tr>
+          )}
 
           {overheadExpenses.map((item) => {
             const itemPerPeriod = (item.annual_amount || 0) / n
@@ -1038,6 +1057,35 @@ export default function BuildingCashflow({ loading: appLoading, horizonMode = 'c
                     onClick={() => saveOverhead([...overheadExpenses, { id: Date.now(), name: '', annual_amount: 0 }])}
                   >+ הוסף</button>
                 </div>
+
+                {/* בלוק עלות תחזוקה שנתית */}
+                {(() => {
+                  const rate = globalRates.cost_maintenance_per_charger ?? 500
+                  const totalChargers = buildings.filter((b) => !excludedIds.has(b.id))
+                    .reduce((s, b) => s + (b.current_chargers || 0), 0)
+                  const totalMaint = totalChargers * rate
+                  return (
+                    <div style={{
+                      padding: '8px 10px', marginBottom: 12,
+                      background: 'rgba(162,155,254,.1)',
+                      border: '1px solid rgba(162,155,254,.25)',
+                      borderRadius: 7,
+                    }}>
+                      <label style={{ ...fRow, marginBottom: totalChargers > 0 ? 4 : 0 }}>
+                        <span style={{ ...fDim }}>תחזוקה שנתית:</span>
+                        {numInp(rate, 50, 72, (e) => applyGlobalRateField('cost_maintenance_per_charger', e.target.value))}
+                        {unit('₪/מטען')}
+                      </label>
+                      {totalChargers > 0 && (
+                        <div style={{ fontSize: 11, color: 'var(--tact-text-dim,#aaa)' }}>
+                          {totalChargers} מטענים · סה"כ:{' '}
+                          <strong style={{ color: 'var(--tact-red,#e74c3c)' }}>{ils(-totalMaint)}/שנה</strong>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })()}
+
                 {overheadExpenses.length === 0 && (
                   <div style={{ fontSize: 12, color: 'var(--tact-text-dim,#aaa)' }}>אין הוצאות תקורה</div>
                 )}
