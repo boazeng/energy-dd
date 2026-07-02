@@ -328,7 +328,7 @@ export default function Cashflow({ loading: parentLoading, horizonMode = 'contra
   const timers = useRef({})
 
   useEffect(() => {
-    const fy = horizonMode === '5yr' ? 5 : horizonMode === '10yr' ? 10 : undefined
+    const fy = horizonMode === 'contract' ? undefined : parseInt(horizonMode)
     Promise.all([api.getCashflow(), api.getCombinedForecast(fy), api.listBuildingModels()])
       .then(([cf, forecast, bms]) => {
         if (cf.loan) setLoan(cf.loan)

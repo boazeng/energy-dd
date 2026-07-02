@@ -785,7 +785,7 @@ export default function BuildingCashflow({ loading: appLoading, horizonMode = 'c
   }
 
   async function load() {
-    const fy = horizonMode === '5yr' ? 5 : horizonMode === '10yr' ? 10 : undefined
+    const fy = horizonMode === 'contract' ? undefined : parseInt(horizonMode)
     setLoading(true)
     try {
       const [bms, comb] = await Promise.all([
@@ -823,12 +823,12 @@ export default function BuildingCashflow({ loading: appLoading, horizonMode = 'c
 
   useEffect(() => {
     if (selectedId == null) { setForecast(null); return }
-    const fy = horizonMode === '5yr' ? 5 : horizonMode === '10yr' ? 10 : undefined
+    const fy = horizonMode === 'contract' ? undefined : parseInt(horizonMode)
     api.getBuildingForecast(selectedId, fy).then(setForecast).catch(() => setForecast(null))
   }, [selectedId, horizonMode])
 
   async function handleRefresh() {
-    const fy = horizonMode === '5yr' ? 5 : horizonMode === '10yr' ? 10 : undefined
+    const fy = horizonMode === 'contract' ? undefined : parseInt(horizonMode)
     const [bms, comb] = await Promise.all([
       api.listBuildingModels(),
       api.getCombinedForecast(fy),
@@ -885,22 +885,22 @@ export default function BuildingCashflow({ loading: appLoading, horizonMode = 'c
           <span style={{ marginInlineStart: 4 }}>הוסף בניין</span>
         </button>
         <div style={{ marginInlineStart: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}>
-          {/* toggle אופק תחזית */}
-          <div style={{ display: 'flex', gap: 2, background: 'rgba(255,255,255,.06)', borderRadius: 7, padding: 3 }}>
-            {[['5yr','5 שנים'],['contract','לפי הסכם'],['10yr','10 שנים']].map(([mode, label]) => (
-              <button
-                key={mode}
-                onClick={() => onHorizonChange(mode)}
-                style={{
-                  padding: '4px 12px', fontSize: 12, fontWeight: 600, borderRadius: 5,
-                  border: 'none', cursor: 'pointer',
-                  background: horizonMode === mode ? 'var(--tact-accent,#6c8ebf)' : 'transparent',
-                  color: horizonMode === mode ? '#fff' : 'var(--tact-text-dim,#888)',
-                  transition: 'all .15s',
-                }}
-              >{label}</button>
+          {/* בחירת אופק תחזית */}
+          <select
+            value={horizonMode}
+            onChange={(e) => onHorizonChange(e.target.value)}
+            style={{
+              padding: '4px 10px', fontSize: 12, fontWeight: 600, borderRadius: 6,
+              border: '1.5px solid rgba(255,255,255,.18)', cursor: 'pointer',
+              background: 'rgba(255,255,255,.06)', color: 'var(--tact-text,#e0e0e0)',
+              outline: 'none', direction: 'rtl',
+            }}
+          >
+            <option value="contract">לפי הסכם</option>
+            {[5,6,7,8,9,10].map(y => (
+              <option key={y} value={String(y)}>{y} שנים</option>
             ))}
-          </div>
+          </select>
           <div style={{ width: 1, height: 22, background: 'rgba(255,255,255,.12)' }} />
           {/* toggle תקופת תצוגה */}
           {[['annual','שנתי'],['quarterly','רבעוני'],['monthly','חודשי']].map(([mode, label]) => (

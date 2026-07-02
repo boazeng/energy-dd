@@ -41,7 +41,12 @@ export default function App() {
   const [error, setError] = useState('')
   const [horizonMode, setHorizonMode] = useState(() => {
     const s = localStorage.getItem('energy-horizon-mode')
-    return ['5yr', 'contract', '10yr'].includes(s) ? s : 'contract'
+    if (s === 'contract') return 'contract'
+    if (s === '5yr') return '5'
+    if (s === '10yr') return '10'
+    const n = parseInt(s)
+    if (n >= 5 && n <= 10) return String(n)
+    return 'contract'
   })
   const [agreementVersion, setAgreementVersion] = useState(0)
   const [excludedIds, setExcludedIds] = useState(() => {
