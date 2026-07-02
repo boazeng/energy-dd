@@ -54,6 +54,17 @@ def migrate_building_models(engine: Engine) -> None:
             conn.execute(text("ALTER TABLE building_models ADD COLUMN notes TEXT DEFAULT ''"))
         if "hi_group" not in existing:
             conn.execute(text("ALTER TABLE building_models ADD COLUMN hi_group TEXT NULL"))
+        # קבוצת HI GROUP — 4 בניינים אשקלון תחת הסכם אחד
+        for _bname in [
+            "בן גוריון 7, אשקלון",
+            "בן גוריון 9, אשקלון",
+            "אשתאול 1, אשקלון",
+            "גבע 2, אשקלון",
+        ]:
+            conn.execute(
+                text("UPDATE building_models SET hi_group = 'HI GROUP' WHERE building_name = :n AND (hi_group IS NULL OR hi_group = '')"),
+                {"n": _bname},
+            )
         # עדכן start_year ל-2026 בכל הרשומות הקיימות (שנת התחלה = מצב נוכחי)
         conn.execute(text("UPDATE building_models SET start_year = 2026 WHERE start_year = 2025"))
         # תיקוני שמות בניינים (typo/קיצור). פרמטרים מקושרים (נמנעים מ-escaping של גרש),

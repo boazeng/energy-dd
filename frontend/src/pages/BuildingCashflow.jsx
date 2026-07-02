@@ -444,20 +444,6 @@ function BuildingSettings({ bm, globals, onChange }) {
         )}
       </div>
 
-      {/* ─── קבוצת ריכוז ─── */}
-      <div className="settings-section-title" style={{ marginTop: 16 }}>קבוצת ריכוז</div>
-      <label className="setting-row">
-        <span className="setting-label">שם הקבוצה</span>
-        <input
-          type="text"
-          className="tact-input"
-          style={{ flex: 1, fontSize: 12 }}
-          placeholder="ריק = בניין בודד"
-          value={local.hi_group || ''}
-          onChange={(e) => handleHiGroup(e.target.value)}
-        />
-      </label>
-
       <div className="income-summary" style={{ marginTop: 14 }}>
         <div style={{ fontSize: 12, color: 'var(--tact-text-dim,#aaa)', marginBottom: 4 }}>
           הכנסה חודשית למטען:
