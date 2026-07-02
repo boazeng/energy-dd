@@ -204,14 +204,15 @@ def migrate_building_models(engine: Engine) -> None:
                     "cdy":     src["contract_duration_years"],
                 })
 
-        # עדכן potential_spots לבניינים אשקלון שחסר להם נתון (מ-tenants_data.json)
+        # עדכן potential_spots לבניינים אשקלון (מ-tenants_data.json — כמות דיירים)
         for _bname, _spots in [
             ("בן גוריון 7, אשקלון",  77),
             ("בן גוריון 9, אשקלון",  65),
             ("אשתאול 1, אשקלון",     65),
+            ("גבע 2, אשקלון",        77),
         ]:
             conn.execute(
-                text("UPDATE building_models SET potential_spots = :s WHERE building_name = :n AND potential_spots = 0"),
+                text("UPDATE building_models SET potential_spots = :s WHERE building_name = :n"),
                 {"s": _spots, "n": _bname},
             )
 
