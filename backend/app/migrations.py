@@ -75,4 +75,72 @@ def migrate_building_models(engine: Engine) -> None:
             ), p)
         # מחק בניינים שסומנו "חסר הסכם" — נוספו אוטומטית ואינם רלוונטיים לתזרים
         conn.execute(text("DELETE FROM building_models WHERE notes LIKE '%חסר הסכם%'"))
+
+        # פיצול הסכם מרוכז ל-4 בניינים נפרדים
+        _COMBINED = "בן גוריון 7 + גבע 2 + אשתאול 1 + קין קאורין 9, אשקלון"
+        _SUBS = [
+            "בן גוריון 7, אשקלון",
+            "גבע 2, אשקלון",
+            "אשתאול 1, אשקלון",
+            "קין קאורין 9, אשקלון",
+        ]
+        row = conn.execute(
+            text("SELECT * FROM building_models WHERE building_name = :n"),
+            {"n": _COMBINED},
+        ).mappings().fetchone()
+        if row:
+            for sub in _SUBS:
+                already = conn.execute(
+                    text("SELECT id FROM building_models WHERE building_name = :n"), {"n": sub}
+                ).fetchone()
+                if not already:
+                    conn.execute(text("""
+                        INSERT INTO building_models (
+                            building_name, current_chargers, potential_spots,
+                            annual_growth_rate, mgmt_fee_per_charger, electricity_rate_agorot,
+                            avg_kwh_per_charger_monthly, subscription_fee_per_charger,
+                            cost_charger_unit, cost_infra_per_charger, cost_install_per_charger,
+                            cost_elec_panel, cost_comm_panel, chargers_per_panel,
+                            chargers_no_rcd, cost_rcd_per_charger, cost_internet_per_charger,
+                            cost_inspector_per_charger, charger_install_income, extra_costs,
+                            start_year, forecast_years, contract_start_year, contract_duration_years,
+                            notes
+                        ) VALUES (
+                            :name, 0, 0,
+                            :agr, :mgmt, :elec,
+                            :kwh, :sub_fee,
+                            :cu, :infra, :inst,
+                            :ep, :cp, :cpp,
+                            0, :rcd, :inet, :insp,
+                            :cii, :ec,
+                            :sy, :fy, :csy, :cdy, ''
+                        )
+                    """), {
+                        "name": sub,
+                        "agr":     row["annual_growth_rate"],
+                        "mgmt":    row["mgmt_fee_per_charger"],
+                        "elec":    row["electricity_rate_agorot"],
+                        "kwh":     row["avg_kwh_per_charger_monthly"],
+                        "sub_fee": row["subscription_fee_per_charger"],
+                        "cu":      row["cost_charger_unit"],
+                        "infra":   row["cost_infra_per_charger"],
+                        "inst":    row["cost_install_per_charger"],
+                        "ep":      row["cost_elec_panel"],
+                        "cp":      row["cost_comm_panel"],
+                        "cpp":     row["chargers_per_panel"],
+                        "rcd":     row["cost_rcd_per_charger"],
+                        "inet":    row["cost_internet_per_charger"],
+                        "insp":    row["cost_inspector_per_charger"],
+                        "cii":     row["charger_install_income"],
+                        "ec":      row["extra_costs"] or "[]",
+                        "sy":      row["start_year"],
+                        "fy":      row["forecast_years"],
+                        "csy":     row["contract_start_year"],
+                        "cdy":     row["contract_duration_years"],
+                    })
+            conn.execute(
+                text("DELETE FROM building_models WHERE building_name = :n"),
+                {"n": _COMBINED},
+            )
+
         conn.commit()

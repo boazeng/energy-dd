@@ -39,7 +39,22 @@ BUILDING_SEEDS = [
         purchase=4400, install=0,
     ),
     dict(
-        building_name="בן גוריון 7 + גבע 2 + אשתאול 1 + קין קאורין 9, אשקלון",
+        building_name="בן גוריון 7, אשקלון",
+        mgmt_fee=50, elec_rate=30, avg_kwh=150,
+        purchase=3800, install=0,
+    ),
+    dict(
+        building_name="גבע 2, אשקלון",
+        mgmt_fee=50, elec_rate=30, avg_kwh=150,
+        purchase=3800, install=0,
+    ),
+    dict(
+        building_name="אשתאול 1, אשקלון",
+        mgmt_fee=50, elec_rate=30, avg_kwh=150,
+        purchase=3800, install=0,
+    ),
+    dict(
+        building_name="קין קאורין 9, אשקלון",
         mgmt_fee=50, elec_rate=30, avg_kwh=150,
         purchase=3800, install=0,
     ),
