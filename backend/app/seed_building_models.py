@@ -282,12 +282,12 @@ def sync_mgmt_fee_and_elec_rate(db: Session) -> int:
 
 
 def _parse_contract_term(term: str) -> tuple[int | None, int | None]:
-    """מחלץ (שנת_תחילה, משך_שנים) מטקסט כמו '10 שנים (2×5) — נחתם 16/10/2025'."""
+    """מחלץ (שנת_תחילה, משך_שנים) מטקסט כמו '10 שנים (2×5) — נחתם 16/10/2025' או '20 שנה'."""
     if not term:
         return None, None
 
-    # משך: המספר הראשון לפני "שנים"
-    m_dur = re.search(r'(\d+)\s*שנים', term)
+    # משך: המספר הראשון לפני "שנה" / "שנים" / "שנות"
+    m_dur = re.search(r'(\d+)\s*שנ(?:ה|ים|ות)', term)
     duration = int(m_dur.group(1)) if m_dur else None
 
     # שנה מתאריך DD/MM/YYYY
@@ -321,10 +321,10 @@ def sync_contract_dates(db: Session) -> int:
             if norm_agr and (norm_agr in norm_bm or norm_bm in norm_agr):
                 start_year, duration = _parse_contract_term(agr.term)
                 changed = False
-                if start_year and bm.contract_start_year != start_year:
+                if start_year is not None and bm.contract_start_year != start_year:
                     bm.contract_start_year = start_year
                     changed = True
-                if duration and bm.contract_duration_years != duration:
+                if duration is not None and bm.contract_duration_years != duration:
                     bm.contract_duration_years = duration
                     changed = True
                 if changed:
