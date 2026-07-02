@@ -76,6 +76,10 @@ export const api = {
   // בדיקת הכנסות
   getRevenueFiles: () => request('/api/revenue-check/files'),
   getRevenueData: () => request('/api/revenue-check/data'),
+  getRevenueChargerCompare: (month) => request(`/api/revenue-check/compare/chargers?month=${month}`),
+  getRevenueMonthlyFees: (month) => request(`/api/revenue-check/compare/monthly-fees?month=${month}`),
+  getRevenueElectricityCompare: (month) => request(`/api/revenue-check/compare/electricity?month=${month}`),
+  getRevenueKwhAvg: () => request('/api/revenue-check/compare/kwh-avg'),
 
   // תזרים פר-בניין
   listBuildingModels: () => request('/api/building-models'),

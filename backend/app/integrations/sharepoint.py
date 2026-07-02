@@ -7,9 +7,13 @@ from __future__ import annotations
 
 from urllib.parse import quote, urlparse
 
+import certifi
 import requests
 
 from app.core.config import settings
+
+# Python 3.14 enforces stricter CA key-usage; certifi bundle sidesteps the issue.
+_SSL = certifi.where()
 
 GRAPH = "https://graph.microsoft.com/v1.0"
 _TIMEOUT = 60
@@ -36,6 +40,7 @@ def _token() -> str:
             "grant_type": "client_credentials",
         },
         timeout=_TIMEOUT,
+        verify=_SSL,
     )
     if not resp.ok:
         raise SharePointError(f"כשל אימות Graph: {resp.status_code} {resp.text[:300]}")
@@ -51,7 +56,7 @@ def _site_id(headers: dict) -> str:
     host = urlparse(settings.sharepoint_site_url).netloc
     # האתר הוא path-based: yaelisrael.sharepoint.com/Urbanenergy
     path = "Urbanenergy"
-    resp = requests.get(f"{GRAPH}/sites/{host}:/{path}", headers=headers, timeout=_TIMEOUT)
+    resp = requests.get(f"{GRAPH}/sites/{host}:/{path}", headers=headers, timeout=_TIMEOUT, verify=_SSL)
     if not resp.ok:
         raise SharePointError(f"כשל באיתור site: {resp.status_code} {resp.text[:300]}")
     return resp.json()["id"]
@@ -67,7 +72,7 @@ def list_folder(folder_path: str) -> list[dict]:
     # ספריית המסמכים הראשית = drive ברירת המחחל של ה-site
     enc = quote(folder_path.strip("/"), safe="/")
     endpoint = f"{GRAPH}/sites/{site}/drive/root:/{enc}:/children"
-    resp = requests.get(endpoint, headers=headers, timeout=_TIMEOUT)
+    resp = requests.get(endpoint, headers=headers, timeout=_TIMEOUT, verify=_SSL)
     if not resp.ok:
         raise SharePointError(
             f"כשל ברשימת תיקייה '{folder_path}': {resp.status_code} {resp.text[:300]}"
@@ -88,7 +93,7 @@ def list_folder(folder_path: str) -> list[dict]:
 
 def fetch_file(download_url: str) -> bytes:
     """מוריד תוכן קובץ (טרנזיינטי) לפי downloadUrl שהתקבל מ-list_folder."""
-    resp = requests.get(download_url, timeout=_TIMEOUT)
+    resp = requests.get(download_url, timeout=_TIMEOUT, verify=_SSL)
     if not resp.ok:
         raise SharePointError(f"כשל בהורדת קובץ: {resp.status_code}")
     return resp.content

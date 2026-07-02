@@ -4,7 +4,7 @@ from pathlib import Path
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 # ה-env המשותף לכל הפרויקטים (ראה זיכרון: extra=ignore חובה)
-SHARED_ENV = Path(r"C:\Users\User\Aiprojects\env\.env")
+SHARED_ENV = Path(r"C:\Users\משתמש\aiprojects\env\.env")
 PROJECT_ROOT = Path(__file__).resolve().parents[2]  # .../enery-dd/backend
 
 
