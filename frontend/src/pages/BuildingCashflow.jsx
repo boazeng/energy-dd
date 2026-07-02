@@ -584,12 +584,6 @@ function CombinedTable({ combined, buildings, overheadExpenses = [], excludedIds
   const overheadPerPeriod = overheadPerYear / n
   const totalOverhead = overheadPerYear * years.length
 
-  const maintenanceByPeriod = periods.map((p) =>
-    includedBuildings.reduce((s, b) => s + (p.buildings[b.building_name]?.maintenance_opex || 0), 0)
-  )
-  const totalMaintenanceAll = combined.reduce((s, r) =>
-    s + includedBuildings.reduce((ss, b) => ss + (r.buildings[b.building_name]?.maintenance_opex || 0), 0), 0)
-
   const ft = { fontSize: 12, fontWeight: 700 }
   const cell = { verticalAlign: 'top', paddingTop: 6, paddingBottom: 6 }
   const monthly = viewMode === 'monthly'
@@ -661,20 +655,6 @@ function CombinedTable({ combined, buildings, overheadExpenses = [], excludedIds
               {ils(totalProfit)}
             </td>
           </tr>
-
-          {totalMaintenanceAll > 0 && (
-            <tr style={{ background: 'rgba(162,155,254,.07)' }}>
-              <td style={{ textAlign: 'right', ...ft }}>עלות תחזוקה</td>
-              {maintenanceByPeriod.map((m, idx) => (
-                <td key={idx} style={{ textAlign: 'left', fontSize: 11, color: 'var(--tact-red,#e74c3c)', fontWeight: 600 }}>
-                  {ils(-m)}
-                </td>
-              ))}
-              <td style={{ textAlign: 'left', ...ft, color: 'var(--tact-red,#e74c3c)', background: 'rgba(162,155,254,.15)' }}>
-                {ils(-totalMaintenanceAll)}
-              </td>
-            </tr>
-          )}
 
           {overheadExpenses.map((item) => {
             const itemPerPeriod = (item.annual_amount || 0) / n
