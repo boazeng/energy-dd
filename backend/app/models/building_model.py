@@ -45,6 +45,7 @@ class BuildingModel(Base):
     cost_rcd_per_charger: Mapped[float] = mapped_column(Float, default=300)       # פחת חסר ₪/שנה
     cost_internet_per_charger: Mapped[float] = mapped_column(Float, default=400)  # אינטרנט ₪/שנה
     cost_inspector_per_charger: Mapped[float] = mapped_column(Float, default=250) # בודק ₪/שנה
+    cost_maintenance_per_charger: Mapped[float] = mapped_column(Float, default=500) # תחזוקה שנתית ₪/שנה
 
     # הכנסה מהתקנת מטען חדש (לפי הסכם דייר) — מסונכרן מ-tenant_agreements.charger_cost
     charger_install_income: Mapped[float] = mapped_column(Float, default=0)

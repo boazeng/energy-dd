@@ -79,7 +79,8 @@ def _calc_forecast(bm: BuildingModel, override_years: int | None = None) -> list
 
         install_income = added * bm.charger_install_income
         annual_income = total * monthly_income_per_charger * 12 + install_income
-        profit = annual_income - capex - annual_opex
+        maintenance_opex = total * bm.cost_maintenance_per_charger
+        profit = annual_income - capex - annual_opex - maintenance_opex
         years.append(YearForecast(
             year=bm.start_year + i,
             chargers_added=added,
@@ -87,6 +88,7 @@ def _calc_forecast(bm: BuildingModel, override_years: int | None = None) -> list
             annual_income=round(annual_income, 2),
             capex=round(capex, 2),
             annual_opex=round(annual_opex, 2),
+            maintenance_opex=round(maintenance_opex, 2),
             profit=round(profit, 2),
         ))
 

@@ -50,19 +50,22 @@ function expandCombined(combined, viewMode) {
         const inc = wSum > 0 ? (bd.annual_income || 0) * ws[i] / wSum : (bd.annual_income || 0) / n
         const cpx = (bd.capex || 0) / n
         const opx = (bd.annual_opex || 0) / n
+        const mnt = (bd.maintenance_opex || 0) / n
         buildings[name] = {
           ...bd,
-          annual_income: inc, capex: cpx, annual_opex: opx, profit: inc - cpx - opx,
+          annual_income: inc, capex: cpx, annual_opex: opx, maintenance_opex: mnt,
+          profit: inc - cpx - opx - mnt,
           chargers_added: chPerPeriod, total_chargers: prev + (i + 1) * chPerPeriod,
         }
       }
       const totalIncome = Object.values(buildings).reduce((s, b) => s + b.annual_income, 0)
       const totalCapex  = Object.values(buildings).reduce((s, b) => s + b.capex, 0)
       const totalOpex   = Object.values(buildings).reduce((s, b) => s + b.annual_opex, 0)
+      const totalMaint  = Object.values(buildings).reduce((s, b) => s + (b.maintenance_opex || 0), 0)
       out.push({
         ...row, period: label, buildings,
         total_income: totalIncome, total_capex: totalCapex, total_opex: totalOpex,
-        total_profit: totalIncome - totalCapex - totalOpex,
+        total_profit: totalIncome - totalCapex - totalOpex - totalMaint,
       })
     }
   }
@@ -83,9 +86,11 @@ function expandYears(years, viewMode) {
       const inc = wSum > 0 ? (y.annual_income || 0) * ws[i] / wSum : (y.annual_income || 0) / n
       const cpx = (y.capex || 0) / n
       const opx = (y.annual_opex || 0) / n
+      const mnt = (y.maintenance_opex || 0) / n
       out.push({
         ...y, period: label,
-        annual_income: inc, capex: cpx, annual_opex: opx, profit: inc - cpx - opx,
+        annual_income: inc, capex: cpx, annual_opex: opx, maintenance_opex: mnt,
+        profit: inc - cpx - opx - mnt,
         chargers_added: chPerPeriod, total_chargers: prev + (i + 1) * chPerPeriod,
       })
     }
@@ -116,9 +121,10 @@ const CAPEX_FIELDS = [
 
 // שדות גלובליים — OPEX (עלויות זהות לכל הבניינים)
 const GLOBAL_OPEX_FIELDS = [
-  { key: 'cost_rcd_per_charger',       label: 'עלות פחת חסר',    unit: '₪/שנה', step: 10, type: 'float' },
-  { key: 'cost_internet_per_charger',  label: 'עלות אינטרנט',    unit: '₪/שנה', step: 10, type: 'float' },
-  { key: 'cost_inspector_per_charger', label: 'עלות אישור בודק', unit: '₪/שנה', step: 10, type: 'float' },
+  { key: 'cost_rcd_per_charger',            label: 'עלות פחת חסר',    unit: '₪/שנה', step: 10, type: 'float' },
+  { key: 'cost_internet_per_charger',       label: 'עלות אינטרנט',    unit: '₪/שנה', step: 10, type: 'float' },
+  { key: 'cost_inspector_per_charger',      label: 'עלות אישור בודק', unit: '₪/שנה', step: 10, type: 'float' },
+  { key: 'cost_maintenance_per_charger',    label: 'עלות תחזוקה',     unit: '₪/שנה', step: 50, type: 'float' },
 ]
 
 function monthlyIncome(bm) {
@@ -171,6 +177,7 @@ function ForecastTable({ years, viewMode = 'annual' }) {
             <th>הכנסה</th>
             <th>עלות התקנת מטענים</th>
             <th>עלות התאמה</th>
+            <th>עלות תחזוקה</th>
             <th>רווח</th>
             <th>רווח מצטבר</th>
           </tr>
@@ -187,6 +194,9 @@ function ForecastTable({ years, viewMode = 'annual' }) {
               </td>
               <td style={{ color: 'var(--tact-orange,#e67e22)' }}>
                 {p.annual_opex > 0 ? ils(-p.annual_opex) : '—'}
+              </td>
+              <td style={{ color: 'var(--tact-orange,#e67e22)' }}>
+                {p.maintenance_opex > 0 ? ils(-p.maintenance_opex) : '—'}
               </td>
               <td style={{ fontWeight: 600, color: p.profit >= 0 ? 'var(--tact-green)' : 'var(--tact-red,#e74c3c)' }}>
                 {ils(p.profit)}
@@ -212,6 +222,7 @@ function ForecastChart({ years, viewMode = 'annual' }) {
     'הכנסה': p.annual_income,
     'עלות התקנת מטענים': p.capex,
     'עלות התאמה': p.annual_opex,
+    'עלות תחזוקה': p.maintenance_opex,
     'רווח': p.profit,
   }))
   const monthly = viewMode === 'monthly'
@@ -227,6 +238,7 @@ function ForecastChart({ years, viewMode = 'annual' }) {
         <Bar dataKey="הכנסה"  fill="#82ca9d" radius={[3,3,0,0]} />
         <Bar dataKey="עלות התקנת מטענים" fill="#ff7c7c" radius={[3,3,0,0]} />
         <Bar dataKey="עלות התאמה"  fill="#ffc658" radius={[3,3,0,0]} />
+        <Bar dataKey="עלות תחזוקה" fill="#a29bfe" radius={[3,3,0,0]} />
         <Bar dataKey="רווח"   fill="#6c8ebf" radius={[3,3,0,0]} />
       </BarChart>
     </ResponsiveContainer>
@@ -540,7 +552,7 @@ function CombinedTable({ combined, buildings, overheadExpenses = [], excludedIds
   const periodTotals = periods.map((row) => ({
     period: row.period,
     inc: includedBuildings.reduce((s, b) => s + (row.buildings[b.building_name]?.annual_income || 0), 0),
-    exp: includedBuildings.reduce((s, b) => s + (row.buildings[b.building_name]?.capex || 0) + (row.buildings[b.building_name]?.annual_opex || 0), 0),
+    exp: includedBuildings.reduce((s, b) => s + (row.buildings[b.building_name]?.capex || 0) + (row.buildings[b.building_name]?.annual_opex || 0) + (row.buildings[b.building_name]?.maintenance_opex || 0), 0),
   }))
 
   const totalProfit   = combined.reduce((s, r) => s + includedBuildings.reduce((ss, b) => ss + (r.buildings[b.building_name]?.profit || 0), 0), 0)
@@ -576,7 +588,7 @@ function CombinedTable({ combined, buildings, overheadExpenses = [], excludedIds
                 {periods.map((p) => {
                   const bd  = p.buildings[b.building_name]
                   const inc = bd?.annual_income || 0
-                  const exp = (bd?.capex || 0) + (bd?.annual_opex || 0)
+                  const exp = (bd?.capex || 0) + (bd?.annual_opex || 0) + (bd?.maintenance_opex || 0)
                   return (
                     <td key={p.period} style={{ ...cell, textAlign: 'left' }}>
                       <div style={{ fontSize: 11, color: inc > 0 ? 'var(--tact-green)' : 'var(--tact-text-dim,#888)' }}>
@@ -671,6 +683,7 @@ export default function BuildingCashflow({ loading: appLoading, horizonMode = 'c
     cost_rcd_per_charger: 300,
     cost_internet_per_charger: 400,
     cost_inspector_per_charger: 250,
+    cost_maintenance_per_charger: 500,
   })
   const [overheadExpenses, setOverheadExpenses] = useState(() => {
     try { return JSON.parse(localStorage.getItem('energy-overhead') || '[]') } catch { return [] }
@@ -773,10 +786,11 @@ export default function BuildingCashflow({ loading: appLoading, horizonMode = 'c
           chargers_per_panel:       b0.chargers_per_panel       ?? 10,
         })
         setGlobalRates({
-          avg_kwh_per_charger_monthly:  b0.avg_kwh_per_charger_monthly  ?? 100,
-          cost_rcd_per_charger:         b0.cost_rcd_per_charger         ?? 300,
-          cost_internet_per_charger:    b0.cost_internet_per_charger    ?? 400,
-          cost_inspector_per_charger:   b0.cost_inspector_per_charger   ?? 250,
+          avg_kwh_per_charger_monthly:    b0.avg_kwh_per_charger_monthly    ?? 100,
+          cost_rcd_per_charger:           b0.cost_rcd_per_charger           ?? 300,
+          cost_internet_per_charger:      b0.cost_internet_per_charger      ?? 400,
+          cost_inspector_per_charger:     b0.cost_inspector_per_charger     ?? 250,
+          cost_maintenance_per_charger:   b0.cost_maintenance_per_charger   ?? 500,
         })
       }
     } finally {
@@ -830,10 +844,11 @@ export default function BuildingCashflow({ loading: appLoading, horizonMode = 'c
   const sumIncl = (field) =>
     combined.reduce((s, r) =>
       s + includedForKpi.reduce((bs, b) => bs + (r.buildings[b.building_name]?.[field] || 0), 0), 0)
-  const totalIncome5yr  = sumIncl('annual_income')
-  const totalCapex5yr   = sumIncl('capex')
-  const totalOpex5yr    = sumIncl('annual_opex')
-  const totalProfit5yr  = totalIncome5yr - totalCapex5yr - totalOpex5yr
+  const totalIncome5yr       = sumIncl('annual_income')
+  const totalCapex5yr        = sumIncl('capex')
+  const totalOpex5yr         = sumIncl('annual_opex')
+  const totalMaintenanceOpex = sumIncl('maintenance_opex')
+  const totalProfit5yr       = totalIncome5yr - totalCapex5yr - totalOpex5yr - totalMaintenanceOpex
 
   return (
     <div className="building-cashflow-page">

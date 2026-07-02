@@ -10,6 +10,8 @@ def migrate_building_models(engine: Engine) -> None:
         ("cost_rcd_per_charger",      "REAL",    300),
         ("cost_internet_per_charger", "REAL",    400),
         ("cost_inspector_per_charger","REAL",    250),
+        # OPEX שנתי חוזר — תחזוקה לכל מטען בכל שנה
+        ("cost_maintenance_per_charger", "REAL", 500),
         # CAPEX מפורט (החליף charger_purchase_cost + charger_install_cost)
         ("cost_charger_unit",         "REAL",    800),
         ("cost_infra_per_charger",    "REAL",   1200),
