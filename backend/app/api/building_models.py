@@ -53,9 +53,11 @@ def _calc_forecast(bm: BuildingModel, override_years: int | None = None) -> list
     extra_per_charger = sum(float(c.get("cost_per_charger", 0)) for c in extra_costs)
 
     # OPEX חד-פעמי בשנה הראשונה בלבד — עלות קיום למטענים שקיימים היום
+    # chargers_no_rcd לא יכול לעלות על current_chargers (בניין ללא מטענים = אין עלות)
+    effective_no_rcd = min(bm.chargers_no_rcd, bm.current_chargers)
     opex_year_one = (
         bm.current_chargers * (bm.cost_internet_per_charger + bm.cost_inspector_per_charger + extra_per_charger)
-        + bm.chargers_no_rcd * bm.cost_rcd_per_charger
+        + effective_no_rcd * bm.cost_rcd_per_charger
     )
 
     new_per_year = math.floor(bm.potential_spots * bm.annual_growth_rate / 100) if bm.potential_spots > 0 else 0

@@ -136,9 +136,11 @@ function monthlyIncome(bm) {
 }
 
 function annualOpex(bm) {
+  const cur = bm.current_chargers || 0
+  const noRcd = Math.min(bm.chargers_no_rcd || 0, cur)
   return (
-    (bm.current_chargers || 0) * ((bm.cost_internet_per_charger || 0) + (bm.cost_inspector_per_charger || 0)) +
-    (bm.chargers_no_rcd || 0) * (bm.cost_rcd_per_charger || 0)
+    cur * ((bm.cost_internet_per_charger || 0) + (bm.cost_inspector_per_charger || 0)) +
+    noRcd * (bm.cost_rcd_per_charger || 0)
   )
 }
 
