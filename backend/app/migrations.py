@@ -73,4 +73,6 @@ def migrate_building_models(engine: Engine) -> None:
                 "UPDATE tenant_agreements SET building = REPLACE(building, :old, :new)"
                 " WHERE building LIKE :like"
             ), p)
+        # מחק בניינים שסומנו "חסר הסכם" — נוספו אוטומטית ואינם רלוונטיים לתזרים
+        conn.execute(text("DELETE FROM building_models WHERE notes LIKE '%חסר הסכם%'"))
         conn.commit()
