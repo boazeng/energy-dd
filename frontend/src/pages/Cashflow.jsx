@@ -421,7 +421,7 @@ export default function Cashflow({ loading: parentLoading, horizonMode = 'contra
         period: p.period,
         income: p.total_income,
         capex:  p.total_capex,
-        opex:   p.total_opex,
+        opex:   p.total_opex + (p.total_maint || 0),
         loan, overhead: overheadPer, overheadByItem, adaptation: adaptationPer,
         loanInterest, loanPrincipal,
         netOperating, netMinusInterest, net, balance: bal,
