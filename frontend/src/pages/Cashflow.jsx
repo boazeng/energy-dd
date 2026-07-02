@@ -691,8 +691,6 @@ export default function Cashflow({ loading: parentLoading, horizonMode = 'contra
                   {(() => {
                     const withFin = npvMode === 'with_financing' && totalLoanInterest > 0
                     const rowVal  = (r) => withFin ? r.netMinusInterest : r.netOperating
-                    const lastChargers = periods[periods.length - 1]?.chargers || 1
-                    const total = withFin ? totalNetMinusInterest : totalNetOperating
                     return (
                       <tr style={{ fontWeight: 600, background: 'rgba(108,142,191,.06)' }}>
                         <td className="fin-rowlabel">רווח למטען</td>
@@ -704,9 +702,7 @@ export default function Cashflow({ loading: parentLoading, horizonMode = 'contra
                             </td>
                           )
                         })}
-                        <td style={{ background: 'rgba(0,0,0,.04)', fontWeight: 700, textAlign: 'left', fontSize: 12, color: total < 0 ? 'var(--tact-red,#e74c3c)' : 'var(--tact-green)' }}>
-                          {ils(Math.round(total / lastChargers))}
-                        </td>
+                        <td style={{ background: 'rgba(0,0,0,.04)' }} />
                       </tr>
                     )
                   })()}
