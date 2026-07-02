@@ -64,5 +64,8 @@ class BuildingModel(Base):
     # הערות כלליות (לדוגמה: "חסר הסכם")
     notes: Mapped[str] = mapped_column(Text, default="")
 
+    # קבוצת ריכוז — בניינים עם אותו שם יופיעו כשורה אחת בתזרים בניינים
+    hi_group: Mapped[str | None] = mapped_column(String(200), nullable=True, default=None)
+
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now)

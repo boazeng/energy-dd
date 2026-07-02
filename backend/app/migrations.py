@@ -52,6 +52,8 @@ def migrate_building_models(engine: Engine) -> None:
             conn.execute(text("ALTER TABLE building_models ADD COLUMN contract_duration_years INTEGER NULL"))
         if "notes" not in existing:
             conn.execute(text("ALTER TABLE building_models ADD COLUMN notes TEXT DEFAULT ''"))
+        if "hi_group" not in existing:
+            conn.execute(text("ALTER TABLE building_models ADD COLUMN hi_group TEXT NULL"))
         # עדכן start_year ל-2026 בכל הרשומות הקיימות (שנת התחלה = מצב נוכחי)
         conn.execute(text("UPDATE building_models SET start_year = 2026 WHERE start_year = 2025"))
         # תיקוני שמות בניינים (typo/קיצור). פרמטרים מקושרים (נמנעים מ-escaping של גרש),

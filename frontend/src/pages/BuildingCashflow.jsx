@@ -313,6 +313,12 @@ function BuildingSettings({ bm, globals, onChange }) {
     save({ [key]: value })
   }
 
+  function handleHiGroup(raw) {
+    const value = raw.trim() || null
+    setLocal((prev) => ({ ...prev, hi_group: value }))
+    save({ hi_group: value })
+  }
+
   function saveExtraCosts(costs) {
     setLocal((prev) => ({ ...prev, extra_costs: costs }))
     save({ extra_costs: costs })
@@ -437,6 +443,20 @@ function BuildingSettings({ bm, globals, onChange }) {
           </div>
         )}
       </div>
+
+      {/* ─── קבוצת ריכוז ─── */}
+      <div className="settings-section-title" style={{ marginTop: 16 }}>קבוצת ריכוז</div>
+      <label className="setting-row">
+        <span className="setting-label">שם הקבוצה</span>
+        <input
+          type="text"
+          className="tact-input"
+          style={{ flex: 1, fontSize: 12 }}
+          placeholder="ריק = בניין בודד"
+          value={local.hi_group || ''}
+          onChange={(e) => handleHiGroup(e.target.value)}
+        />
+      </label>
 
       <div className="income-summary" style={{ marginTop: 14 }}>
         <div style={{ fontSize: 12, color: 'var(--tact-text-dim,#aaa)', marginBottom: 4 }}>
@@ -565,9 +585,26 @@ function CombinedTable({ combined, buildings, overheadExpenses = [], excludedIds
     return combined.reduce((s, r) => s + (r.buildings[name]?.profit || 0), 0)
   }
 
-  const sortedBuildings = [...includedBuildings].sort(
-    (a, b) => buildingTotalProfit(b.building_name) - buildingTotalProfit(a.building_name)
-  )
+  // קיבוץ בניינים לפי hi_group: בעלי אותה קבוצה → שורה מאוחדת, שאר → שורה בודדת
+  const groupMap = {}
+  const singleBuildings = []
+  for (const b of includedBuildings) {
+    if (b.hi_group) {
+      ;(groupMap[b.hi_group] ||= []).push(b)
+    } else {
+      singleBuildings.push(b)
+    }
+  }
+  const displayUnits = [
+    ...Object.entries(groupMap).map(([name, blds]) => ({
+      key: `g:${name}`, label: name, bldNames: blds.map(b => b.building_name),
+      totalProfit: blds.reduce((s, b) => s + buildingTotalProfit(b.building_name), 0),
+    })),
+    ...singleBuildings.map(b => ({
+      key: `b:${b.id}`, label: b.building_name, bldNames: [b.building_name],
+      totalProfit: buildingTotalProfit(b.building_name),
+    })),
+  ].sort((a, b) => b.totalProfit - a.totalProfit)
 
   const periodTotals = periods.map((row) => ({
     period: row.period,
@@ -606,15 +643,22 @@ function CombinedTable({ combined, buildings, overheadExpenses = [], excludedIds
           </tr>
         </thead>
         <tbody>
-          {sortedBuildings.map((b) => {
-            const profit = buildingTotalProfit(b.building_name)
+          {displayUnits.map((unit) => {
+            const profit = unit.totalProfit
             return (
-              <tr key={b.id}>
-                <td style={{ fontWeight: 500, textAlign: 'right', fontSize: 12 }}>{b.building_name}</td>
+              <tr key={unit.key}>
+                <td style={{ fontWeight: 500, textAlign: 'right', fontSize: 12 }}>
+                  {unit.label}
+                  {unit.bldNames.length > 1 && (
+                    <span style={{ fontSize: 10, color: 'var(--tact-text-dim,#aaa)', marginInlineStart: 5 }}>
+                      ({unit.bldNames.length})
+                    </span>
+                  )}
+                </td>
                 {periods.map((p) => {
-                  const bd  = p.buildings[b.building_name]
-                  const inc = bd?.annual_income || 0
-                  const exp = (bd?.capex || 0) + (bd?.annual_opex || 0) + (bd?.maintenance_opex || 0)
+                  const inc = unit.bldNames.reduce((s, n) => s + (p.buildings[n]?.annual_income || 0), 0)
+                  const exp = unit.bldNames.reduce((s, n) =>
+                    s + (p.buildings[n]?.capex || 0) + (p.buildings[n]?.annual_opex || 0) + (p.buildings[n]?.maintenance_opex || 0), 0)
                   return (
                     <td key={p.period} style={{ ...cell, textAlign: 'left' }}>
                       <div style={{ fontSize: 11, color: inc > 0 ? 'var(--tact-green)' : 'var(--tact-text-dim,#888)' }}>

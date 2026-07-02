@@ -36,6 +36,7 @@ class BuildingModelCreate(BaseModel):
     contract_start_year: int | None = None
     contract_duration_years: int | None = None
     notes: str = ""
+    hi_group: str | None = None
 
 
 class BuildingModelUpdate(BaseModel):
@@ -67,6 +68,7 @@ class BuildingModelUpdate(BaseModel):
     contract_start_year: int | None = None
     contract_duration_years: int | None = None
     notes: str | None = None
+    hi_group: str | None = None
 
 
 class BuildingModelOut(BaseModel):
@@ -99,6 +101,7 @@ class BuildingModelOut(BaseModel):
     contract_start_year: int | None = None
     contract_duration_years: int | None = None
     notes: str = ""
+    hi_group: str | None = None
 
 
 class YearForecast(BaseModel):
