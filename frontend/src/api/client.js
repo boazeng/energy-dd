@@ -73,6 +73,10 @@ export const api = {
   deleteQuestion: (id) =>
     request(`/api/questions/${id}`, { method: 'DELETE' }),
 
+  // בדיקת הכנסות
+  getRevenueFiles: () => request('/api/revenue-check/files'),
+  getRevenueData: () => request('/api/revenue-check/data'),
+
   // תזרים פר-בניין
   listBuildingModels: () => request('/api/building-models'),
   createBuildingModel: (data) =>
