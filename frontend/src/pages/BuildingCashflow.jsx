@@ -613,19 +613,24 @@ function CombinedTable({ combined, buildings, overheadExpenses = [], excludedIds
             </td>
           </tr>
 
-          {overheadPerYear > 0 && (
-            <tr style={{ background: 'rgba(253,121,168,.06)' }}>
-              <td style={{ textAlign: 'right', ...ft }}>הוצאות תקורה</td>
-              {periods.map((p) => (
-                <td key={p.period} style={{ textAlign: 'left', fontSize: 11, color: 'var(--tact-red,#e74c3c)', fontWeight: 600 }}>
-                  {ils(-overheadPerPeriod)}
+          {overheadExpenses.map((item) => {
+            const itemPerPeriod = (item.annual_amount || 0) / n
+            const itemTotal = (item.annual_amount || 0) * years.length
+            if (itemTotal === 0) return null
+            return (
+              <tr key={item.id} style={{ background: 'rgba(253,121,168,.06)' }}>
+                <td style={{ textAlign: 'right', ...ft }}>{item.name || 'תקורה'}</td>
+                {periods.map((p) => (
+                  <td key={p.period} style={{ textAlign: 'left', fontSize: 11, color: 'var(--tact-red,#e74c3c)', fontWeight: 600 }}>
+                    {ils(-itemPerPeriod)}
+                  </td>
+                ))}
+                <td style={{ textAlign: 'left', ...ft, color: 'var(--tact-red,#e74c3c)', background: 'rgba(253,121,168,.1)' }}>
+                  {ils(-itemTotal)}
                 </td>
-              ))}
-              <td style={{ textAlign: 'left', ...ft, color: 'var(--tact-red,#e74c3c)', background: 'rgba(253,121,168,.1)' }}>
-                {ils(-totalOverhead)}
-              </td>
-            </tr>
-          )}
+              </tr>
+            )
+          })}
 
           <tr style={{ background: 'rgba(130,202,157,.10)' }}>
             <td style={{ textAlign: 'right', ...ft }}>רווח נקי</td>

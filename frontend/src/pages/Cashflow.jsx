@@ -395,6 +395,7 @@ export default function Cashflow({ loading: parentLoading, horizonMode = 'contra
     return expanded.map((p, idx) => {
       const n             = periodsPerYear
       const overheadPer   = totalAnnualOverhead / n
+      const overheadByItem = overheadItems.map(o => (Number(o.annual) || 0) / n)
       const adaptationPer = p.year === 2026 ? totalAdaptation2026 / n : 0
       const loan          = p.loan_repayment || 0
       const netOperating  = p.total_income - p.total_capex - p.total_opex - overheadPer - adaptationPer
@@ -416,14 +417,14 @@ export default function Cashflow({ loading: parentLoading, horizonMode = 'contra
         income: p.total_income,
         capex:  p.total_capex,
         opex:   p.total_opex,
-        loan, overhead: overheadPer, adaptation: adaptationPer,
+        loan, overhead: overheadPer, overheadByItem, adaptation: adaptationPer,
         loanInterest, loanPrincipal,
         netOperating, netMinusInterest, net, balance: bal,
         pvNetOp, pvNetMinusInterest, pvNet, pvBalance: pvBal,
         chargers,
       }
     })
-  }, [combinedForecast, viewMode, discountRate, totalAnnualOverhead, totalAdaptation2026, periodsPerYear, excludedNames, amortCalYear])
+  }, [combinedForecast, viewMode, discountRate, totalAnnualOverhead, totalAdaptation2026, overheadItems, periodsPerYear, excludedNames, amortCalYear])
 
   const chartData          = periods.map((r) => ({
     period: r.period,
@@ -622,17 +623,24 @@ export default function Cashflow({ loading: parentLoading, horizonMode = 'contra
                     <td className="fin-neg" style={{ background: 'rgba(0,0,0,.04)', fontWeight: 700 }}>{ils(totalOpex)}</td>
                   </tr>
 
-                  {totalOverhead > 0 && (
-                    <tr>
-                      <td className="fin-rowlabel">תקורות</td>
-                      {periods.map((r, i) => (
-                        <td key={i} className={r.overhead > 0 ? 'fin-neg' : ''} style={{ color: r.overhead > 0 ? undefined : '#bbb' }}>
-                          {r.overhead > 0 ? ils(r.overhead) : '—'}
-                        </td>
-                      ))}
-                      <td className="fin-neg" style={{ background: 'rgba(0,0,0,.04)', fontWeight: 700 }}>{ils(totalOverhead)}</td>
-                    </tr>
-                  )}
+                  {overheadItems.map((item, itemIdx) => {
+                    const itemTotal = periods.reduce((s, r) => s + (r.overheadByItem[itemIdx] || 0), 0)
+                    if (itemTotal === 0) return null
+                    return (
+                      <tr key={item.id}>
+                        <td className="fin-rowlabel">{item.name}</td>
+                        {periods.map((r, i) => {
+                          const val = r.overheadByItem[itemIdx] || 0
+                          return (
+                            <td key={i} className={val > 0 ? 'fin-neg' : ''} style={{ color: val > 0 ? undefined : '#bbb' }}>
+                              {val > 0 ? ils(val) : '—'}
+                            </td>
+                          )
+                        })}
+                        <td className="fin-neg" style={{ background: 'rgba(0,0,0,.04)', fontWeight: 700 }}>{ils(itemTotal)}</td>
+                      </tr>
+                    )
+                  })}
 
                   {totalAdaptation > 0 && (
                     <tr>
