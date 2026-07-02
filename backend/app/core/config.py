@@ -41,6 +41,9 @@ class Settings(BaseSettings):
     # מפתח Claude לחילוץ AI (שלב מאוחר יותר) — נטען מה-env המשותף
     anthropic_api_key: str = ""
 
+    # תיקייה מקומית עם קבצי האקסל לבדיקת הכנסות (במקום SharePoint)
+    revenue_check_local_path: str = str(PROJECT_ROOT / "data" / "revenue_check")
+
     # SharePoint / Microsoft Graph (client-credentials) — נטען מה-env המשותף
     sharepoint_tenant_id: str = ""
     sharepoint_client_id: str = ""

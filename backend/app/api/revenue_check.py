@@ -1,4 +1,4 @@
-"""בדיקת הכנסות — קריאת אקסלים מ-SharePoint + השוואות."""
+"""בדיקת הכנסות — קריאת אקסלים מתיקייה מקומית + השוואות."""
 from __future__ import annotations
 
 import io
@@ -13,11 +13,8 @@ from fastapi import APIRouter, HTTPException
 from sqlalchemy import select
 
 from app.core.config import settings
-from app.integrations.sharepoint import SharePointError, fetch_file, list_folder
 
 router = APIRouter(prefix="/api/revenue-check", tags=["revenue-check"])
-
-FOLDER_PATH = "כספים/תכנית עסקית/אקסל תוכנית עיסקית/ש.א.ר מוביליטי בעמ/DD/בדיקת הכנסות"
 VAT = 1.18  # מע"מ 18%
 
 # ─── מיפויי שמות ─────────────────────────────────────────────────────────────
@@ -84,21 +81,17 @@ def _parse_excel(content: bytes) -> list[dict]:
 
 
 def _load_excel_files() -> list[dict]:
-    try:
-        files = list_folder(FOLDER_PATH)
-    except SharePointError as e:
-        raise HTTPException(status_code=502, detail=str(e))
+    folder = Path(settings.revenue_check_local_path)
+    if not folder.is_dir():
+        raise HTTPException(status_code=404, detail=f"תיקיית הנתונים לא נמצאה: {folder}")
 
     result = []
-    for f in files:
-        if f["is_folder"] or not f["name"].lower().endswith((".xlsx", ".xls")):
-            continue
+    for path in sorted(folder.glob("*.xls*")):
         try:
-            content = fetch_file(f["download_url"])
-            sheets = _parse_excel(content)
-            result.append({"name": f["name"], "web_url": f["web_url"], "sheets": sheets, "error": None})
+            sheets = _parse_excel(path.read_bytes())
+            result.append({"name": path.name, "web_url": str(path), "sheets": sheets, "error": None})
         except Exception as e:
-            result.append({"name": f["name"], "web_url": f.get("web_url", ""), "sheets": [], "error": str(e)})
+            result.append({"name": path.name, "web_url": str(path), "sheets": [], "error": str(e)})
     return result
 
 
@@ -237,11 +230,12 @@ def _load_projects_charger_counts() -> dict[str, int]:
 
 @router.get("/files")
 def list_files():
-    try:
-        files = list_folder(FOLDER_PATH)
-    except SharePointError as e:
-        raise HTTPException(status_code=502, detail=str(e))
-    return {"folder": FOLDER_PATH, "files": files}
+    folder = Path(settings.revenue_check_local_path)
+    files = [
+        {"name": p.name, "size": p.stat().st_size, "path": str(p)}
+        for p in sorted(folder.glob("*.xls*")) if p.is_file()
+    ] if folder.is_dir() else []
+    return {"folder": str(folder), "files": files}
 
 
 @router.get("/data")
