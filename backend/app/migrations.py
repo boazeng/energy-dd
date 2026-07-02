@@ -104,7 +104,7 @@ def migrate_building_models(engine: Engine) -> None:
                             chargers_no_rcd, cost_rcd_per_charger, cost_internet_per_charger,
                             cost_inspector_per_charger, charger_install_income, extra_costs,
                             start_year, forecast_years, contract_start_year, contract_duration_years,
-                            notes
+                            notes, created_at, updated_at
                         ) VALUES (
                             :name, 0, 0,
                             :agr, :mgmt, :elec,
@@ -113,7 +113,9 @@ def migrate_building_models(engine: Engine) -> None:
                             :ep, :cp, :cpp,
                             0, :rcd, :inet, :insp,
                             :cii, :ec,
-                            :sy, :fy, :csy, :cdy, ''
+                            :sy, :fy, :csy, :cdy, '',
+                            strftime('%Y-%m-%d %H:%M:%S', 'now'),
+                            strftime('%Y-%m-%d %H:%M:%S', 'now')
                         )
                     """), {
                         "name": sub,
