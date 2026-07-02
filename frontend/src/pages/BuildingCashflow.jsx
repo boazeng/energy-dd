@@ -1059,32 +1059,18 @@ export default function BuildingCashflow({ loading: appLoading, horizonMode = 'c
                 </div>
 
                 {/* בלוק עלות תחזוקה שנתית */}
-                {(() => {
-                  const rate = globalRates.cost_maintenance_per_charger ?? 500
-                  const totalChargers = buildings.filter((b) => !excludedIds.has(b.id))
-                    .reduce((s, b) => s + (b.current_chargers || 0), 0)
-                  const totalMaint = totalChargers * rate
-                  return (
-                    <div style={{
-                      padding: '8px 10px', marginBottom: 12,
-                      background: 'rgba(162,155,254,.1)',
-                      border: '1px solid rgba(162,155,254,.25)',
-                      borderRadius: 7,
-                    }}>
-                      <label style={{ ...fRow, marginBottom: totalChargers > 0 ? 4 : 0 }}>
-                        <span style={{ ...fDim }}>תחזוקה שנתית:</span>
-                        {numInp(rate, 50, 72, (e) => applyGlobalRateField('cost_maintenance_per_charger', e.target.value))}
-                        {unit('₪/מטען')}
-                      </label>
-                      {totalChargers > 0 && (
-                        <div style={{ fontSize: 11, color: 'var(--tact-text-dim,#aaa)' }}>
-                          {totalChargers} מטענים · סה"כ:{' '}
-                          <strong style={{ color: 'var(--tact-red,#e74c3c)' }}>{ils(-totalMaint)}/שנה</strong>
-                        </div>
-                      )}
-                    </div>
-                  )
-                })()}
+                <div style={{
+                  padding: '8px 10px', marginBottom: 12,
+                  background: 'rgba(162,155,254,.1)',
+                  border: '1px solid rgba(162,155,254,.25)',
+                  borderRadius: 7,
+                }}>
+                  <label style={fRow}>
+                    <span style={{ ...fDim }}>תחזוקה שנתית:</span>
+                    {numInp(globalRates.cost_maintenance_per_charger ?? 500, 50, 72, (e) => applyGlobalRateField('cost_maintenance_per_charger', e.target.value))}
+                    {unit('₪/מטען')}
+                  </label>
+                </div>
 
                 {overheadExpenses.length === 0 && (
                   <div style={{ fontSize: 12, color: 'var(--tact-text-dim,#aaa)' }}>אין הוצאות תקורה</div>
