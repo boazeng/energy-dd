@@ -90,6 +90,8 @@ def migrate_building_models(engine: Engine) -> None:
             ), p)
         # מחק בניינים שסומנו "חסר הסכם" — נוספו אוטומטית ואינם רלוונטיים לתזרים
         conn.execute(text("DELETE FROM building_models WHERE notes LIKE '%חסר הסכם%'"))
+        # קין קאורין 9 — הוחלף על ידי בן גוריון 9 ואינו שייך לתזרים
+        conn.execute(text("DELETE FROM building_models WHERE building_name = 'קין קאורין 9, אשקלון'"))
 
         # פיצול הסכם מרוכז ל-4 בניינים נפרדים
         _COMBINED = "בן גוריון 7 + גבע 2 + אשתאול 1 + קין קאורין 9, אשקלון"
@@ -117,7 +119,8 @@ def migrate_building_models(engine: Engine) -> None:
                             cost_charger_unit, cost_infra_per_charger, cost_install_per_charger,
                             cost_elec_panel, cost_comm_panel, chargers_per_panel,
                             chargers_no_rcd, cost_rcd_per_charger, cost_internet_per_charger,
-                            cost_inspector_per_charger, charger_install_income, extra_costs,
+                            cost_inspector_per_charger, cost_maintenance_per_charger,
+                            charger_install_income, extra_costs,
                             start_year, forecast_years, contract_start_year, contract_duration_years,
                             notes, created_at, updated_at
                         ) VALUES (
@@ -126,7 +129,7 @@ def migrate_building_models(engine: Engine) -> None:
                             :kwh, :sub_fee,
                             :cu, :infra, :inst,
                             :ep, :cp, :cpp,
-                            0, :rcd, :inet, :insp,
+                            0, :rcd, :inet, :insp, :maint,
                             :cii, :ec,
                             :sy, :fy, :csy, :cdy, '',
                             strftime('%Y-%m-%d %H:%M:%S', 'now'),
@@ -148,6 +151,7 @@ def migrate_building_models(engine: Engine) -> None:
                         "rcd":     row["cost_rcd_per_charger"],
                         "inet":    row["cost_internet_per_charger"],
                         "insp":    row["cost_inspector_per_charger"],
+                        "maint":   row.get("cost_maintenance_per_charger") or 500,
                         "cii":     row["charger_install_income"],
                         "ec":      row["extra_costs"] or "[]",
                         "sy":      row["start_year"],
@@ -178,7 +182,8 @@ def migrate_building_models(engine: Engine) -> None:
                         cost_charger_unit, cost_infra_per_charger, cost_install_per_charger,
                         cost_elec_panel, cost_comm_panel, chargers_per_panel,
                         chargers_no_rcd, cost_rcd_per_charger, cost_internet_per_charger,
-                        cost_inspector_per_charger, charger_install_income, extra_costs,
+                        cost_inspector_per_charger, cost_maintenance_per_charger,
+                        charger_install_income, extra_costs,
                         start_year, forecast_years, contract_start_year, contract_duration_years,
                         notes, created_at, updated_at
                     ) VALUES (
@@ -187,7 +192,7 @@ def migrate_building_models(engine: Engine) -> None:
                         :kwh, :sub_fee,
                         :cu, :infra, :inst,
                         :ep, :cp, :cpp,
-                        0, :rcd, :inet, :insp,
+                        0, :rcd, :inet, :insp, :maint,
                         :cii, :ec,
                         :sy, :fy, :csy, :cdy, '',
                         strftime('%Y-%m-%d %H:%M:%S', 'now'),
@@ -209,6 +214,7 @@ def migrate_building_models(engine: Engine) -> None:
                     "rcd":     src["cost_rcd_per_charger"],
                     "inet":    src["cost_internet_per_charger"],
                     "insp":    src["cost_inspector_per_charger"],
+                    "maint":   src.get("cost_maintenance_per_charger") or 500,
                     "cii":     src["charger_install_income"],
                     "ec":      src["extra_costs"] or "[]",
                     "sy":      src["start_year"],
@@ -253,7 +259,8 @@ def migrate_building_models(engine: Engine) -> None:
                         cost_charger_unit, cost_infra_per_charger, cost_install_per_charger,
                         cost_elec_panel, cost_comm_panel, chargers_per_panel,
                         chargers_no_rcd, cost_rcd_per_charger, cost_internet_per_charger,
-                        cost_inspector_per_charger, charger_install_income, extra_costs,
+                        cost_inspector_per_charger, cost_maintenance_per_charger,
+                        charger_install_income, extra_costs,
                         start_year, forecast_years, contract_start_year, contract_duration_years,
                         notes, created_at, updated_at
                     ) VALUES (
@@ -262,7 +269,7 @@ def migrate_building_models(engine: Engine) -> None:
                         200, 0,
                         800, 1200, 1300,
                         6000, 1000, 10,
-                        0, 300, 400, 250,
+                        0, 300, 400, 250, 500,
                         0, '[]',
                         2026, 5, 2022, 10,
                         '',
