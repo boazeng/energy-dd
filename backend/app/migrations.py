@@ -145,4 +145,61 @@ def migrate_building_models(engine: Engine) -> None:
                 {"n": _COMBINED},
             )
 
+        # הוסף "בן גוריון 9, אשקלון" אם חסר — חלק מאותו הסכם כמו בן גוריון 7
+        _BG9 = "בן גוריון 9, אשקלון"
+        _BG7 = "בן גוריון 7, אשקלון"
+        if not conn.execute(
+            text("SELECT id FROM building_models WHERE building_name = :n"), {"n": _BG9}
+        ).fetchone():
+            src = conn.execute(
+                text("SELECT * FROM building_models WHERE building_name = :n"), {"n": _BG7}
+            ).mappings().fetchone()
+            if src:
+                conn.execute(text("""
+                    INSERT INTO building_models (
+                        building_name, current_chargers, potential_spots,
+                        annual_growth_rate, mgmt_fee_per_charger, electricity_rate_agorot,
+                        avg_kwh_per_charger_monthly, subscription_fee_per_charger,
+                        cost_charger_unit, cost_infra_per_charger, cost_install_per_charger,
+                        cost_elec_panel, cost_comm_panel, chargers_per_panel,
+                        chargers_no_rcd, cost_rcd_per_charger, cost_internet_per_charger,
+                        cost_inspector_per_charger, charger_install_income, extra_costs,
+                        start_year, forecast_years, contract_start_year, contract_duration_years,
+                        notes, created_at, updated_at
+                    ) VALUES (
+                        :name, 0, 0,
+                        :agr, :mgmt, :elec,
+                        :kwh, :sub_fee,
+                        :cu, :infra, :inst,
+                        :ep, :cp, :cpp,
+                        0, :rcd, :inet, :insp,
+                        :cii, :ec,
+                        :sy, :fy, :csy, :cdy, '',
+                        strftime('%Y-%m-%d %H:%M:%S', 'now'),
+                        strftime('%Y-%m-%d %H:%M:%S', 'now')
+                    )
+                """), {
+                    "name": _BG9,
+                    "agr":     src["annual_growth_rate"],
+                    "mgmt":    src["mgmt_fee_per_charger"],
+                    "elec":    src["electricity_rate_agorot"],
+                    "kwh":     src["avg_kwh_per_charger_monthly"],
+                    "sub_fee": src["subscription_fee_per_charger"],
+                    "cu":      src["cost_charger_unit"],
+                    "infra":   src["cost_infra_per_charger"],
+                    "inst":    src["cost_install_per_charger"],
+                    "ep":      src["cost_elec_panel"],
+                    "cp":      src["cost_comm_panel"],
+                    "cpp":     src["chargers_per_panel"],
+                    "rcd":     src["cost_rcd_per_charger"],
+                    "inet":    src["cost_internet_per_charger"],
+                    "insp":    src["cost_inspector_per_charger"],
+                    "cii":     src["charger_install_income"],
+                    "ec":      src["extra_costs"] or "[]",
+                    "sy":      src["start_year"],
+                    "fy":      src["forecast_years"],
+                    "csy":     src["contract_start_year"],
+                    "cdy":     src["contract_duration_years"],
+                })
+
         conn.commit()
