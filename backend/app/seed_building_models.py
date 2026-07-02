@@ -224,6 +224,63 @@ def _parse_cost(text: str) -> float:
     return float(nums[0].replace(",", ""))
 
 
+def _parse_mgmt_fee(text: str) -> float | None:
+    """מחלץ דמי ניהול חודשיים (₪/עמדה) מטקסט כגון '₪40/עמדה/חודש' או '40'."""
+    nums = re.findall(r"\d+(?:[.,]\d+)?", str(text or ""))
+    if not nums:
+        return None
+    return float(nums[0].replace(",", "."))
+
+
+def _parse_elec_rate(text: str) -> float | None:
+    """מחלץ תוספת חשמל (אג'/kWh) מטקסט כגון 'חח"י + 30 אג\\'/ kWh'.
+
+    מחזיר 0.0 כשהטקסט מציין חח"י בלבד ללא תוספת, None כשהשדה ריק.
+    """
+    if not (text or "").strip():
+        return None
+    m = re.search(r"(\d+(?:[.,]\d+)?)\s*אג", str(text))
+    if m:
+        return float(m.group(1).replace(",", "."))
+    if re.search(r'חח"?י\s*בלבד|ללא\s*תוספת', str(text), re.IGNORECASE):
+        return 0.0
+    nums = re.findall(r"\d+(?:[.,]\d+)?", str(text))
+    if nums:
+        return float(nums[0].replace(",", "."))
+    return None
+
+
+def sync_mgmt_fee_and_elec_rate(db: Session) -> int:
+    """מסנכרן mgmt_fee_per_charger ו-electricity_rate_agorot מ-tenant_agreements."""
+    agreements = list(db.scalars(select(TenantAgreement)))
+    models = list(db.scalars(select(BuildingModel)))
+    updated = 0
+    for bm in models:
+        if "חסר הסכם" in (bm.notes or ""):
+            continue
+        street_part = bm.building_name.split(",")[0].strip()
+        norm_bm = _normalize(street_part)
+        for agr in agreements:
+            norm_agr = _normalize(agr.building.split(",")[0].strip())
+            if not norm_agr or not (norm_agr in norm_bm or norm_bm in norm_agr):
+                continue
+            changed = False
+            mgmt_fee = _parse_mgmt_fee(agr.payment)
+            if mgmt_fee is not None and bm.mgmt_fee_per_charger != mgmt_fee:
+                bm.mgmt_fee_per_charger = mgmt_fee
+                changed = True
+            elec_rate = _parse_elec_rate(agr.pricing_model)
+            if elec_rate is not None and bm.electricity_rate_agorot != elec_rate:
+                bm.electricity_rate_agorot = elec_rate
+                changed = True
+            if changed:
+                updated += 1
+            break
+    if updated:
+        db.commit()
+    return updated
+
+
 def _parse_contract_term(term: str) -> tuple[int | None, int | None]:
     """מחלץ (שנת_תחילה, משך_שנים) מטקסט כמו '10 שנים (2×5) — נחתם 16/10/2025'."""
     if not term:

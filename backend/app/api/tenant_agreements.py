@@ -12,7 +12,7 @@ from app.schemas.tenant_agreement import (
     TenantAgreementOut,
     TenantAgreementUpdate,
 )
-from app.seed_building_models import sync_install_income, sync_contract_dates
+from app.seed_building_models import sync_install_income, sync_contract_dates, sync_mgmt_fee_and_elec_rate
 
 router = APIRouter(prefix="/api/tenant-agreements", tags=["tenant-agreements"])
 
@@ -79,5 +79,6 @@ def update_agreement(
     # סנכרן building_models אחרי כל עדכון הסכם
     sync_install_income(db)
     sync_contract_dates(db)
+    sync_mgmt_fee_and_elec_rate(db)
     db.refresh(row)
     return _to_out(row)
