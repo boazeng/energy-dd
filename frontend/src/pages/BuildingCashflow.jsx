@@ -208,25 +208,6 @@ function ForecastTable({ years, viewMode = 'annual' }) {
             </tr>
           ))}
         </tbody>
-        {(() => {
-          const last = rows[rows.length - 1]
-          if (!last || !(last.total_chargers > 0)) return null
-          const ppc = last.cumulative / last.total_chargers
-          return (
-            <tfoot>
-              <tr style={{ borderTop: '1px solid rgba(255,255,255,.10)', background: 'rgba(255,255,255,.03)' }}>
-                <td style={{ textAlign: 'right', fontSize: 11, color: 'var(--tact-text-dim,#888)', paddingTop: 5, paddingBottom: 5 }}>
-                  רווח למטען
-                </td>
-                <td colSpan={isAnnual ? 7 : 6} />
-                <td style={{ textAlign: 'left', fontWeight: 700, fontSize: 12, paddingTop: 5, paddingBottom: 5,
-                  color: ppc >= 0 ? 'var(--tact-green)' : 'var(--tact-red,#e74c3c)' }}>
-                  {ils(ppc)}
-                </td>
-              </tr>
-            </tfoot>
-          )
-        })()}
       </table>
     </div>
   )
@@ -723,22 +704,6 @@ function CombinedTable({ combined, buildings, overheadExpenses = [], excludedIds
             </td>
           </tr>
 
-          {(() => {
-            const totalCurrentChargers = includedBuildings.reduce((s, b) => s + (b.current_chargers || 0), 0)
-            if (!totalCurrentChargers) return null
-            const ppc = (totalProfit - totalOverhead) / totalCurrentChargers
-            return (
-              <tr style={{ background: 'rgba(108,142,191,.06)' }}>
-                <td style={{ textAlign: 'right', ...ft }}>רווח למטען</td>
-                {periods.map((p) => <td key={p.period} />)}
-                <td style={{ textAlign: 'left', fontWeight: 800, fontSize: 13,
-                  background: 'rgba(108,142,191,.12)',
-                  color: ppc >= 0 ? 'var(--tact-green)' : 'var(--tact-red,#e74c3c)' }}>
-                  {ils(ppc)}
-                </td>
-              </tr>
-            )
-          })()}
         </tfoot>
       </table>
     </div>
