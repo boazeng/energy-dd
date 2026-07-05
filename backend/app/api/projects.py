@@ -25,6 +25,25 @@ def _normalize(s: str) -> str:
     return re.sub(r"\s+", " ", s).strip()
 
 
+def _normalize_keep_digits(s: str) -> str:
+    s = re.sub(r'[+\-/,"׳\'״]', " ", s or "")
+    return re.sub(r"\s+", " ", s).strip()
+
+
+# ארבעת בניני HI GROUP (אשקלון) חתומים תחת הסכם מרוכז אחד; המטענים המותקנים
+# בפועל מאומתים רק בגבע 2 (26) — projects.json של החברה מייחס בטעות 13/1
+# למספרי הבית בן גוריון 7/9. אותה עובדה כבר מתוקנת ב-building_models דרך
+# apply_manual_building_corrections (backend/app/migrations.py); התיקון כאן
+# נועד לשמור על אותו סה"כ בדף סטטוס פרויקטים כמו בדף תזרים.
+_HI_GROUP_CITY = _normalize_keep_digits("אשקלון")
+_HI_GROUP_CHARGERS = {
+    _normalize_keep_digits("בן גוריון 7"): 0,
+    _normalize_keep_digits("בן גוריון 9"): 0,
+    _normalize_keep_digits("אשתאול 1"): 0,
+    _normalize_keep_digits("גבע 2"): 26,
+}
+
+
 @router.get("/projects")
 def get_projects(db: Session = Depends(get_db)) -> dict:
     """מחזיר את כל נתוני הפרויקטים (בניינים + מטענים + סיכום). אם אין קובץ — ריק."""
@@ -44,5 +63,10 @@ def get_projects(db: Session = Depends(get_db)) -> dict:
             n and (n in proj_norm or proj_norm in n)
             for n in agr_norms
         )
+
+        street_norm = _normalize_keep_digits(b.get("project", ""))
+        city_norm = _normalize_keep_digits(b.get("city", ""))
+        if city_norm == _HI_GROUP_CITY and street_norm in _HI_GROUP_CHARGERS:
+            b["chargers_installed"] = _HI_GROUP_CHARGERS[street_norm]
 
     return data
