@@ -2,6 +2,7 @@
    sync_projects_data runs on every startup to refresh current_chargers + potential_spots.
 """
 import json
+import logging
 import re
 from pathlib import Path
 
@@ -10,6 +11,8 @@ from sqlalchemy.orm import Session
 
 from app.models.building_model import BuildingModel
 from app.models.tenant_agreement import TenantAgreement
+
+logger = logging.getLogger("energy-dd")
 
 # נתונים מחולצים מחוזי הבניינים:
 # mgmt_fee  = דמי ניהול חודשיים לעמדה (₪) — נלקח מהמסלול הנמוך / רכב חשמלי
@@ -243,7 +246,13 @@ def _count_no_rcd(chargers: list[dict], proj_name: str) -> int:
 
 
 def sync_projects_data(db: Session, projects_path: str) -> int:
-    """מעדכן current_chargers, potential_spots ו-chargers_no_rcd מ-projects.json."""
+    """מעדכן current_chargers, potential_spots ו-chargers_no_rcd מ-projects.json.
+
+    מחפש קודם לפי external_project_key מאושר (exact match, מהיר ובטוח). בניין
+    בלי מפתח שמור (חדש, או לפני הפעלת השדה) נופל להתאמה המטושטשת הקיימת
+    (_match_project), ואם הצליחה — התוצאה ננעלת ב-external_project_key, כך
+    שבריצות הבאות כבר לא תיבדק שוב fuzzy matching לאותו בניין.
+    """
     path = Path(projects_path)
     if not path.is_file():
         return 0
@@ -258,10 +267,18 @@ def sync_projects_data(db: Session, projects_path: str) -> int:
     if not projects:
         return 0
 
+    by_key = {p.get("project"): p for p in projects if p.get("project")}
+
     models = list(db.scalars(select(BuildingModel)))
     updated = 0
     for bm in models:
-        proj = _match_project(bm.building_name, projects)
+        proj = by_key.get(bm.external_project_key) if bm.external_project_key else None
+        if proj is None:
+            proj = _match_project(bm.building_name, projects)
+            if proj is not None:
+                key = proj.get("project", "")
+                if key:
+                    bm.external_project_key = key
         if proj is None:
             continue
         chargers_installed = proj.get("chargers_installed") or 0
@@ -312,31 +329,27 @@ def _parse_elec_rate(text: str) -> float | None:
 
 
 def sync_mgmt_fee_and_elec_rate(db: Session) -> int:
-    """מסנכרן mgmt_fee_per_charger ו-electricity_rate_agorot מ-tenant_agreements."""
-    agreements = list(db.scalars(select(TenantAgreement)))
+    """מסנכרן mgmt_fee_per_charger ו-electricity_rate_agorot מ-tenant_agreements לפי agreement_id."""
+    agreements = {a.id: a for a in db.scalars(select(TenantAgreement))}
     models = list(db.scalars(select(BuildingModel)))
     updated = 0
     for bm in models:
-        if "חסר הסכם" in (bm.notes or ""):
+        if bm.agreement_id is None or "חסר הסכם" in (bm.notes or ""):
             continue
-        street_part = bm.building_name.split(",")[0].strip()
-        norm_bm = _normalize(street_part)
-        for agr in agreements:
-            norm_agr = _normalize(agr.building.split(",")[0].strip())
-            if not norm_agr or not (norm_agr in norm_bm or norm_bm in norm_agr):
-                continue
-            changed = False
-            mgmt_fee = _parse_mgmt_fee(agr.payment)
-            if mgmt_fee is not None and bm.mgmt_fee_per_charger != mgmt_fee:
-                bm.mgmt_fee_per_charger = mgmt_fee
-                changed = True
-            elec_rate = _parse_elec_rate(agr.pricing_model)
-            if elec_rate is not None and bm.electricity_rate_agorot != elec_rate:
-                bm.electricity_rate_agorot = elec_rate
-                changed = True
-            if changed:
-                updated += 1
-            break
+        agr = agreements.get(bm.agreement_id)
+        if agr is None:
+            continue
+        changed = False
+        mgmt_fee = _parse_mgmt_fee(agr.payment)
+        if mgmt_fee is not None and bm.mgmt_fee_per_charger != mgmt_fee:
+            bm.mgmt_fee_per_charger = mgmt_fee
+            changed = True
+        elec_rate = _parse_elec_rate(agr.pricing_model)
+        if elec_rate is not None and bm.electricity_rate_agorot != elec_rate:
+            bm.electricity_rate_agorot = elec_rate
+            changed = True
+        if changed:
+            updated += 1
     if updated:
         db.commit()
     return updated
@@ -370,53 +383,83 @@ def _parse_contract_term(term: str) -> tuple[int | None, int | None]:
 
 
 def sync_contract_dates(db: Session) -> int:
-    """מסנכרן contract_start_year ו-contract_duration_years מ-tenant_agreements.term."""
-    agreements = list(db.scalars(select(TenantAgreement)))
+    """מסנכרן contract_start_year ו-contract_duration_years מ-tenant_agreements.term לפי agreement_id."""
+    agreements = {a.id: a for a in db.scalars(select(TenantAgreement))}
     models = list(db.scalars(select(BuildingModel)))
     updated = 0
     for bm in models:
-        street_part = bm.building_name.split(",")[0].strip()
-        norm_bm = _normalize(street_part)
-        for agr in agreements:
-            norm_agr = _normalize(agr.building.split(",")[0].strip())
-            if norm_agr and (norm_agr in norm_bm or norm_bm in norm_agr):
-                start_year, duration = _parse_contract_term(agr.term)
-                changed = False
-                if start_year is not None and bm.contract_start_year != start_year:
-                    bm.contract_start_year = start_year
-                    changed = True
-                if duration is not None and bm.contract_duration_years != duration:
-                    bm.contract_duration_years = duration
-                    changed = True
-                if changed:
-                    updated += 1
-                break
+        if bm.agreement_id is None:
+            continue
+        agr = agreements.get(bm.agreement_id)
+        if agr is None:
+            continue
+        start_year, duration = _parse_contract_term(agr.term)
+        changed = False
+        if start_year is not None and bm.contract_start_year != start_year:
+            bm.contract_start_year = start_year
+            changed = True
+        if duration is not None and bm.contract_duration_years != duration:
+            bm.contract_duration_years = duration
+            changed = True
+        if changed:
+            updated += 1
     if updated:
         db.commit()
     return updated
 
 
 def sync_install_income(db: Session) -> int:
-    """מסנכרן charger_install_income מ-tenant_agreements.charger_cost לפי שם בניין."""
-    agreements = list(db.scalars(select(TenantAgreement)))
+    """מסנכרן charger_install_income מ-tenant_agreements.charger_cost לפי agreement_id."""
+    agreements = {a.id: a for a in db.scalars(select(TenantAgreement))}
     models = list(db.scalars(select(BuildingModel)))
     updated = 0
     for bm in models:
-        if "חסר הסכם" in (bm.notes or ""):
+        if bm.agreement_id is None or "חסר הסכם" in (bm.notes or ""):
             continue  # בניינים ללא הסכם — לא מסנכרנים מ-agreements
-        street_part = bm.building_name.split(",")[0].strip()
-        norm_bm = _normalize(street_part)
-        for agr in agreements:
-            norm_agr = _normalize(agr.building.split(",")[0].strip())
-            if norm_agr and (norm_agr in norm_bm or norm_bm in norm_agr):
-                cost = _parse_cost(agr.charger_cost)
-                if bm.charger_install_income != cost:
-                    bm.charger_install_income = cost
-                    updated += 1
-                break
+        agr = agreements.get(bm.agreement_id)
+        if agr is None:
+            continue
+        cost = _parse_cost(agr.charger_cost)
+        if bm.charger_install_income != cost:
+            bm.charger_install_income = cost
+            updated += 1
     if updated:
         db.commit()
     return updated
+
+
+def backfill_building_links(db: Session) -> int:
+    """מילוי חד-פעמי של building_models.agreement_id לפי ההתאמה המטושטשת הקיימת.
+
+    ממלא רק בניינים בלי agreement_id (לעולם לא דורס קישור קיים). לאחר ריצה זו
+    sync_mgmt_fee_and_elec_rate/sync_contract_dates/sync_install_income עובדים
+    לפי agreement_id בלבד, בלי matching מטושטש בכל הרצה — זה מה שמנע את הבאגים
+    החוזרים (למשל גבע 2 / בן גוריון 7-9) שנבעו מהרצת matching בכל ריסטארט.
+    """
+    agreements = [a for a in db.scalars(select(TenantAgreement)) if a.building]
+    agr_norms = [(a, _normalize(a.building.split(",")[0].strip())) for a in agreements]
+    models = list(db.scalars(select(BuildingModel)))
+
+    linked = 0
+    for bm in models:
+        if bm.agreement_id is not None:
+            continue
+        norm_bm = _normalize(bm.building_name.split(",")[0].strip())
+        matches = [
+            a for a, norm_agr in agr_norms
+            if norm_agr and (norm_agr in norm_bm or norm_bm in norm_agr)
+        ]
+        if len(matches) == 1:
+            bm.agreement_id = matches[0].id
+            linked += 1
+        elif len(matches) > 1:
+            logger.warning(
+                "backfill_building_links: '%s' תואם כמה הסכמים (%s) — לא קושר אוטומטית",
+                bm.building_name, [a.id for a in matches],
+            )
+    if linked:
+        db.commit()
+    return linked
 
 
 def sync_missing_agreement_buildings(db: Session, projects_path: str) -> int:

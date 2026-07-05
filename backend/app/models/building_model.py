@@ -67,5 +67,11 @@ class BuildingModel(Base):
     # קבוצת ריכוז — בניינים עם אותו שם יופיעו כשורה אחת בתזרים בניינים
     hi_group: Mapped[str | None] = mapped_column(String(200), nullable=True, default=None)
 
+    # מפתח קשיח להסכם דייר מקושר (tenant_agreements.id) — מחליף התאמת שם מטושטשת
+    agreement_id: Mapped[int | None] = mapped_column(Integer, nullable=True, default=None)
+
+    # מפתח מאושר מול projects.json החיצוני (p["project"]) — נועל אחרי התאמה ראשונה מוצלחת
+    external_project_key: Mapped[str | None] = mapped_column(String(200), nullable=True, default=None)
+
     created_at: Mapped[datetime] = mapped_column(DateTime, default=_now)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=_now, onupdate=_now)

@@ -10,10 +10,41 @@ const COLUMNS = [
   { key: 'charger_cost',  label: 'רכישה והתקנת מטען',   type: 'editable' },
   { key: 'notes',         label: 'הערות / אי-התאמות',   type: 'editable' },
   { key: '_file',         label: 'קובץ ההסכם',           type: 'file' },
-  { key: 'review_notes',  label: 'הערות סקירה',          type: 'editable' },
+  { key: 'review_notes',  label: 'הערות סקירה',          type: 'editable', className: 'ta-col-review-notes' },
 ]
 
-function ExpandedRow({ a }) {
+function LinkedBuildings({ a, buildings, pending, onToggle }) {
+  if (!buildings.length) return null
+  return (
+    <div className="ta-linked-buildings">
+      <span className="ta-field-label">בניינים מקושרים (תזרים בניינים)</span>
+      <div className="ta-linked-buildings-list">
+        {buildings.map((b) => {
+          const linkedHere = b.agreement_id === a.id
+          const linkedElsewhere = b.agreement_id != null && !linkedHere
+          return (
+            <label
+              key={b.id}
+              className={`ta-linked-chip${linkedHere ? ' checked' : ''}`}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <input
+                type="checkbox"
+                checked={linkedHere}
+                disabled={pending === b.id}
+                onChange={(e) => onToggle(b.id, e.target.checked)}
+              />
+              {b.building_name}
+              {linkedElsewhere && <span className="muted"> (מקושר להסכם אחר — יעבור לכאן)</span>}
+            </label>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+function ExpandedRow({ a, buildings, pendingBuilding, onToggleBuilding }) {
   return (
     <div className="ta-detail">
       {a.summary && <p className="ta-summary">{a.summary}</p>}
@@ -22,6 +53,7 @@ function ExpandedRow({ a }) {
         {a.termination && <Field label="סיום / חידוש" value={a.termination} />}
         {a.tenant_name && <Field label="נציג / חותם"  value={a.tenant_name} />}
       </div>
+      <LinkedBuildings a={a} buildings={buildings} pending={pendingBuilding} onToggle={(bid, checked) => onToggleBuilding(a.id, bid, checked)} />
       {a.flags && (
         <div className="ta-flags">
           <strong>נקודות לתשומת לב:</strong> {a.flags}
@@ -74,8 +106,26 @@ export default function TenantAgreements({ agreements, loading, onSave }) {
   const [editing, setEditing]             = useState(null)  // { id, field, value }
   const [saving, setSaving]               = useState(null)  // { id, field }
   const [savedFlash, setSavedFlash]       = useState(null)  // id of last saved row
+  const [buildings, setBuildings]         = useState([])
+  const [pendingBuilding, setPendingBuilding] = useState(null)  // building id שממתין לשמירה
 
   useEffect(() => { setLocal(agreements) }, [agreements])
+  useEffect(() => {
+    api.listBuildingModels().then(setBuildings).catch((e) => console.error('שגיאה בטעינת בניינים', e))
+  }, [])
+
+  async function toggleBuilding(agreementId, buildingId, checked) {
+    setPendingBuilding(buildingId)
+    try {
+      const updated = await api.updateBuildingModel(buildingId, { agreement_id: checked ? agreementId : null })
+      setBuildings((prev) => prev.map((b) => b.id === buildingId ? updated : b))
+      onSave?.()
+    } catch (e) {
+      console.error('שגיאה בקישור בניין', e)
+    } finally {
+      setPendingBuilding(null)
+    }
+  }
 
   function startEdit(id, field, current, e) {
     e.stopPropagation()
@@ -126,7 +176,7 @@ export default function TenantAgreements({ agreements, loading, onSave }) {
       return (
         <td
           key={c.key}
-          className={`ta-cell-editable${isEditing ? ' editing' : ''}${isNoteWarn ? ' ta-cell-warn' : ''}`}
+          className={`ta-cell-editable${c.className ? ` ${c.className}` : ''}${isEditing ? ' editing' : ''}${isNoteWarn ? ' ta-cell-warn' : ''}`}
           onClick={(e) => !isEditing && startEdit(a.id, c.key, val, e)}
           title={isEditing ? '' : 'לחץ לעריכה'}
         >
@@ -183,7 +233,7 @@ export default function TenantAgreements({ agreements, loading, onSave }) {
           <thead>
             <tr>
               <th className="ta-expander" />
-              {COLUMNS.map((c) => <th key={c.key}>{c.label}</th>)}
+              {COLUMNS.map((c) => <th key={c.key} className={c.className || ''}>{c.label}</th>)}
             </tr>
           </thead>
           <tbody>
@@ -203,7 +253,12 @@ export default function TenantAgreements({ agreements, loading, onSave }) {
                   {isOpen && (
                     <tr className="ta-detail-row">
                       <td colSpan={COLUMNS.length + 1}>
-                        <ExpandedRow a={a} />
+                        <ExpandedRow
+                          a={a}
+                          buildings={buildings}
+                          pendingBuilding={pendingBuilding}
+                          onToggleBuilding={toggleBuilding}
+                        />
                       </td>
                     </tr>
                   )}

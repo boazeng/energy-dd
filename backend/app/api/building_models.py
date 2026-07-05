@@ -17,7 +17,12 @@ from app.schemas.building_model import (
     CombinedForecastYear,
     YearForecast,
 )
-from app.seed_building_models import sync_projects_data
+from app.seed_building_models import (
+    sync_contract_dates,
+    sync_install_income,
+    sync_mgmt_fee_and_elec_rate,
+    sync_projects_data,
+)
 
 router = APIRouter(prefix="/api/building-models", tags=["building-models"])
 
@@ -127,9 +132,15 @@ def update_building(bm_id: int, payload: BuildingModelUpdate, db: Session = Depe
     bm = db.get(BuildingModel, bm_id)
     if bm is None:
         raise HTTPException(status_code=404, detail="בניין לא נמצא")
-    for field, value in payload.model_dump(exclude_unset=True).items():
+    data = payload.model_dump(exclude_unset=True)
+    for field, value in data.items():
         setattr(bm, field, value)
     db.commit()
+    if "agreement_id" in data:
+        # קישור/ניתוק הסכם — סנכרן מיד את השדות הנגזרים מההסכם המקושר
+        sync_install_income(db)
+        sync_contract_dates(db)
+        sync_mgmt_fee_and_elec_rate(db)
     db.refresh(bm)
     return bm
 

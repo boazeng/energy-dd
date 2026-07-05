@@ -54,6 +54,12 @@ def migrate_building_models(engine: Engine) -> None:
             conn.execute(text("ALTER TABLE building_models ADD COLUMN notes TEXT DEFAULT ''"))
         if "hi_group" not in existing:
             conn.execute(text("ALTER TABLE building_models ADD COLUMN hi_group TEXT NULL"))
+        # מפתח קשיח להסכם דייר מקושר (tenant_agreements.id) — מחליף התאמת שם מטושטשת
+        if "agreement_id" not in existing:
+            conn.execute(text("ALTER TABLE building_models ADD COLUMN agreement_id INTEGER NULL"))
+        # מפתח מאושר מול projects.json החיצוני — נועל אחרי התאמה ראשונה מוצלחת
+        if "external_project_key" not in existing:
+            conn.execute(text("ALTER TABLE building_models ADD COLUMN external_project_key TEXT NULL"))
         # קבוצת HI GROUP — 4 בניינים אשקלון תחת הסכם אחד
         for _bname in [
             "בן גוריון 7, אשקלון",
