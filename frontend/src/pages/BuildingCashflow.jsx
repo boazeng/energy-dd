@@ -939,7 +939,7 @@ export default function BuildingCashflow({ loading: appLoading, horizonMode = 'c
     setNewName('')
     setAdding(false)
     await load()
-    setSelectedId(bm.id)
+    selectBuilding(bm.id)
   }
 
   async function handleDelete(id) {
@@ -950,6 +950,8 @@ export default function BuildingCashflow({ loading: appLoading, horizonMode = 'c
   }
 
   const selected = buildings.find((b) => b.id === selectedId)
+  const groupMembers = selectedGroup ? buildings.filter((b) => b.hi_group === selectedGroup) : []
+  const groupYears = selectedGroup ? buildGroupYears(combined, groupMembers.map((b) => b.building_name)) : []
 
   // רשימת בניינים בסרגל הצד — קיבוץ לפי hi_group לשורה אחת עם שמות מתחת
   const sidebarSeenGroups = new Set()
@@ -1286,8 +1288,8 @@ export default function BuildingCashflow({ loading: appLoading, horizonMode = 'c
           {/* ─── רשימת בניינים — שמאל ─── */}
           <div className="building-list-panel">
             <div
-              className={`building-row ${selectedId == null ? 'selected' : ''}`}
-              onClick={() => setSelectedId(null)}
+              className={`building-row ${selectedId == null && selectedGroup == null ? 'selected' : ''}`}
+              onClick={() => { setSelectedId(null); setSelectedGroup(null) }}
             >
               <div className="building-row-name">כל הבניינים</div>
               <div className="building-row-meta">{buildings.length} בניינים</div>
@@ -1297,9 +1299,9 @@ export default function BuildingCashflow({ loading: appLoading, horizonMode = 'c
                 key={item.key}
                 groupName={item.groupName}
                 members={item.members}
-                selectedId={selectedId}
+                selected={selectedGroup === item.groupName}
                 excludedIds={excludedIds}
-                onSelect={setSelectedId}
+                onSelectGroup={selectGroup}
                 onDelete={handleDelete}
               />
             ) : (
@@ -1308,7 +1310,7 @@ export default function BuildingCashflow({ loading: appLoading, horizonMode = 'c
                 bm={item.bm}
                 selected={selectedId === item.bm.id}
                 excluded={excludedIds.has(item.bm.id)}
-                onSelect={setSelectedId}
+                onSelect={selectBuilding}
                 onDelete={handleDelete}
               />
             ))}
@@ -1318,7 +1320,7 @@ export default function BuildingCashflow({ loading: appLoading, horizonMode = 'c
           <div className="building-content-area">
 
             {/* תצוגה כוללת */}
-            {selectedId == null && (
+            {selectedId == null && selectedGroup == null && (
               <div className="building-detail">
                 {buildings.length === 0 ? (
                   <div className="empty-state">
@@ -1379,6 +1381,69 @@ export default function BuildingCashflow({ loading: appLoading, horizonMode = 'c
                 </div>
               </div>
             )}
+
+            {/* תצוגת קבוצת בניינים מאוחדת (hi_group) — תזרים אחד בלבד לכל הקבוצה */}
+            {selectedGroup && groupMembers.length > 0 && (() => {
+              const groupIds = groupMembers.map((b) => b.id)
+              const allIncluded = groupIds.every((id) => !excludedIds.has(id))
+              const totalChargers  = groupMembers.reduce((s, b) => s + (b.current_chargers || 0), 0)
+              const totalPotential = groupMembers.reduce((s, b) => s + (b.potential_spots || 0), 0)
+              return (
+                <div className="building-detail">
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+                    <h3 style={{ margin: 0 }}>{selectedGroup}</h3>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', fontSize: 13, color: 'var(--tact-text-dim,#aaa)' }}>
+                      <input
+                        type="checkbox"
+                        checked={allIncluded}
+                        onChange={() => toggleExcludeMany(groupIds)}
+                        style={{ cursor: 'pointer', width: 15, height: 15 }}
+                      />
+                      כלול בתזרים כל הבניינים
+                    </label>
+                  </div>
+
+                  <div className="building-layout">
+                    <div className="building-settings-panel">
+                      <div className="settings-section-title">סיכום קבוצה — הסכם אחד, {groupMembers.length} בניינים</div>
+                      <div className="settings-grid">
+                        <div className="setting-row">
+                          <span className="setting-label">מטענים נוכחיים (סה"כ)</span>
+                          <span style={{ fontWeight: 700 }}>{totalChargers}</span>
+                        </div>
+                        <div className="setting-row">
+                          <span className="setting-label">חניות פוטנציאליות (סה"כ)</span>
+                          <span style={{ fontWeight: 700 }}>{totalPotential}</span>
+                        </div>
+                      </div>
+                      <div className="settings-section-title" style={{ marginTop: 16 }}>בניינים בקבוצה</div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                        {groupMembers.map((bm) => (
+                          <div key={bm.id} style={{ fontSize: 13, color: 'var(--tact-text-dim,#ccc)' }}>
+                            {bm.building_name}
+                            <span style={{ fontSize: 11, color: 'var(--tact-text-dim,#888)' }}>
+                              {' '}— {bm.current_chargers || 0} מטענים · {bm.potential_spots || 0} פוטנציאל
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="dim-text" style={{ marginTop: 14, fontSize: 12 }}>
+                        עריכת תעריפים/תנאי הסכם נעשית בלשונית "הסכמי דיירים" ומסתנכרנת אוטומטית לכל בניין בקבוצה.
+                      </div>
+                    </div>
+                    <div className="building-chart-panel">
+                      <h4 style={{ marginTop: 0 }}>פירוט שנתי</h4>
+                      <ForecastTable years={groupYears} viewMode={viewMode} />
+                    </div>
+                  </div>
+
+                  <div style={{ marginTop: 24, marginBottom: 20 }}>
+                    <h4 style={{ marginTop: 0, marginBottom: 12 }}>תחזית גרפית</h4>
+                    <ForecastChart years={groupYears} viewMode={viewMode} />
+                  </div>
+                </div>
+              )
+            })()}
           </div>
 
 
