@@ -402,7 +402,10 @@ export default function Cashflow({ loading: parentLoading, horizonMode = 'contra
       const overheadPer   = totalAnnualOverhead / n
       const overheadByItem = overheadItems.map(o => (Number(o.annual) || 0) / n)
       const adaptationPer = p.year === 2026 ? totalAdaptation2026 / n : 0
-      const loan          = p.loan_repayment || 0
+      const amYear   = amortCalYear[p.year] || { interest: 0, principal: 0 }
+      const loanInterest  = amYear.interest  / n
+      const loanPrincipal = amYear.principal / n
+      const loan          = loanInterest + loanPrincipal
       const netOperating  = p.total_income - p.total_capex - p.total_opex - (p.total_maint || 0) - overheadPer - adaptationPer
       const net           = netOperating - loan
       bal += net
@@ -412,9 +415,6 @@ export default function Cashflow({ loading: parentLoading, horizonMode = 'contra
       const pvNet    = net * pvFactor           // ערך נוכחי כולל מימון
       pvBal += pvNetOp
       const chargers = Object.values(p.buildings || {}).reduce((s, b) => s + (b.total_chargers || 0), 0)
-      const amYear   = amortCalYear[p.year] || { interest: 0, principal: 0 }
-      const loanInterest  = amYear.interest  / n
-      const loanPrincipal = amYear.principal / n
       const netMinusInterest   = netOperating - loanInterest
       const pvNetMinusInterest = netMinusInterest * pvFactor
       return {
@@ -768,6 +768,16 @@ export default function Cashflow({ loading: parentLoading, horizonMode = 'contra
                       </td>
                     </tr>
                   )}
+
+                  <tr style={{ fontWeight: 600 }}>
+                    <td className="fin-rowlabel">יתרה לאחר החזר הלוואה</td>
+                    {periods.map((r, i) => (
+                      <td key={i} className={r.net < 0 ? 'fin-neg' : ''}>{ils(r.net)}</td>
+                    ))}
+                    <td className={totalNet < 0 ? 'fin-neg' : ''} style={{ background: 'rgba(0,0,0,.04)', fontWeight: 700 }}>
+                      {ils(totalNet)}
+                    </td>
+                  </tr>
 
                   <tr style={{ fontWeight: 700 }}>
                     <td className="fin-rowlabel">יתרה מצטברת</td>
