@@ -223,36 +223,6 @@ def migrate_building_models(engine: Engine) -> None:
                     "cdy":     src["contract_duration_years"],
                 })
 
-        # עדכן current_chargers לבניינים שנוצרו מהפיצול ונשארו עם 0 (מ-tenants_data.json)
-        for _bname, _cur in [
-            ("גבע 2, אשקלון",        26),
-        ]:
-            conn.execute(
-                text("UPDATE building_models SET current_chargers = :c WHERE building_name = :n AND current_chargers = 0"),
-                {"c": _cur, "n": _bname},
-            )
-        # תיקון: בן גוריון 7 ו-9 אינם מכילים מטענים מותקנים — אפס ערכים שנקבעו בטעות
-        for _bname, _wrong in [
-            ("בן גוריון 7, אשקלון", 13),
-            ("בן גוריון 9, אשקלון",  1),
-        ]:
-            conn.execute(
-                text("UPDATE building_models SET current_chargers = 0 WHERE building_name = :n AND current_chargers = :w"),
-                {"n": _bname, "w": _wrong},
-            )
-
-        # עדכן potential_spots לבניינים אשקלון (מ-tenants_data.json — כמות דיירים)
-        for _bname, _spots in [
-            ("בן גוריון 7, אשקלון",  77),
-            ("בן גוריון 9, אשקלון",  65),
-            ("אשתאול 1, אשקלון",     65),
-            ("גבע 2, אשקלון",        77),
-        ]:
-            conn.execute(
-                text("UPDATE building_models SET potential_spots = :s WHERE building_name = :n"),
-                {"s": _spots, "n": _bname},
-            )
-
         # הוסף בניינים SLS Sails אם חסרים — מודל חלוקת הכנסות (55% SER)
         for _sls_name in ("סטאר סנטר אשדוד", "ארנה נהריה"):
             if not conn.execute(
@@ -284,5 +254,47 @@ def migrate_building_models(engine: Engine) -> None:
                         strftime('%Y-%m-%d %H:%M:%S', 'now')
                     )
                 """), {"name": _sls_name})
+
+        conn.commit()
+
+
+def apply_manual_building_corrections(engine: Engine) -> None:
+    """תיקונים ידניים לנתונים שגויים במקור (projects.json של החברה).
+
+    חייב לרוץ **אחרי** `sync_projects_data` (לא בתוך `migrate_building_models`,
+    שרץ לפניו) — אחרת sync_projects_data דורס את התיקון בחזרה מיד אחריו בכל
+    עליית שרת. דוגמה: גבע 2 קיבל 390 חניות פוטנציאליות מ-projects.json
+    (טעות אמיתית במקור), במקום 77 הנכון מ-tenants_data.json.
+    """
+    with engine.connect() as conn:
+        # עדכן current_chargers לבניינים שנוצרו מהפיצול ונשארו עם 0 (מ-tenants_data.json)
+        for _bname, _cur in [
+            ("גבע 2, אשקלון",        26),
+        ]:
+            conn.execute(
+                text("UPDATE building_models SET current_chargers = :c WHERE building_name = :n AND current_chargers = 0"),
+                {"c": _cur, "n": _bname},
+            )
+        # תיקון: בן גוריון 7 ו-9 אינם מכילים מטענים מותקנים — אפס ערכים שנקבעו בטעות
+        for _bname, _wrong in [
+            ("בן גוריון 7, אשקלון", 13),
+            ("בן גוריון 9, אשקלון",  1),
+        ]:
+            conn.execute(
+                text("UPDATE building_models SET current_chargers = 0 WHERE building_name = :n AND current_chargers = :w"),
+                {"n": _bname, "w": _wrong},
+            )
+
+        # עדכן potential_spots לבניינים אשקלון (מ-tenants_data.json — כמות דיירים)
+        for _bname, _spots in [
+            ("בן גוריון 7, אשקלון",  77),
+            ("בן גוריון 9, אשקלון",  65),
+            ("אשתאול 1, אשקלון",     65),
+            ("גבע 2, אשקלון",        77),
+        ]:
+            conn.execute(
+                text("UPDATE building_models SET potential_spots = :s WHERE building_name = :n"),
+                {"s": _spots, "n": _bname},
+            )
 
         conn.commit()

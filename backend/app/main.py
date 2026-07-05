@@ -15,7 +15,7 @@ from app.seed import seed_tasks
 from app.seed_cashflow import seed_cashflow
 from app.seed_contracts import seed_contracts
 from app.seed_supplier_balances import seed_supplier_balances
-from app.migrations import migrate_building_models
+from app.migrations import apply_manual_building_corrections, migrate_building_models
 from app.seed_building_models import seed_building_models, sync_contract_dates, sync_install_income, sync_projects_data
 from app.seed_supplier_ledger import seed_supplier_ledger
 
@@ -40,6 +40,7 @@ async def lifespan(_: FastAPI):
         sync_projects_data(db, settings.projects_data_path)
         sync_install_income(db)
         sync_contract_dates(db)
+    apply_manual_building_corrections(engine)
     yield
 
 
