@@ -98,6 +98,34 @@ function expandYears(years, viewMode) {
   return out
 }
 
+// מאחד תחזית שנתית של כמה בניינים (קבוצת hi_group) לשנה-אחר-שנה מצרפי,
+// לפי הנתונים שכבר מחושבים ב-getCombinedForecast (ללא קריאת API נוספת)
+function buildGroupYears(combined, memberNames) {
+  return combined.map((row) => {
+    let chargers_added = 0, total_chargers = 0, annual_income = 0
+    let capex = 0, annual_opex = 0, maintenance_opex = 0, profit = 0
+    for (const name of memberNames) {
+      const yf = row.buildings[name]
+      if (!yf) continue
+      chargers_added   += yf.chargers_added   || 0
+      total_chargers   += yf.total_chargers   || 0
+      annual_income    += yf.annual_income    || 0
+      capex            += yf.capex            || 0
+      annual_opex      += yf.annual_opex      || 0
+      maintenance_opex += yf.maintenance_opex || 0
+      profit           += yf.profit           || 0
+    }
+    return {
+      year: row.year, chargers_added, total_chargers,
+      annual_income: round2(annual_income), capex: round2(capex),
+      annual_opex: round2(annual_opex), maintenance_opex: round2(maintenance_opex),
+      profit: round2(profit),
+    }
+  })
+}
+
+function round2(n) { return Math.round(n * 100) / 100 }
+
 // שדות ספציפיים לבניין בודד (כולל תעריפים לפי הסכם דייר)
 const BUILDING_SPECIFIC_FIELDS = [
   { key: 'current_chargers',             label: 'מטענים נוכחיים',     unit: '',         step: 1,   type: 'int',   note: 'מסונכרן מפרויקטים' },
@@ -483,20 +511,21 @@ function BuildingRow({ bm, selected, excluded, onSelect, onDelete }) {
 
 // ─── שורת קבוצת בניינים (hi_group) — סיכום מאוחד + רשימת שמות מתחת ──────────
 
-function BuildingGroupRow({ groupName, members, selectedId, excludedIds, onSelect, onDelete }) {
+function BuildingGroupRow({ groupName, members, selected, excludedIds, onSelectGroup, onDelete }) {
   const totalChargers  = members.reduce((s, b) => s + (b.current_chargers || 0), 0)
   const totalPotential = members.reduce((s, b) => s + (b.potential_spots || 0), 0)
-  const anySelected = members.some((b) => b.id === selectedId)
   return (
-    <div className={`building-row building-group-row ${anySelected ? 'selected' : ''}`}>
+    <div
+      className={`building-row building-group-row ${selected ? 'selected' : ''}`}
+      onClick={() => onSelectGroup(groupName)}
+    >
       <div className="building-row-name">{groupName}</div>
       <div className="building-row-meta">{totalChargers} מטענים · {totalPotential} פוטנציאל</div>
       <div className="building-group-members">
         {members.map((bm) => (
           <div
             key={bm.id}
-            className={`building-group-member ${selectedId === bm.id ? 'selected' : ''}`}
-            onClick={() => onSelect(bm.id)}
+            className="building-group-member"
             style={excludedIds.has(bm.id) ? { opacity: 0.45 } : undefined}
           >
             <span>{bm.building_name}</span>
@@ -728,6 +757,7 @@ function CombinedTable({ combined, buildings, overheadExpenses = [], excludedIds
 export default function BuildingCashflow({ loading: appLoading, horizonMode = 'contract', onHorizonChange, excludedIds = new Set(), onExcludedChange, agreementVersion = 0 }) {
   const [buildings, setBuildings] = useState([])
   const [selectedId, setSelectedId] = useState(null)
+  const [selectedGroup, setSelectedGroup] = useState(null)
   const [forecast, setForecast] = useState(null)
   const [combined, setCombined] = useState([])
   const [loading, setLoading] = useState(true)
@@ -772,6 +802,23 @@ export default function BuildingCashflow({ loading: appLoading, horizonMode = 'c
     const next = new Set(excludedIds)
     if (next.has(id)) next.delete(id); else next.add(id)
     onExcludedChange?.(next)
+  }
+
+  function toggleExcludeMany(ids) {
+    const allIncluded = ids.every((id) => !excludedIds.has(id))
+    const next = new Set(excludedIds)
+    ids.forEach((id) => allIncluded ? next.add(id) : next.delete(id))
+    onExcludedChange?.(next)
+  }
+
+  function selectBuilding(id) {
+    setSelectedGroup(null)
+    setSelectedId(id)
+  }
+
+  function selectGroup(groupName) {
+    setSelectedId(null)
+    setSelectedGroup(groupName)
   }
 
   function setAllIncluded(includeAll) {
@@ -1382,7 +1429,6 @@ export default function BuildingCashflow({ loading: appLoading, horizonMode = 'c
         .building-row-delete:hover { color: var(--tact-red,#e74c3c); }
 
         /* ─── שורת קבוצת בניינים (hi_group) ─── */
-        .building-group-row { cursor: default; }
         .building-group-members { margin-top: 6px; display: flex; flex-direction: column; gap: 2px; }
         .building-group-member {
           position: relative;
@@ -1390,10 +1436,7 @@ export default function BuildingCashflow({ loading: appLoading, horizonMode = 'c
           font-size: 11px; color: var(--tact-text-dim,#aaa);
           padding: 3px 6px 3px 22px;
           border-radius: 5px;
-          cursor: pointer;
         }
-        .building-group-member:hover { background: rgba(255,255,255,.08); color: var(--tact-text,#eee); }
-        .building-group-member.selected { background: rgba(108,142,191,.2); color: var(--tact-accent,#6c8ebf); font-weight: 600; }
         .building-group-member .building-row-delete { top: 2px; left: 2px; }
 
         .building-detail {
