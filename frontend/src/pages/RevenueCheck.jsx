@@ -464,15 +464,24 @@ function FileUpload({ onUploaded }) {
   )
 }
 
+const SECTIONS = [
+  { key: 'chargers',     label: 'כמות מטענים' },
+  { key: 'fees',         label: 'דמי מנוי' },
+  { key: 'electricity',  label: 'תעריף חשמל' },
+  { key: 'kwh',          label: 'צריכת קוו"ש' },
+]
+
 // ─── ראשי ─────────────────────────────────────────────────────────────────────
 export default function RevenueCheck() {
   const [month, setMonth] = useState('2026-05')
+  const [section, setSection] = useState('chargers')
   const [hasError, setHasError] = useState(false)
   const [reloadKey, setReloadKey] = useState(0)
 
   return (
     <div dir="rtl">
-      <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 24, flexWrap: 'wrap' }}>
+      {/* כותרת + בורר חודש */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20, flexWrap: 'wrap' }}>
         <h2 style={{ margin: 0, fontSize: 20 }}>בדיקת הכנסות</h2>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
           <label style={{ fontSize: 13 }}>חודש:</label>
@@ -484,14 +493,38 @@ export default function RevenueCheck() {
         </div>
       </div>
 
+      {/* טאבים */}
+      <div style={{
+        display: 'flex', gap: 4, marginBottom: 20,
+        borderBottom: '2px solid var(--tact-border, #e0e0e0)',
+      }}>
+        {SECTIONS.map(s => (
+          <button
+            key={s.key}
+            onClick={() => setSection(s.key)}
+            style={{
+              padding: '7px 18px', fontSize: 13, border: 'none', cursor: 'pointer',
+              borderRadius: '6px 6px 0 0', fontWeight: section === s.key ? 700 : 400,
+              background: section === s.key ? 'var(--tact-accent, #6c8ebf)' : 'transparent',
+              color: section === s.key ? '#fff' : 'var(--tact-text-dim, #888)',
+              borderBottom: section === s.key ? '2px solid var(--tact-accent, #6c8ebf)' : '2px solid transparent',
+              marginBottom: -2,
+              transition: 'all .15s',
+            }}
+          >
+            {s.label}
+          </button>
+        ))}
+      </div>
+
       {hasError && (
         <FileUpload onUploaded={() => { setHasError(false); setReloadKey(k => k + 1) }} />
       )}
 
-      <ChargerCompare key={`c-${reloadKey}`} month={month} onError={() => setHasError(true)} />
-      <MonthlyFeeCompare key={`m-${reloadKey}`} month={month} />
-      <ElectricityCompare key={`e-${reloadKey}`} month={month} />
-      <KwhAvgTable key={`k-${reloadKey}`} />
+      {section === 'chargers'    && <ChargerCompare    key={`c-${reloadKey}-${month}`} month={month} onError={() => setHasError(true)} />}
+      {section === 'fees'        && <MonthlyFeeCompare key={`m-${reloadKey}-${month}`} month={month} />}
+      {section === 'electricity' && <ElectricityCompare key={`e-${reloadKey}-${month}`} month={month} />}
+      {section === 'kwh'         && <KwhAvgTable        key={`k-${reloadKey}`} />}
     </div>
   )
 }
