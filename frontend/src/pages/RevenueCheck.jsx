@@ -32,7 +32,7 @@ function StatusBadge({ status }) {
 }
 
 // ─── השוואה 1: כמות מטענים ────────────────────────────────────────────────────
-function ChargerCompare({ month }) {
+function ChargerCompare({ month, onError }) {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -41,7 +41,7 @@ function ChargerCompare({ month }) {
     setLoading(true); setError('')
     api.getRevenueChargerCompare(month)
       .then(setData)
-      .catch(e => setError(e.message))
+      .catch(e => { setError(e.message); onError?.() })
       .finally(() => setLoading(false))
   }, [month])
 
@@ -420,9 +420,55 @@ function KwhAvgTable() {
   )
 }
 
+// ─── העלאת קבצים ─────────────────────────────────────────────────────────────
+function FileUpload({ onUploaded }) {
+  const [uploading, setUploading] = useState(false)
+  const [msg, setMsg] = useState('')
+
+  async function handleFiles(files) {
+    setUploading(true); setMsg('')
+    let ok = 0
+    for (const file of files) {
+      try {
+        const fd = new FormData()
+        fd.append('file', file)
+        const res = await fetch('/api/revenue-check/upload', { method: 'POST', body: fd })
+        if (!res.ok) throw new Error((await res.json()).detail || res.status)
+        ok++
+      } catch (e) { setMsg(`שגיאה ב-${file.name}: ${e.message}`) }
+    }
+    setUploading(false)
+    if (ok > 0) { setMsg(`הועלו ${ok} קבצים`); onUploaded() }
+  }
+
+  return (
+    <div className="card" style={{ marginBottom: 24, borderColor: '#f0a000', background: '#fffbf0' }}>
+      <h3 style={{ margin: '0 0 10px', fontSize: 15, color: '#856404' }}>העלאת קבצי נתונים</h3>
+      <p style={{ margin: '0 0 12px', fontSize: 13, color: '#666' }}>
+        נדרשים 2 קבצי Excel: נייר עבודה (נתוני בניינים) ופלט וויבו (פירוט לקוח).
+        לאחר ההעלאה הקבצים נשמרים בשרת ואין צורך להעלות שוב.
+      </p>
+      <label style={{
+        display: 'inline-block', padding: '8px 18px', background: '#856404', color: '#fff',
+        borderRadius: 6, cursor: 'pointer', fontSize: 13,
+      }}>
+        {uploading ? 'מעלה...' : 'בחר קבצים'}
+        <input
+          type="file" accept=".xlsx,.xls" multiple hidden
+          onChange={e => e.target.files?.length && handleFiles([...e.target.files])}
+          disabled={uploading}
+        />
+      </label>
+      {msg && <span style={{ marginRight: 12, fontSize: 12, color: msg.includes('שגיאה') ? '#dc3545' : '#28a745' }}>{msg}</span>}
+    </div>
+  )
+}
+
 // ─── ראשי ─────────────────────────────────────────────────────────────────────
 export default function RevenueCheck() {
   const [month, setMonth] = useState('2026-05')
+  const [hasError, setHasError] = useState(false)
+  const [reloadKey, setReloadKey] = useState(0)
 
   return (
     <div dir="rtl">
@@ -436,13 +482,16 @@ export default function RevenueCheck() {
             ))}
           </select>
         </div>
-        <span style={{ fontSize: 12, color: '#888' }}>מקור: פלט וויבו מפורט לקוח · SharePoint</span>
       </div>
 
-      <ChargerCompare month={month} />
-      <MonthlyFeeCompare month={month} />
-      <ElectricityCompare month={month} />
-      <KwhAvgTable />
+      {hasError && (
+        <FileUpload onUploaded={() => { setHasError(false); setReloadKey(k => k + 1) }} />
+      )}
+
+      <ChargerCompare key={`c-${reloadKey}`} month={month} onError={() => setHasError(true)} />
+      <MonthlyFeeCompare key={`m-${reloadKey}`} month={month} />
+      <ElectricityCompare key={`e-${reloadKey}`} month={month} />
+      <KwhAvgTable key={`k-${reloadKey}`} />
     </div>
   )
 }

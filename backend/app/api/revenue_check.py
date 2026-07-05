@@ -9,7 +9,7 @@ from pathlib import Path
 from typing import Any
 
 import openpyxl
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, UploadFile
 from sqlalchemy import select
 
 from app.core.config import settings
@@ -259,6 +259,17 @@ def list_files():
     ] if folder.is_dir() else []
     source = "local" if local else "sharepoint"
     return {"source": source, "folder": str(folder), "files": local}
+
+
+@router.post("/upload")
+async def upload_excel(file: UploadFile):
+    folder = Path(settings.revenue_check_local_path)
+    folder.mkdir(parents=True, exist_ok=True)
+    if not file.filename.lower().endswith((".xlsx", ".xls")):
+        raise HTTPException(status_code=400, detail="יש להעלות קובץ Excel בלבד")
+    dest = folder / file.filename
+    dest.write_bytes(await file.read())
+    return {"name": file.filename, "size": dest.stat().st_size}
 
 
 @router.get("/data")
