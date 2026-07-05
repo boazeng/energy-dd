@@ -408,11 +408,21 @@ function ElectricityCompare({ month }) {
 }
 
 // ─── השוואה 4: צריכת קוו"ש ממוצעת לבניין ולמטען ──────────────────────────────
+const MONTHS_ENTRIES = [
+  { key: 'avg',     label: 'ממוצע' },
+  { key: '2026-01', label: 'ינואר' },
+  { key: '2026-02', label: 'פברואר' },
+  { key: '2026-03', label: 'מרץ' },
+  { key: '2026-04', label: 'אפריל' },
+  { key: '2026-05', label: 'מאי' },
+]
+
 function KwhAvgTable() {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [expanded, setExpanded] = useState(null)
+  const [monthView, setMonthView] = useState('avg')
 
   useEffect(() => {
     setLoading(true); setError('')
@@ -423,25 +433,50 @@ function KwhAvgTable() {
   }, [])
 
   function toggle(name) {
+    if (monthView !== 'avg') return
     setExpanded(prev => prev === name ? null : name)
   }
 
-  const MONTHS_LABELS = {
-    '2026-01': 'ינואר', '2026-02': 'פברואר', '2026-03': 'מרץ',
-    '2026-04': 'אפריל', '2026-05': 'מאי',
+  function getKwh(b) {
+    if (monthView === 'avg') return b.avg_monthly_kwh
+    return b.months?.find(m => m.month === monthView)?.kwh ?? null
   }
+
+  function getKwhPerCharger(b) {
+    if (monthView === 'avg') return b.avg_kwh_per_charger
+    return b.months?.find(m => m.month === monthView)?.kwh_per_charger ?? null
+  }
+
+  const colLabel = monthView === 'avg'
+    ? 'ממוצע קוו"ש/חודש'
+    : `קוו"ש — ${MONTHS_ENTRIES.find(e => e.key === monthView)?.label}`
+
+  const totalKwh = data?.buildings?.reduce((s, b) => s + (getKwh(b) || 0), 0) ?? 0
 
   return (
     <div className="card" style={{ marginBottom: 24 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
-        <h3 style={{ margin: 0, fontSize: 17 }}>צריכה ממוצעת חודשית — קוו"ש לבניין ולמטען</h3>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10, flexWrap: 'wrap' }}>
+        <h3 style={{ margin: 0, fontSize: 17 }}>צריכה חודשית — קוו"ש לבניין ולמטען</h3>
         {loading && <span style={{ fontSize: 14, color: '#888' }}>טוען...</span>}
-        {data && (
-          <span style={{ fontSize: 14, color: '#888' }}>
-            {data.buildings?.length} בניינים · ינואר–מאי 2026
-          </span>
-        )}
+        {data && <span style={{ fontSize: 14, color: '#888' }}>{data.buildings?.length} בניינים</span>}
       </div>
+
+      {data && (
+        <div style={{ display: 'flex', gap: 4, marginBottom: 14, flexWrap: 'wrap' }}>
+          {MONTHS_ENTRIES.map(e => (
+            <button
+              key={e.key}
+              onClick={() => { setMonthView(e.key); setExpanded(null) }}
+              style={{
+                fontSize: 13, padding: '3px 12px', borderRadius: 5, border: '1px solid #ccc',
+                cursor: 'pointer', fontWeight: monthView === e.key ? 700 : 400,
+                background: monthView === e.key ? 'var(--tact-accent,#6c8ebf)' : 'transparent',
+                color: monthView === e.key ? '#fff' : 'inherit',
+              }}
+            >{e.label}</button>
+          ))}
+        </div>
+      )}
 
       {error && <div className="app-error" style={{ marginBottom: 10 }}>{error}</div>}
 
@@ -450,40 +485,37 @@ function KwhAvgTable() {
           <table className="rc-table" style={{ fontSize: 17 }}>
             <thead>
               <tr>
-                <th style={{ width: 28 }} />
+                {monthView === 'avg' && <th style={{ width: 28 }} />}
                 <th>בניין</th>
                 <th style={{ textAlign: 'center' }}>מטענים</th>
-                <th
-                  style={{ textAlign: 'center', cursor: 'default', color: '#6c8ebf' }}
-                  title="לחץ על הנתון לפירוט חודשי"
-                >
-                  ממוצע קוו"ש/חודש ▾
-                </th>
-                <th style={{ textAlign: 'center', color: '#6c8ebf' }}>ממוצע קוו"ש/מטען</th>
+                <th style={{ textAlign: 'center', color: '#6c8ebf' }}>{colLabel}</th>
+                <th style={{ textAlign: 'center', color: '#6c8ebf' }}>קוו"ש/מטען</th>
               </tr>
             </thead>
             <tbody>
-              {data.buildings.map((b, i) => (
+              {data.buildings.map((b) => (
                 <>
                   <tr
                     key={b.building_excel}
-                    style={{ background: expanded === b.building_excel ? '#f0f4ff' : undefined, cursor: 'pointer' }}
+                    style={{ background: expanded === b.building_excel ? '#f0f4ff' : undefined, cursor: monthView === 'avg' ? 'pointer' : 'default' }}
                     onClick={() => toggle(b.building_excel)}
                   >
-                    <td style={{ textAlign: 'center', color: '#6c8ebf', fontSize: 17 }}>
-                      {expanded === b.building_excel ? '▲' : '▼'}
-                    </td>
+                    {monthView === 'avg' && (
+                      <td style={{ textAlign: 'center', color: '#6c8ebf', fontSize: 17 }}>
+                        {expanded === b.building_excel ? '▲' : '▼'}
+                      </td>
+                    )}
                     <td dir="rtl">{b.building_excel}</td>
                     <td style={{ textAlign: 'center' }}>{b.current_chargers ?? '—'}</td>
                     <td style={{ textAlign: 'center', fontWeight: 600, color: '#2a5298' }}>
-                      {b.avg_monthly_kwh != null ? b.avg_monthly_kwh.toLocaleString() : '—'}
+                      {getKwh(b) != null ? getKwh(b).toLocaleString() : '—'}
                     </td>
                     <td style={{ textAlign: 'center', color: '#555' }}>
-                      {b.avg_kwh_per_charger != null ? b.avg_kwh_per_charger.toLocaleString() : '—'}
+                      {getKwhPerCharger(b) != null ? getKwhPerCharger(b).toLocaleString() : '—'}
                     </td>
                   </tr>
 
-                  {expanded === b.building_excel && (
+                  {monthView === 'avg' && expanded === b.building_excel && (
                     <tr key={b.building_excel + '_detail'}>
                       <td colSpan={5} style={{ padding: '0 0 0 32px', background: '#f7f9ff' }}>
                         <table style={{ fontSize: 14, width: '100%', borderCollapse: 'collapse', margin: '6px 0' }}>
@@ -498,7 +530,7 @@ function KwhAvgTable() {
                             {b.months.map(m => (
                               <tr key={m.month} style={{ borderBottom: '1px solid #dde3f0' }}>
                                 <td style={{ padding: '3px 10px', textAlign: 'right' }}>
-                                  {MONTHS_LABELS[m.month] || m.month}
+                                  {MONTHS_ENTRIES.find(e => e.key === m.month)?.label || m.month}
                                 </td>
                                 <td style={{ padding: '3px 10px', textAlign: 'center' }}>
                                   {m.kwh ? m.kwh.toLocaleString() : '—'}
@@ -518,13 +550,13 @@ function KwhAvgTable() {
             </tbody>
             <tfoot>
               <tr style={{ fontWeight: 700, background: 'var(--rc-head-bg, #eef1f7)' }}>
-                <td />
+                {monthView === 'avg' && <td />}
                 <td dir="rtl">סה"כ</td>
                 <td style={{ textAlign: 'center' }}>
                   {data.buildings.reduce((s, b) => s + (b.current_chargers || 0), 0)}
                 </td>
                 <td style={{ textAlign: 'center', color: '#2a5298' }}>
-                  {data.buildings.reduce((s, b) => s + (b.avg_monthly_kwh || 0), 0).toLocaleString(undefined, { maximumFractionDigits: 1 })}
+                  {totalKwh.toLocaleString(undefined, { maximumFractionDigits: 1 })}
                 </td>
                 <td />
               </tr>
