@@ -274,6 +274,14 @@ function MonthlyFeeCompare({ month }) {
                       </tr>
                     ))}
                   </tbody>
+                  <tfoot>
+                    <tr style={{ fontWeight: 700, background: 'var(--rc-head-bg, #eef1f7)' }}>
+                      <td colSpan={2} dir="rtl">סה"כ</td>
+                      <td style={{ textAlign: 'center' }}>₪{detailRows.reduce((s, r) => s + (r.monthly_fee_incl_vat || 0), 0).toFixed(2)}</td>
+                      <td style={{ textAlign: 'center' }}>₪{detailRows.reduce((s, r) => s + (r.monthly_fee_excl_vat || 0), 0).toFixed(2)}</td>
+                      <td colSpan={4} />
+                    </tr>
+                  </tfoot>
                 </table>
               </div>
             </>
@@ -346,6 +354,14 @@ function ElectricityCompare({ month }) {
                 </tr>
               ))}
             </tbody>
+            <tfoot>
+              <tr style={{ fontWeight: 700, background: 'var(--rc-head-bg, #eef1f7)' }}>
+                <td dir="rtl">סה"כ</td>
+                <td style={{ textAlign: 'center' }}>{data.rows.reduce((s, r) => s + (r.kwh || 0), 0).toFixed(1)}</td>
+                <td style={{ textAlign: 'center' }}>₪{data.rows.reduce((s, r) => s + (r.premium_incl_vat || 0), 0).toFixed(2)}</td>
+                <td colSpan={4} />
+              </tr>
+            </tfoot>
           </table>
         </div>
       )}
@@ -428,6 +444,7 @@ function KwhAvgTable() {
                       {b.avg_kwh_per_charger != null ? b.avg_kwh_per_charger.toLocaleString() : '—'}
                     </td>
                   </tr>
+
                   {expanded === b.building_excel && (
                     <tr key={b.building_excel + '_detail'}>
                       <td colSpan={5} style={{ padding: '0 0 0 32px', background: '#f7f9ff' }}>
@@ -461,6 +478,19 @@ function KwhAvgTable() {
                 </>
               ))}
             </tbody>
+            <tfoot>
+              <tr style={{ fontWeight: 700, background: 'var(--rc-head-bg, #eef1f7)' }}>
+                <td />
+                <td dir="rtl">סה"כ</td>
+                <td style={{ textAlign: 'center' }}>
+                  {data.buildings.reduce((s, b) => s + (b.current_chargers || 0), 0)}
+                </td>
+                <td style={{ textAlign: 'center', color: '#2a5298' }}>
+                  {data.buildings.reduce((s, b) => s + (b.avg_monthly_kwh || 0), 0).toLocaleString(undefined, { maximumFractionDigits: 1 })}
+                </td>
+                <td />
+              </tr>
+            </tfoot>
           </table>
         </div>
       )}
