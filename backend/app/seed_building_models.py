@@ -171,12 +171,26 @@ def _normalize_keep_digits(s: str) -> str:
     return re.sub(r"\s+", " ", s).strip()
 
 
+def _word_match(norm_a: str, norm_b: str) -> bool:
+    """התאמת מילים שלמות בין שני מחרוזות מנורמלות.
+
+    שם מנורמל קצר (כמו "גבע", אחרי הסרת מספר הבית מ"גבע 2") הוא
+    substring גנרי מדי — הוא עלול "להימצא" בתוך מילה ארוכה לגמרי לא
+    קשורה (למשל "גבעתיים"). לכן במקום בדיקת substring גולמית, מפרקים
+    למילים ובודקים שכל מילות הצד הקצר מופיעות כמילים שלמות בצד הארוך.
+    """
+    tokens_a, tokens_b = set(norm_a.split()), set(norm_b.split())
+    if not tokens_a or not tokens_b:
+        return False
+    return tokens_a <= tokens_b or tokens_b <= tokens_a
+
+
 def _match_project(building_name: str, projects: list[dict]) -> dict | None:
     """מוצא פרויקט תואם ב-projects.json לפי שם מנורמל.
 
     קודם מנסה התאמה מדויקת שמשמרת את מספר הבית (מונע בלבול בין כתובות
     שכנות כמו "בן גוריון 7" מול "בן גוריון 9"), ורק אם לא נמצאה נופל
-    חזרה להתאמת substring רופפת בלי מספרים — למקרים של כתובות מרוכבות
+    חזרה להתאמת מילים שלמות בלי מספרים — למקרים של כתובות מרוכבות
     בפורמטים שונים (למשל "אייזנברג 1+3").
     """
     street_part = building_name.split(",")[0].strip()
@@ -190,8 +204,7 @@ def _match_project(building_name: str, projects: list[dict]) -> dict | None:
     for p in projects:
         # פרויקט: project="אייזנברג 1+3", city="רחובות"
         norm_proj = _normalize(p.get("project", ""))
-        # התאמה: שם הרחוב המנורמל מופיע בשם הפרויקט המנורמל (או להפך)
-        if norm_proj and (norm_proj in norm_street or norm_street in norm_proj):
+        if norm_proj and _word_match(norm_proj, norm_street):
             return p
 
     return None
@@ -200,8 +213,9 @@ def _match_project(building_name: str, projects: list[dict]) -> dict | None:
 def _count_no_rcd(chargers: list[dict], proj_name: str) -> int:
     """סופר מטענים ללא פחת (has_rcd falsy) לפרויקט נתון.
 
-    התאמה מדויקת (משמרת מספר בית) קודם, ואז נפילה חזרה להתאמה רופפת —
-    אותה סיבה כמו ב-_match_project (למנוע בלבול בין כתובות שכנות).
+    התאמה מדויקת (משמרת מספר בית) קודם, ואז נפילה חזרה להתאמת מילים
+    שלמות — אותה סיבה כמו ב-_match_project (למנוע בלבול בין כתובות
+    שכנות, ובין שמות קצרים לשמות ארוכים לא קשורים).
     """
     exact = _normalize_keep_digits(proj_name)
     matched = [c for c in chargers if exact and _normalize_keep_digits(c.get("project", "")) == exact]
@@ -210,7 +224,7 @@ def _count_no_rcd(chargers: list[dict], proj_name: str) -> int:
         norm = _normalize(proj_name)
         matched = [
             c for c in chargers
-            if norm and (_normalize(c.get("project", "")) == norm or norm in _normalize(c.get("project", "")))
+            if norm and _word_match(norm, _normalize(c.get("project", "")))
         ]
 
     return sum(1 for c in matched if not c.get("has_rcd"))
