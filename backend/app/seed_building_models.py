@@ -188,14 +188,26 @@ def _word_match(norm_a: str, norm_b: str) -> bool:
 def _match_project(building_name: str, projects: list[dict]) -> dict | None:
     """מוצא פרויקט תואם ב-projects.json לפי שם מנורמל.
 
-    קודם מנסה התאמה מדויקת שמשמרת את מספר הבית (מונע בלבול בין כתובות
+    building_name בפורמט "רחוב, עיר" (למשל "גבע 2, אשקלון"). אותו שם
+    רחוב יכול להופיע בכמה ערים שונות — לכן קודם מנסה התאמה מדויקת של
+    רחוב+עיר יחד (הכי בטוחה), אחר כך רחוב בלבד (מונע בלבול בין כתובות
     שכנות כמו "בן גוריון 7" מול "בן גוריון 9"), ורק אם לא נמצאה נופל
     חזרה להתאמת מילים שלמות בלי מספרים — למקרים של כתובות מרוכבות
     בפורמטים שונים (למשל "אייזנברג 1+3").
     """
-    street_part = building_name.split(",")[0].strip()
+    parts = building_name.split(",")
+    street_part = parts[0].strip()
+    city_part = parts[1].strip() if len(parts) > 1 else ""
 
     exact_street = _normalize_keep_digits(street_part)
+    exact_city = _normalize_keep_digits(city_part)
+
+    if exact_street and exact_city:
+        for p in projects:
+            if (_normalize_keep_digits(p.get("project", "")) == exact_street
+                    and _normalize_keep_digits(p.get("city", "")) == exact_city):
+                return p
+
     for p in projects:
         if exact_street and _normalize_keep_digits(p.get("project", "")) == exact_street:
             return p
