@@ -186,6 +186,8 @@ function MonthlyFeeCompare({ month }) {
   }, [month])
 
   const sites = data ? ['all', ...data.site_summary.map(s => s.site)] : ['all']
+  const summaryRows = (data?.site_summary ?? [])
+    .filter(s => matchFilter === 'all' ? true : matchFilter === 'match' ? s.deviation === 0 : s.deviation > 0)
   const detailRows = (data?.rows ?? [])
     .filter(r => siteFilter === 'all' || r.site === siteFilter)
     .filter(r => matchFilter === 'all' ? true : matchFilter === 'match' ? r.status !== 'סטייה' : r.status === 'סטייה')
@@ -196,6 +198,7 @@ function MonthlyFeeCompare({ month }) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14, flexWrap: 'wrap' }}>
         <h3 style={{ margin: 0, fontSize: 17 }}>השוואה 2 — עלות חודשית לפי לקוח מול הסכם</h3>
         {loading && <span style={{ fontSize: 14, color: '#888' }}>טוען...</span>}
+        {data && <MatchFilter value={matchFilter} onChange={setMatchFilter} />}
         {data && (
           <span style={{ fontSize: 14, color: '#888' }}>
             {data.rows?.length} לקוחות ·{' '}
@@ -229,7 +232,7 @@ function MonthlyFeeCompare({ month }) {
                   </tr>
                 </thead>
                 <tbody>
-                  {data.site_summary.map((s, i) => (
+                  {summaryRows.map((s, i) => (
                     <tr key={i} style={{ background: s.deviation ? '#fff8f0' : undefined }}>
                       <td dir="rtl">
                         <button
@@ -251,11 +254,11 @@ function MonthlyFeeCompare({ month }) {
                 <tfoot>
                   <tr style={{ fontWeight: 700, background: 'var(--rc-head-bg, #eef1f7)' }}>
                     <td colSpan={2} dir="rtl">סה"כ</td>
-                    <td style={{ textAlign: 'center' }}>{data.site_summary.reduce((s, r) => s + r.count, 0)}</td>
+                    <td style={{ textAlign: 'center' }}>{summaryRows.reduce((s, r) => s + r.count, 0)}</td>
                     <td />
-                    <td style={{ textAlign: 'center', color: '#28a745' }}>{data.site_summary.reduce((s, r) => s + r.match, 0)}</td>
-                    <td style={{ textAlign: 'center', color: '#dc3545' }}>{data.site_summary.reduce((s, r) => s + r.deviation, 0)}</td>
-                    <td style={{ textAlign: 'center', color: '#fd7e14' }}>{data.site_summary.reduce((s, r) => s + (r.unpaid || 0), 0) || '—'}</td>
+                    <td style={{ textAlign: 'center', color: '#28a745' }}>{summaryRows.reduce((s, r) => s + r.match, 0)}</td>
+                    <td style={{ textAlign: 'center', color: '#dc3545' }}>{summaryRows.reduce((s, r) => s + r.deviation, 0)}</td>
+                    <td style={{ textAlign: 'center', color: '#fd7e14' }}>{summaryRows.reduce((s, r) => s + (r.unpaid || 0), 0) || '—'}</td>
                   </tr>
                 </tfoot>
               </table>
