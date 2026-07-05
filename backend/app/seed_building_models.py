@@ -148,18 +148,45 @@ BUILDING_SEEDS = [
 
 
 def _normalize(s: str) -> str:
-    """נרמול שם לצורך השוואה: הסרת ספרות, סימנים ורווחים מיותרים."""
+    """נרמול שם לצורך השוואה: הסרת ספרות, סימנים ורווחים מיותרים.
+
+    שימוש: התאמת building_models מול tenant_agreements — שם הסכם עשוי
+    לכסות כמה כתובות (למשל הסכם "היי גרופ" אחד עבור 4 בניינים), ולכן
+    התעלמות ממספר הבית פה היא רצויה.
+    """
     s = re.sub(r"[0-9]", "", s or "")
     s = re.sub(r"[+\-/,\"׳׳'״]", " ", s)
     return re.sub(r"\s+", " ", s).strip()
 
 
-def _match_project(building_name: str, projects: list[dict]) -> dict | None:
-    """מוצא פרויקט תואם ב-projects.json לפי שם מנורמל."""
-    # שם הבניין: "אייזנברג 1+3, רחובות"  →  street_part = "אייזנברג 1+3"
-    street_part = building_name.split(",")[0].strip()
-    norm_street = _normalize(street_part)
+def _normalize_keep_digits(s: str) -> str:
+    """נרמול שם לצורך השוואה, משמר מספרים.
 
+    שימוש: התאמת building_models מול projects.json — שם פרויקט תמיד
+    מייצג כתובת פיזית אחת, ומספר הבית הוא ההבדל היחיד בין כתובות
+    שכנות (למשל "בן גוריון 7" מול "בן גוריון 9"). הסרת הספרות שם היתה
+    גורמת לשתי הכתובות להיראות זהות ולהתלכד לאותו פרויקט.
+    """
+    s = re.sub(r"[+\-/,\"׳׳'״]", " ", s or "")
+    return re.sub(r"\s+", " ", s).strip()
+
+
+def _match_project(building_name: str, projects: list[dict]) -> dict | None:
+    """מוצא פרויקט תואם ב-projects.json לפי שם מנורמל.
+
+    קודם מנסה התאמה מדויקת שמשמרת את מספר הבית (מונע בלבול בין כתובות
+    שכנות כמו "בן גוריון 7" מול "בן גוריון 9"), ורק אם לא נמצאה נופל
+    חזרה להתאמת substring רופפת בלי מספרים — למקרים של כתובות מרוכבות
+    בפורמטים שונים (למשל "אייזנברג 1+3").
+    """
+    street_part = building_name.split(",")[0].strip()
+
+    exact_street = _normalize_keep_digits(street_part)
+    for p in projects:
+        if exact_street and _normalize_keep_digits(p.get("project", "")) == exact_street:
+            return p
+
+    norm_street = _normalize(street_part)
     for p in projects:
         # פרויקט: project="אייזנברג 1+3", city="רחובות"
         norm_proj = _normalize(p.get("project", ""))
@@ -171,14 +198,22 @@ def _match_project(building_name: str, projects: list[dict]) -> dict | None:
 
 
 def _count_no_rcd(chargers: list[dict], proj_name: str) -> int:
-    """סופר מטענים ללא פחת (has_rcd falsy) לפרויקט נתון."""
-    norm = _normalize(proj_name)
-    count = 0
-    for c in chargers:
-        if _normalize(c.get("project", "")) == norm or norm in _normalize(c.get("project", "")):
-            if not c.get("has_rcd"):
-                count += 1
-    return count
+    """סופר מטענים ללא פחת (has_rcd falsy) לפרויקט נתון.
+
+    התאמה מדויקת (משמרת מספר בית) קודם, ואז נפילה חזרה להתאמה רופפת —
+    אותה סיבה כמו ב-_match_project (למנוע בלבול בין כתובות שכנות).
+    """
+    exact = _normalize_keep_digits(proj_name)
+    matched = [c for c in chargers if exact and _normalize_keep_digits(c.get("project", "")) == exact]
+
+    if not matched:
+        norm = _normalize(proj_name)
+        matched = [
+            c for c in chargers
+            if norm and (_normalize(c.get("project", "")) == norm or norm in _normalize(c.get("project", "")))
+        ]
+
+    return sum(1 for c in matched if not c.get("has_rcd"))
 
 
 def sync_projects_data(db: Session, projects_path: str) -> int:
