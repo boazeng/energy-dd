@@ -42,8 +42,8 @@ class Settings(BaseSettings):
     anthropic_api_key: str = ""
 
     # תיקייה עם קבצי האקסל לבדיקת הכנסות — נמצאת בתוך database/ שהוא volume ב-Docker
-    # מקומי: backend/../database/revenue_check  |  פרודקשן: /app/database/revenue_check
-    revenue_check_local_path: str = str(PROJECT_ROOT.parent / "database" / "revenue_check")
+    # פרודקשן: PROJECT_ROOT=/app  →  /app/database/revenue_check  (volume מ-docker-compose)
+    revenue_check_local_path: str = str(PROJECT_ROOT / "database" / "revenue_check")
 
     # SharePoint / Microsoft Graph (client-credentials) — נטען מה-env המשותף
     sharepoint_tenant_id: str = ""
