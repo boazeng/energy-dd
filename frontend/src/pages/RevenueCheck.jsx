@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { api } from '../api/client.js'
 
 const MONTH_OPTIONS = [
@@ -37,12 +37,13 @@ function ChargerCompare({ month }) {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  async function load() {
+  useEffect(() => {
     setLoading(true); setError('')
-    try { setData(await api.getRevenueChargerCompare(month)) }
-    catch (e) { setError(e.message) }
-    finally { setLoading(false) }
-  }
+    api.getRevenueChargerCompare(month)
+      .then(setData)
+      .catch(e => setError(e.message))
+      .finally(() => setLoading(false))
+  }, [month])
 
   const mismatches = data?.rows?.filter(r => r.status !== 'תואם' && r.status !== 'לא ב-וויבו') ?? []
 
@@ -50,9 +51,7 @@ function ChargerCompare({ month }) {
     <div className="card" style={{ marginBottom: 24 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
         <h3 style={{ margin: 0, fontSize: 15 }}>השוואה 1 — כמות מטענים לפי אתר</h3>
-        <button onClick={load} disabled={loading} style={{ fontSize: 13, padding: '4px 14px' }}>
-          {loading ? 'טוען...' : 'טען'}
-        </button>
+        {loading && <span style={{ fontSize: 12, color: '#888' }}>טוען...</span>}
         {data && (
           <span style={{ fontSize: 12, color: '#888' }}>
             {data.rows?.length} אתרים ·{' '}
@@ -113,12 +112,13 @@ function MonthlyFeeCompare({ month }) {
   const [view, setView] = useState('summary')
   const [siteFilter, setSiteFilter] = useState('all')
 
-  async function load() {
+  useEffect(() => {
     setLoading(true); setError('')
-    try { setData(await api.getRevenueMonthlyFees(month)) }
-    catch (e) { setError(e.message) }
-    finally { setLoading(false) }
-  }
+    api.getRevenueMonthlyFees(month)
+      .then(setData)
+      .catch(e => setError(e.message))
+      .finally(() => setLoading(false))
+  }, [month])
 
   const sites = data ? ['all', ...data.site_summary.map(s => s.site)] : ['all']
   const detailRows = data?.rows?.filter(r => siteFilter === 'all' || r.site === siteFilter) ?? []
@@ -128,9 +128,7 @@ function MonthlyFeeCompare({ month }) {
     <div className="card" style={{ marginBottom: 24 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14, flexWrap: 'wrap' }}>
         <h3 style={{ margin: 0, fontSize: 15 }}>השוואה 2 — עלות חודשית לפי לקוח מול הסכם</h3>
-        <button onClick={load} disabled={loading} style={{ fontSize: 13, padding: '4px 14px' }}>
-          {loading ? 'טוען...' : 'טען'}
-        </button>
+        {loading && <span style={{ fontSize: 12, color: '#888' }}>טוען...</span>}
         {data && (
           <span style={{ fontSize: 12, color: '#888' }}>
             {data.rows?.length} לקוחות ·{' '}
@@ -243,14 +241,14 @@ function ElectricityCompare({ month }) {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
-  const [expanded, setExpanded] = useState(null)
 
-  async function load() {
+  useEffect(() => {
     setLoading(true); setError('')
-    try { setData(await api.getRevenueElectricityCompare(month)) }
-    catch (e) { setError(e.message) }
-    finally { setLoading(false) }
-  }
+    api.getRevenueElectricityCompare(month)
+      .then(setData)
+      .catch(e => setError(e.message))
+      .finally(() => setLoading(false))
+  }, [month])
 
   const deviations = data?.rows?.filter(r => r.status === 'סטייה').length ?? 0
 
@@ -258,9 +256,7 @@ function ElectricityCompare({ month }) {
     <div className="card" style={{ marginBottom: 24 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14, flexWrap: 'wrap' }}>
         <h3 style={{ margin: 0, fontSize: 15 }}>השוואה 3 — תעריף חשמל (אגורות/קוו"ש) מול הסכם</h3>
-        <button onClick={load} disabled={loading} style={{ fontSize: 13, padding: '4px 14px' }}>
-          {loading ? 'טוען...' : 'טען'}
-        </button>
+        {loading && <span style={{ fontSize: 12, color: '#888' }}>טוען...</span>}
         {data && (
           <span style={{ fontSize: 12, color: '#888' }}>
             {data.rows?.length} בניינים ·{' '}
@@ -316,12 +312,13 @@ function KwhAvgTable() {
   const [error, setError] = useState('')
   const [expanded, setExpanded] = useState(null)
 
-  async function load() {
+  useEffect(() => {
     setLoading(true); setError('')
-    try { setData(await api.getRevenueKwhAvg()) }
-    catch (e) { setError(e.message) }
-    finally { setLoading(false) }
-  }
+    api.getRevenueKwhAvg()
+      .then(setData)
+      .catch(e => setError(e.message))
+      .finally(() => setLoading(false))
+  }, [])
 
   function toggle(name) {
     setExpanded(prev => prev === name ? null : name)
@@ -336,9 +333,7 @@ function KwhAvgTable() {
     <div className="card" style={{ marginBottom: 24 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
         <h3 style={{ margin: 0, fontSize: 15 }}>צריכה ממוצעת חודשית — קוו"ש לבניין ולמטען</h3>
-        <button onClick={load} disabled={loading} style={{ fontSize: 13, padding: '4px 14px' }}>
-          {loading ? 'טוען...' : 'טען'}
-        </button>
+        {loading && <span style={{ fontSize: 12, color: '#888' }}>טוען...</span>}
         {data && (
           <span style={{ fontSize: 12, color: '#888' }}>
             {data.buildings?.length} בניינים · ינואר–מאי 2026
