@@ -1,6 +1,29 @@
 import { useState, useEffect } from 'react'
 import { api } from '../api/client.js'
 
+const TABLE_STYLE = `
+  .rc-table { width: 100%; border-collapse: collapse; }
+  .rc-table th, .rc-table td {
+    border: 1px solid var(--rc-border, #d0d7e3);
+    padding: 8px 12px;
+  }
+  .rc-table thead th {
+    background: var(--rc-head-bg, #eef1f7);
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .rc-table tbody tr:hover { background: var(--rc-hover, #f5f7fc); }
+  @media (prefers-color-scheme: dark) {
+    .rc-table th, .rc-table td { border-color: #3a3f50; }
+    .rc-table thead th { background: #2a2f3d; }
+    .rc-table tbody tr:hover { background: #252938; }
+  }
+  :root[data-theme="dark"] .rc-table th,
+  :root[data-theme="dark"] .rc-table td { border-color: #3a3f50; }
+  :root[data-theme="dark"] .rc-table thead th { background: #2a2f3d; }
+  :root[data-theme="dark"] .rc-table tbody tr:hover { background: #252938; }
+`
+
 const MONTH_OPTIONS = [
   { value: '2026-05', label: 'מאי 2026' },
   { value: '2026-04', label: 'אפריל 2026' },
@@ -66,7 +89,7 @@ function ChargerCompare({ month, onError }) {
 
       {data && (
         <div style={{ overflowX: 'auto' }}>
-          <table className="tact-table" style={{ fontSize: 17 }}>
+          <table className="rc-table" style={{ fontSize: 17 }}>
             <thead>
               <tr>
                 <th>אתר (וויבו)</th>
@@ -150,7 +173,7 @@ function MonthlyFeeCompare({ month }) {
 
           {view === 'summary' && (
             <div style={{ overflowX: 'auto' }}>
-              <table className="tact-table" style={{ fontSize: 17 }}>
+              <table className="rc-table" style={{ fontSize: 17 }}>
                 <thead>
                   <tr>
                     <th>אתר</th><th>בניין</th>
@@ -195,7 +218,7 @@ function MonthlyFeeCompare({ month }) {
                 <span style={{ fontSize: 17, color: '#888' }}>{detailRows.length} שורות</span>
               </div>
               <div style={{ overflowX: 'auto' }}>
-                <table className="tact-table" style={{ fontSize: 14 }}>
+                <table className="rc-table" style={{ fontSize: 14 }}>
                   <thead>
                     <tr>
                       <th>לקוח</th><th>אתר</th>
@@ -271,7 +294,7 @@ function ElectricityCompare({ month }) {
 
       {data && (
         <div style={{ overflowX: 'auto' }}>
-          <table className="tact-table" style={{ fontSize: 17 }}>
+          <table className="rc-table" style={{ fontSize: 17 }}>
             <thead>
               <tr>
                 <th>בניין (קובץ)</th>
@@ -345,7 +368,7 @@ function KwhAvgTable() {
 
       {data && (
         <div style={{ overflowX: 'auto' }}>
-          <table className="tact-table" style={{ fontSize: 17 }}>
+          <table className="rc-table" style={{ fontSize: 17 }}>
             <thead>
               <tr>
                 <th style={{ width: 28 }} />
@@ -480,6 +503,7 @@ export default function RevenueCheck() {
 
   return (
     <div dir="rtl">
+      <style>{TABLE_STYLE}</style>
       {/* כותרת + בורר חודש */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20, flexWrap: 'wrap' }}>
         <h2 style={{ margin: 0, fontSize: 22 }}>בדיקת הכנסות</h2>
