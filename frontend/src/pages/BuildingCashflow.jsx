@@ -481,6 +481,39 @@ function BuildingRow({ bm, selected, excluded, onSelect, onDelete }) {
   )
 }
 
+// ─── שורת קבוצת בניינים (hi_group) — סיכום מאוחד + רשימת שמות מתחת ──────────
+
+function BuildingGroupRow({ groupName, members, selectedId, excludedIds, onSelect, onDelete }) {
+  const totalChargers  = members.reduce((s, b) => s + (b.current_chargers || 0), 0)
+  const totalPotential = members.reduce((s, b) => s + (b.potential_spots || 0), 0)
+  const anySelected = members.some((b) => b.id === selectedId)
+  return (
+    <div className={`building-row building-group-row ${anySelected ? 'selected' : ''}`}>
+      <div className="building-row-name">{groupName}</div>
+      <div className="building-row-meta">{totalChargers} מטענים · {totalPotential} פוטנציאל</div>
+      <div className="building-group-members">
+        {members.map((bm) => (
+          <div
+            key={bm.id}
+            className={`building-group-member ${selectedId === bm.id ? 'selected' : ''}`}
+            onClick={() => onSelect(bm.id)}
+            style={excludedIds.has(bm.id) ? { opacity: 0.45 } : undefined}
+          >
+            <span>{bm.building_name}</span>
+            <button
+              className="building-row-delete"
+              title="מחק בניין"
+              onClick={(e) => { e.stopPropagation(); onDelete(bm.id) }}
+            >
+              <TactIcon name="trash" size={11} />
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
 // ─── גרף הכנסות stacked ──────────────────────────────────────────────────────
 
 function CombinedChart({ combined, buildings, viewMode = 'annual' }) {
@@ -871,6 +904,20 @@ export default function BuildingCashflow({ loading: appLoading, horizonMode = 'c
 
   const selected = buildings.find((b) => b.id === selectedId)
 
+  // רשימת בניינים בסרגל הצד — קיבוץ לפי hi_group לשורה אחת עם שמות מתחת
+  const sidebarSeenGroups = new Set()
+  const sidebarItems = []
+  for (const bm of buildings) {
+    if (bm.hi_group) {
+      if (sidebarSeenGroups.has(bm.hi_group)) continue
+      sidebarSeenGroups.add(bm.hi_group)
+      sidebarItems.push({ type: 'group', key: `g:${bm.hi_group}`, groupName: bm.hi_group,
+        members: buildings.filter((b) => b.hi_group === bm.hi_group) })
+    } else {
+      sidebarItems.push({ type: 'single', key: `b:${bm.id}`, bm })
+    }
+  }
+
   // סיכומים — רק מהבניינים הכלולים בתזרים (לפי excludedIds)
   const includedForKpi = buildings.filter((b) => !excludedIds.has(b.id))
   const sumIncl = (field) =>
@@ -1198,12 +1245,22 @@ export default function BuildingCashflow({ loading: appLoading, horizonMode = 'c
               <div className="building-row-name">כל הבניינים</div>
               <div className="building-row-meta">{buildings.length} בניינים</div>
             </div>
-            {buildings.map((bm) => (
+            {sidebarItems.map((item) => item.type === 'group' ? (
+              <BuildingGroupRow
+                key={item.key}
+                groupName={item.groupName}
+                members={item.members}
+                selectedId={selectedId}
+                excludedIds={excludedIds}
+                onSelect={setSelectedId}
+                onDelete={handleDelete}
+              />
+            ) : (
               <BuildingRow
-                key={bm.id}
-                bm={bm}
-                selected={selectedId === bm.id}
-                excluded={excludedIds.has(bm.id)}
+                key={item.key}
+                bm={item.bm}
+                selected={selectedId === item.bm.id}
+                excluded={excludedIds.has(item.bm.id)}
                 onSelect={setSelectedId}
                 onDelete={handleDelete}
               />
@@ -1323,6 +1380,21 @@ export default function BuildingCashflow({ loading: appLoading, horizonMode = 'c
         }
         .building-row:hover .building-row-delete { opacity: 1; }
         .building-row-delete:hover { color: var(--tact-red,#e74c3c); }
+
+        /* ─── שורת קבוצת בניינים (hi_group) ─── */
+        .building-group-row { cursor: default; }
+        .building-group-members { margin-top: 6px; display: flex; flex-direction: column; gap: 2px; }
+        .building-group-member {
+          position: relative;
+          display: flex; align-items: center; justify-content: space-between;
+          font-size: 11px; color: var(--tact-text-dim,#aaa);
+          padding: 3px 6px 3px 22px;
+          border-radius: 5px;
+          cursor: pointer;
+        }
+        .building-group-member:hover { background: rgba(255,255,255,.08); color: var(--tact-text,#eee); }
+        .building-group-member.selected { background: rgba(108,142,191,.2); color: var(--tact-accent,#6c8ebf); font-weight: 600; }
+        .building-group-member .building-row-delete { top: 2px; left: 2px; }
 
         .building-detail {
           background: var(--tact-surface, rgba(255,255,255,.04));
