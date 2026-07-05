@@ -175,6 +175,7 @@ function MonthlyFeeCompare({ month }) {
   const [error, setError] = useState('')
   const [view, setView] = useState('summary')
   const [siteFilter, setSiteFilter] = useState('all')
+  const [matchFilter, setMatchFilter] = useState('all')
 
   useEffect(() => {
     setLoading(true); setError('')
@@ -185,7 +186,9 @@ function MonthlyFeeCompare({ month }) {
   }, [month])
 
   const sites = data ? ['all', ...data.site_summary.map(s => s.site)] : ['all']
-  const detailRows = data?.rows?.filter(r => siteFilter === 'all' || r.site === siteFilter) ?? []
+  const detailRows = (data?.rows ?? [])
+    .filter(r => siteFilter === 'all' || r.site === siteFilter)
+    .filter(r => matchFilter === 'all' ? true : matchFilter === 'match' ? r.status !== 'סטייה' : r.status === 'סטייה')
   const deviations = data?.rows?.filter(r => r.status === 'סטייה').length ?? 0
 
   return (
@@ -261,11 +264,12 @@ function MonthlyFeeCompare({ month }) {
 
           {view === 'detail' && (
             <>
-              <div style={{ marginBottom: 10, display: 'flex', gap: 8, alignItems: 'center' }}>
+              <div style={{ marginBottom: 10, display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                 <label style={{ fontSize: 14 }}>סינון אתר:</label>
                 <select value={siteFilter} onChange={e => setSiteFilter(e.target.value)} style={{ fontSize: 14 }}>
                   {sites.map(s => <option key={s} value={s}>{s === 'all' ? 'כל האתרים' : s}</option>)}
                 </select>
+                <MatchFilter value={matchFilter} onChange={setMatchFilter} />
                 <span style={{ fontSize: 17, color: '#888' }}>{detailRows.length} שורות</span>
               </div>
               <div style={{ overflowX: 'auto' }}>
@@ -323,6 +327,7 @@ function ElectricityCompare({ month }) {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [filter, setFilter] = useState('all')
 
   useEffect(() => {
     setLoading(true); setError('')
@@ -333,15 +338,19 @@ function ElectricityCompare({ month }) {
   }, [month])
 
   const deviations = data?.rows?.filter(r => r.status === 'סטייה').length ?? 0
+  const visibleRows = data?.rows?.filter(r =>
+    filter === 'all' ? true : filter === 'match' ? r.status !== 'סטייה' : r.status === 'סטייה'
+  ) ?? []
 
   return (
     <div className="card" style={{ marginBottom: 24 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14, flexWrap: 'wrap' }}>
         <h3 style={{ margin: 0, fontSize: 17 }}>השוואה 3 — תעריף חשמל (אגורות/קוו"ש) מול הסכם</h3>
         {loading && <span style={{ fontSize: 14, color: '#888' }}>טוען...</span>}
+        {data && <MatchFilter value={filter} onChange={setFilter} />}
         {data && (
           <span style={{ fontSize: 14, color: '#888' }}>
-            {data.rows?.length} בניינים ·{' '}
+            {visibleRows.length}/{data.rows?.length} בניינים ·{' '}
             <span style={{ color: deviations ? '#dc3545' : '#28a745' }}>{deviations} סטיות</span>
             {' · '}
             <span style={{ fontSize: 17, color: '#856404' }}>נוסחה: פרימיה÷1.18÷קוו"ש×100</span>
@@ -366,7 +375,7 @@ function ElectricityCompare({ month }) {
               </tr>
             </thead>
             <tbody>
-              {data.rows.map((r, i) => (
+              {visibleRows.map((r, i) => (
                 <tr key={i} style={{ background: r.status === 'סטייה' ? '#fff5f5' : r.status === 'תואם' ? undefined : '#f9f9f9' }}>
                   <td dir="rtl">{r.building_excel}</td>
                   <td style={{ textAlign: 'center' }}>{r.kwh?.toFixed(1)}</td>
@@ -383,8 +392,8 @@ function ElectricityCompare({ month }) {
             <tfoot>
               <tr style={{ fontWeight: 700, background: 'var(--rc-head-bg, #eef1f7)' }}>
                 <td dir="rtl">סה"כ</td>
-                <td style={{ textAlign: 'center' }}>{data.rows.reduce((s, r) => s + (r.kwh || 0), 0).toFixed(1)}</td>
-                <td style={{ textAlign: 'center' }}>₪{data.rows.reduce((s, r) => s + (r.premium_incl_vat || 0), 0).toFixed(2)}</td>
+                <td style={{ textAlign: 'center' }}>{visibleRows.reduce((s, r) => s + (r.kwh || 0), 0).toFixed(1)}</td>
+                <td style={{ textAlign: 'center' }}>₪{visibleRows.reduce((s, r) => s + (r.premium_incl_vat || 0), 0).toFixed(2)}</td>
                 <td colSpan={4} />
               </tr>
             </tfoot>
