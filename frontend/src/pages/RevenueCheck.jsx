@@ -120,6 +120,21 @@ function ChargerCompare({ month, onError }) {
                 </tr>
               ))}
             </tbody>
+            <tfoot>
+              <tr style={{ fontWeight: 700, background: 'var(--rc-head-bg, #eef1f7)' }}>
+                <td colSpan={2} dir="rtl">סה"כ</td>
+                <td style={{ textAlign: 'center' }}>
+                  {data.rows.reduce((s, r) => s + (r.excel_drivers_may ?? 0), 0)}
+                </td>
+                <td style={{ textAlign: 'center' }}>
+                  {data.rows.reduce((s, r) => s + (r.system_chargers ?? 0), 0)}
+                </td>
+                <td style={{ textAlign: 'center' }}>
+                  {(() => { const d = data.rows.reduce((s, r) => s + (r.diff ?? 0), 0); return d > 0 ? `+${d}` : d })}
+                </td>
+                <td />
+              </tr>
+            </tfoot>
           </table>
         </div>
       )}
@@ -204,6 +219,16 @@ function MonthlyFeeCompare({ month }) {
                     </tr>
                   ))}
                 </tbody>
+                <tfoot>
+                  <tr style={{ fontWeight: 700, background: 'var(--rc-head-bg, #eef1f7)' }}>
+                    <td colSpan={2} dir="rtl">סה"כ</td>
+                    <td style={{ textAlign: 'center' }}>{data.site_summary.reduce((s, r) => s + r.count, 0)}</td>
+                    <td />
+                    <td style={{ textAlign: 'center', color: '#28a745' }}>{data.site_summary.reduce((s, r) => s + r.match, 0)}</td>
+                    <td style={{ textAlign: 'center', color: '#dc3545' }}>{data.site_summary.reduce((s, r) => s + r.deviation, 0)}</td>
+                    <td style={{ textAlign: 'center', color: '#fd7e14' }}>{data.site_summary.reduce((s, r) => s + (r.unpaid || 0), 0) || '—'}</td>
+                  </tr>
+                </tfoot>
               </table>
             </div>
           )}
