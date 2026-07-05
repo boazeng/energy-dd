@@ -95,7 +95,7 @@ function ChargerCompare({ month, onError }) {
                 <th>אתר (וויבו)</th>
                 <th>בניין במערכת</th>
                 <th style={{ textAlign: 'center' }}>נהגים וויבו</th>
-                <th style={{ textAlign: 'center' }}>מטענים מערכת</th>
+                <th style={{ textAlign: 'center' }}>מטענים כפי שהתקבל מהחברה</th>
                 <th style={{ textAlign: 'center' }}>הפרש</th>
                 <th>סטטוס</th>
               </tr>
