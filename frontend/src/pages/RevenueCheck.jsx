@@ -24,7 +24,7 @@ function StatusBadge({ status }) {
   return (
     <span style={{
       background: color + '22', color, border: `1px solid ${color}55`,
-      borderRadius: 4, padding: '1px 7px', fontSize: 12, whiteSpace: 'nowrap',
+      borderRadius: 4, padding: '1px 7px', fontSize: 14, whiteSpace: 'nowrap',
     }}>
       {status}
     </span>
@@ -50,10 +50,10 @@ function ChargerCompare({ month, onError }) {
   return (
     <div className="card" style={{ marginBottom: 24 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
-        <h3 style={{ margin: 0, fontSize: 15 }}>השוואה 1 — כמות מטענים לפי אתר</h3>
-        {loading && <span style={{ fontSize: 12, color: '#888' }}>טוען...</span>}
+        <h3 style={{ margin: 0, fontSize: 17 }}>השוואה 1 — כמות מטענים לפי אתר</h3>
+        {loading && <span style={{ fontSize: 14, color: '#888' }}>טוען...</span>}
         {data && (
-          <span style={{ fontSize: 12, color: '#888' }}>
+          <span style={{ fontSize: 14, color: '#888' }}>
             {data.rows?.length} אתרים ·{' '}
             <span style={{ color: mismatches.length ? '#dc3545' : '#28a745' }}>
               {mismatches.length} חוסרים/עודפים
@@ -66,7 +66,7 @@ function ChargerCompare({ month, onError }) {
 
       {data && (
         <div style={{ overflowX: 'auto' }}>
-          <table className="tact-table" style={{ fontSize: 13 }}>
+          <table className="tact-table" style={{ fontSize: 17 }}>
             <thead>
               <tr>
                 <th>אתר (וויבו)</th>
@@ -81,7 +81,7 @@ function ChargerCompare({ month, onError }) {
               {data.rows.map((r, i) => (
                 <tr key={i} style={{ background: r.status === 'תואם' ? undefined : '#fff8f0' }}>
                   <td dir="rtl">{r.excel_site}</td>
-                  <td dir="rtl" style={{ fontSize: 11, color: '#666' }}>
+                  <td dir="rtl" style={{ fontSize: 17, color: '#666' }}>
                     {r.matched_buildings?.join(', ') || '—'}
                   </td>
                   <td style={{ textAlign: 'center' }}>{r.excel_drivers_may ?? '—'}</td>
@@ -127,14 +127,14 @@ function MonthlyFeeCompare({ month }) {
   return (
     <div className="card" style={{ marginBottom: 24 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14, flexWrap: 'wrap' }}>
-        <h3 style={{ margin: 0, fontSize: 15 }}>השוואה 2 — עלות חודשית לפי לקוח מול הסכם</h3>
-        {loading && <span style={{ fontSize: 12, color: '#888' }}>טוען...</span>}
+        <h3 style={{ margin: 0, fontSize: 17 }}>השוואה 2 — עלות חודשית לפי לקוח מול הסכם</h3>
+        {loading && <span style={{ fontSize: 14, color: '#888' }}>טוען...</span>}
         {data && (
-          <span style={{ fontSize: 12, color: '#888' }}>
+          <span style={{ fontSize: 14, color: '#888' }}>
             {data.rows?.length} לקוחות ·{' '}
             <span style={{ color: deviations ? '#dc3545' : '#28a745' }}>{deviations} סטיות</span>
             {' · '}
-            <span style={{ fontSize: 11, color: '#856404' }}>סכומי האקסל כוללים מע"מ 18%</span>
+            <span style={{ fontSize: 17, color: '#856404' }}>סכומי האקסל כוללים מע"מ 18%</span>
           </span>
         )}
       </div>
@@ -144,13 +144,13 @@ function MonthlyFeeCompare({ month }) {
       {data && (
         <>
           <div style={{ display: 'flex', gap: 6, marginBottom: 12 }}>
-            <button className={view === 'summary' ? 'active' : ''} style={{ fontSize: 12, padding: '3px 12px' }} onClick={() => setView('summary')}>סיכום לפי אתר</button>
-            <button className={view === 'detail' ? 'active' : ''} style={{ fontSize: 12, padding: '3px 12px' }} onClick={() => setView('detail')}>פירוט לפי לקוח</button>
+            <button className={view === 'summary' ? 'active' : ''} style={{ fontSize: 14, padding: '3px 12px' }} onClick={() => setView('summary')}>סיכום לפי אתר</button>
+            <button className={view === 'detail' ? 'active' : ''} style={{ fontSize: 14, padding: '3px 12px' }} onClick={() => setView('detail')}>פירוט לפי לקוח</button>
           </div>
 
           {view === 'summary' && (
             <div style={{ overflowX: 'auto' }}>
-              <table className="tact-table" style={{ fontSize: 13 }}>
+              <table className="tact-table" style={{ fontSize: 17 }}>
                 <thead>
                   <tr>
                     <th>אתר</th><th>בניין</th>
@@ -166,11 +166,11 @@ function MonthlyFeeCompare({ month }) {
                     <tr key={i} style={{ background: s.deviation ? '#fff8f0' : undefined }}>
                       <td dir="rtl">
                         <button
-                          style={{ background: 'none', border: 'none', color: '#6c8ebf', cursor: 'pointer', fontSize: 13, padding: 0 }}
+                          style={{ background: 'none', border: 'none', color: '#6c8ebf', cursor: 'pointer', fontSize: 17, padding: 0 }}
                           onClick={() => { setSiteFilter(s.site); setView('detail') }}
                         >{s.site}</button>
                       </td>
-                      <td dir="rtl" style={{ fontSize: 11, color: '#666' }}>{s.building || '—'}</td>
+                      <td dir="rtl" style={{ fontSize: 17, color: '#666' }}>{s.building || '—'}</td>
                       <td style={{ textAlign: 'center' }}>{s.count}</td>
                       <td style={{ textAlign: 'center' }}>
                         {s.expected_fee != null ? `₪${s.expected_fee}` : <span style={{ color: '#888' }}>לא הוגדר</span>}
@@ -188,14 +188,14 @@ function MonthlyFeeCompare({ month }) {
           {view === 'detail' && (
             <>
               <div style={{ marginBottom: 10, display: 'flex', gap: 8, alignItems: 'center' }}>
-                <label style={{ fontSize: 12 }}>סינון אתר:</label>
-                <select value={siteFilter} onChange={e => setSiteFilter(e.target.value)} style={{ fontSize: 12 }}>
+                <label style={{ fontSize: 14 }}>סינון אתר:</label>
+                <select value={siteFilter} onChange={e => setSiteFilter(e.target.value)} style={{ fontSize: 14 }}>
                   {sites.map(s => <option key={s} value={s}>{s === 'all' ? 'כל האתרים' : s}</option>)}
                 </select>
-                <span style={{ fontSize: 11, color: '#888' }}>{detailRows.length} שורות</span>
+                <span style={{ fontSize: 17, color: '#888' }}>{detailRows.length} שורות</span>
               </div>
               <div style={{ overflowX: 'auto' }}>
-                <table className="tact-table" style={{ fontSize: 12 }}>
+                <table className="tact-table" style={{ fontSize: 14 }}>
                   <thead>
                     <tr>
                       <th>לקוח</th><th>אתר</th>
@@ -210,7 +210,7 @@ function MonthlyFeeCompare({ month }) {
                     {detailRows.map((r, i) => (
                       <tr key={i} style={{ background: r.status === 'סטייה' ? '#fff5f5' : undefined }}>
                         <td dir="rtl">{r.driver}</td>
-                        <td dir="rtl" style={{ fontSize: 11 }}>{r.site}</td>
+                        <td dir="rtl" style={{ fontSize: 17 }}>{r.site}</td>
                         <td style={{ textAlign: 'center' }}>₪{r.monthly_fee_incl_vat?.toFixed(2)}</td>
                         <td style={{ textAlign: 'center' }}>₪{r.monthly_fee_excl_vat?.toFixed(2)}</td>
                         <td style={{ textAlign: 'center', color: '#666' }}>{r.expected_fee != null ? `₪${r.expected_fee}` : '—'}</td>
@@ -219,7 +219,7 @@ function MonthlyFeeCompare({ month }) {
                         </td>
                         <td><StatusBadge status={r.status} /></td>
                         <td>
-                          <span style={{ fontSize: 11, color: r.pay_status === 'Paid' ? '#28a745' : '#dc3545' }}>
+                          <span style={{ fontSize: 17, color: r.pay_status === 'Paid' ? '#28a745' : '#dc3545' }}>
                             {r.pay_status === 'Paid' ? 'שולם' : r.pay_status || '—'}
                           </span>
                         </td>
@@ -255,14 +255,14 @@ function ElectricityCompare({ month }) {
   return (
     <div className="card" style={{ marginBottom: 24 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14, flexWrap: 'wrap' }}>
-        <h3 style={{ margin: 0, fontSize: 15 }}>השוואה 3 — תעריף חשמל (אגורות/קוו"ש) מול הסכם</h3>
-        {loading && <span style={{ fontSize: 12, color: '#888' }}>טוען...</span>}
+        <h3 style={{ margin: 0, fontSize: 17 }}>השוואה 3 — תעריף חשמל (אגורות/קוו"ש) מול הסכם</h3>
+        {loading && <span style={{ fontSize: 14, color: '#888' }}>טוען...</span>}
         {data && (
-          <span style={{ fontSize: 12, color: '#888' }}>
+          <span style={{ fontSize: 14, color: '#888' }}>
             {data.rows?.length} בניינים ·{' '}
             <span style={{ color: deviations ? '#dc3545' : '#28a745' }}>{deviations} סטיות</span>
             {' · '}
-            <span style={{ fontSize: 11, color: '#856404' }}>נוסחה: פרימיה÷1.18÷קוו"ש×100</span>
+            <span style={{ fontSize: 17, color: '#856404' }}>נוסחה: פרימיה÷1.18÷קוו"ש×100</span>
           </span>
         )}
       </div>
@@ -271,7 +271,7 @@ function ElectricityCompare({ month }) {
 
       {data && (
         <div style={{ overflowX: 'auto' }}>
-          <table className="tact-table" style={{ fontSize: 13 }}>
+          <table className="tact-table" style={{ fontSize: 17 }}>
             <thead>
               <tr>
                 <th>בניין (קובץ)</th>
@@ -332,10 +332,10 @@ function KwhAvgTable() {
   return (
     <div className="card" style={{ marginBottom: 24 }}>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
-        <h3 style={{ margin: 0, fontSize: 15 }}>צריכה ממוצעת חודשית — קוו"ש לבניין ולמטען</h3>
-        {loading && <span style={{ fontSize: 12, color: '#888' }}>טוען...</span>}
+        <h3 style={{ margin: 0, fontSize: 17 }}>צריכה ממוצעת חודשית — קוו"ש לבניין ולמטען</h3>
+        {loading && <span style={{ fontSize: 14, color: '#888' }}>טוען...</span>}
         {data && (
-          <span style={{ fontSize: 12, color: '#888' }}>
+          <span style={{ fontSize: 14, color: '#888' }}>
             {data.buildings?.length} בניינים · ינואר–מאי 2026
           </span>
         )}
@@ -345,7 +345,7 @@ function KwhAvgTable() {
 
       {data && (
         <div style={{ overflowX: 'auto' }}>
-          <table className="tact-table" style={{ fontSize: 13 }}>
+          <table className="tact-table" style={{ fontSize: 17 }}>
             <thead>
               <tr>
                 <th style={{ width: 28 }} />
@@ -368,7 +368,7 @@ function KwhAvgTable() {
                     style={{ background: expanded === b.building_excel ? '#f0f4ff' : undefined, cursor: 'pointer' }}
                     onClick={() => toggle(b.building_excel)}
                   >
-                    <td style={{ textAlign: 'center', color: '#6c8ebf', fontSize: 11 }}>
+                    <td style={{ textAlign: 'center', color: '#6c8ebf', fontSize: 17 }}>
                       {expanded === b.building_excel ? '▲' : '▼'}
                     </td>
                     <td dir="rtl">{b.building_excel}</td>
@@ -383,7 +383,7 @@ function KwhAvgTable() {
                   {expanded === b.building_excel && (
                     <tr key={b.building_excel + '_detail'}>
                       <td colSpan={5} style={{ padding: '0 0 0 32px', background: '#f7f9ff' }}>
-                        <table style={{ fontSize: 12, width: '100%', borderCollapse: 'collapse', margin: '6px 0' }}>
+                        <table style={{ fontSize: 14, width: '100%', borderCollapse: 'collapse', margin: '6px 0' }}>
                           <thead>
                             <tr style={{ background: '#e8edf8' }}>
                               <th style={{ padding: '4px 10px', textAlign: 'right' }}>חודש</th>
@@ -443,14 +443,14 @@ function FileUpload({ onUploaded }) {
 
   return (
     <div className="card" style={{ marginBottom: 24, borderColor: '#f0a000', background: '#fffbf0' }}>
-      <h3 style={{ margin: '0 0 10px', fontSize: 15, color: '#856404' }}>העלאת קבצי נתונים</h3>
-      <p style={{ margin: '0 0 12px', fontSize: 13, color: '#666' }}>
+      <h3 style={{ margin: '0 0 10px', fontSize: 17, color: '#856404' }}>העלאת קבצי נתונים</h3>
+      <p style={{ margin: '0 0 12px', fontSize: 17, color: '#666' }}>
         נדרשים 2 קבצי Excel: נייר עבודה (נתוני בניינים) ופלט וויבו (פירוט לקוח).
         לאחר ההעלאה הקבצים נשמרים בשרת ואין צורך להעלות שוב.
       </p>
       <label style={{
         display: 'inline-block', padding: '8px 18px', background: '#856404', color: '#fff',
-        borderRadius: 6, cursor: 'pointer', fontSize: 13,
+        borderRadius: 6, cursor: 'pointer', fontSize: 17,
       }}>
         {uploading ? 'מעלה...' : 'בחר קבצים'}
         <input
@@ -459,7 +459,7 @@ function FileUpload({ onUploaded }) {
           disabled={uploading}
         />
       </label>
-      {msg && <span style={{ marginRight: 12, fontSize: 12, color: msg.includes('שגיאה') ? '#dc3545' : '#28a745' }}>{msg}</span>}
+      {msg && <span style={{ marginRight: 12, fontSize: 14, color: msg.includes('שגיאה') ? '#dc3545' : '#28a745' }}>{msg}</span>}
     </div>
   )
 }
@@ -482,10 +482,10 @@ export default function RevenueCheck() {
     <div dir="rtl">
       {/* כותרת + בורר חודש */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 20, flexWrap: 'wrap' }}>
-        <h2 style={{ margin: 0, fontSize: 20 }}>בדיקת הכנסות</h2>
+        <h2 style={{ margin: 0, fontSize: 22 }}>בדיקת הכנסות</h2>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <label style={{ fontSize: 13 }}>חודש:</label>
-          <select value={month} onChange={e => setMonth(e.target.value)} style={{ fontSize: 13 }}>
+          <label style={{ fontSize: 17 }}>חודש:</label>
+          <select value={month} onChange={e => setMonth(e.target.value)} style={{ fontSize: 17 }}>
             {MONTH_OPTIONS.map(o => (
               <option key={o.value} value={o.value}>{o.label}</option>
             ))}
@@ -503,7 +503,7 @@ export default function RevenueCheck() {
             key={s.key}
             onClick={() => setSection(s.key)}
             style={{
-              padding: '7px 18px', fontSize: 13, border: 'none', cursor: 'pointer',
+              padding: '7px 18px', fontSize: 17, border: 'none', cursor: 'pointer',
               borderRadius: '6px 6px 0 0', fontWeight: section === s.key ? 700 : 400,
               background: section === s.key ? 'var(--tact-accent, #6c8ebf)' : 'transparent',
               color: section === s.key ? '#fff' : 'var(--tact-text-dim, #888)',
