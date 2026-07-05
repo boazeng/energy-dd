@@ -54,11 +54,33 @@ function StatusBadge({ status }) {
   )
 }
 
+// ─── סינון תואם/לא תואם ──────────────────────────────────────────────────────
+function MatchFilter({ value, onChange }) {
+  const opts = [
+    { key: 'all',   label: 'הכל' },
+    { key: 'match', label: 'תואם בלבד' },
+    { key: 'diff',  label: 'לא תואם בלבד' },
+  ]
+  return (
+    <div style={{ display: 'flex', gap: 4 }}>
+      {opts.map(o => (
+        <button key={o.key} onClick={() => onChange(o.key)} style={{
+          fontSize: 13, padding: '3px 12px', borderRadius: 5, border: '1px solid #ccc',
+          cursor: 'pointer', fontWeight: value === o.key ? 700 : 400,
+          background: value === o.key ? 'var(--tact-accent,#6c8ebf)' : 'transparent',
+          color: value === o.key ? '#fff' : 'inherit',
+        }}>{o.label}</button>
+      ))}
+    </div>
+  )
+}
+
 // ─── השוואה 1: כמות מטענים ────────────────────────────────────────────────────
 function ChargerCompare({ month, onError }) {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [filter, setFilter] = useState('all')
 
   useEffect(() => {
     setLoading(true); setError('')
@@ -69,15 +91,19 @@ function ChargerCompare({ month, onError }) {
   }, [month])
 
   const mismatches = data?.rows?.filter(r => r.status !== 'תואם' && r.status !== 'לא ב-וויבו') ?? []
+  const visibleRows = data?.rows?.filter(r =>
+    filter === 'all' ? true : filter === 'match' ? r.status === 'תואם' : r.status !== 'תואם'
+  ) ?? []
 
   return (
     <div className="card" style={{ marginBottom: 24 }}>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14, flexWrap: 'wrap' }}>
         <h3 style={{ margin: 0, fontSize: 17 }}>השוואה 1 — כמות מטענים לפי אתר</h3>
         {loading && <span style={{ fontSize: 14, color: '#888' }}>טוען...</span>}
+        {data && <MatchFilter value={filter} onChange={setFilter} />}
         {data && (
           <span style={{ fontSize: 14, color: '#888' }}>
-            {data.rows?.length} אתרים ·{' '}
+            {visibleRows.length}/{data.rows?.length} אתרים ·{' '}
             <span style={{ color: mismatches.length ? '#dc3545' : '#28a745' }}>
               {mismatches.length} חוסרים/עודפים
             </span>
@@ -101,7 +127,7 @@ function ChargerCompare({ month, onError }) {
               </tr>
             </thead>
             <tbody>
-              {data.rows.map((r, i) => (
+              {visibleRows.map((r, i) => (
                 <tr key={i} style={{ background: r.status === 'תואם' ? undefined : '#fff8f0' }}>
                   <td dir="rtl">{r.excel_site}</td>
                   <td dir="rtl" style={{ fontSize: 17, color: '#666' }}>
