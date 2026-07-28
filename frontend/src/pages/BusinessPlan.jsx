@@ -796,6 +796,19 @@ function SectionEditor({ section, onSaved }) {
         <button className="tact-btn tact-btn-primary" disabled={!dirty || saving} onClick={save}>
           {saving ? 'שומר…' : 'שמור'}
         </button>
+        <button
+          className="tact-btn"
+          disabled={saving}
+          onClick={async () => {
+            setSaving(true)
+            try {
+              await api.updateBusinessPlanSection(section.id, { visible: !section.visible })
+              onSaved()
+            } finally { setSaving(false) }
+          }}
+        >
+          {section.visible ? 'הסתר מהמסמך' : 'החזר למסמך'}
+        </button>
         {dirty && <span className="bp-sub">יש שינויים שלא נשמרו</span>}
       </div>
     </div>
@@ -959,6 +972,20 @@ export default function BusinessPlan({ agreementVersion }) {
             </section>
           )
         })}
+
+        {/* פרקים מוסתרים — נגישים לעריכה בלבד, אינם חלק מהמסמך ואינם מודפסים */}
+        {edit && plan.sections.some((s) => !s.visible) && (
+          <section className="bp-hidden-list no-print">
+            <h3 className="bp-h2">פרקים שהוסרו מהמסמך</h3>
+            <p className="bp-sub">אינם מופיעים במסמך ואינם מודפסים. אפשר להחזירם.</p>
+            {plan.sections.filter((s) => !s.visible).map((s) => (
+              <div key={s.id} style={{ marginTop: 14 }}>
+                <strong>{s.title}</strong>
+                <SectionEditor section={s} onSaved={() => load(horizon)} />
+              </div>
+            ))}
+          </section>
+        )}
 
         <footer className="bp-doc-foot">
           <p className="bp-sub">

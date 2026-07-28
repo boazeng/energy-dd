@@ -77,6 +77,14 @@ CONCLUSION_BODY = """\
 הבנק ולשיתוף פעולה מלא בניהול מסגרת האשראי ובהבטחת החזרה."""
 
 
+# "מצב היום" נותר עם תת-פרק אחד לאחר הסרת הדוחות הכספיים, ולכן תוכנו הועלה
+# לפרק עצמו.
+TODAY_BODY = """\
+להלן תמונת המצב התפעולית של הפעילות הנרכשת נכון למועד הכנת התכנית. "הכנסה שנתית \
+נוכחית" מחושבת מהעמדות המותקנות בפועל, ללא הנחת גידול כלשהי — כלומר זהו בסיס \
+ההכנסה שהרוכשת מקבלת מיום ההשלמה."""
+
+
 # (key, order, level, title, data_block, body)
 SECTIONS: list[tuple[str, int, int, str, str, str]] = [
     # ─── 1. תמצית מנהלים ────────────────────────────────────────────────
@@ -209,15 +217,7 @@ SECTIONS: list[tuple[str, int, int, str, str, str]] = [
 הגבייה מתבצעת דיגיטלית, והתחזוקה והניטור מנוהלים מרחוק."""),
 
     # ─── 6. מצב היום ────────────────────────────────────────────────────
-    ("today", 500, 1, "מצב היום", "", ""),
-    ("today_scope", 510, 2, "היקף הפעילות הנוכחי", "today_kpis", """\
-להלן תמונת המצב התפעולית והפיננסית נכון למועד הכנת התכנית. "הכנסה שנתית נוכחית" מחושבת \
-מהמטענים המותקנים בפועל, ללא הנחת גידול כלשהי:"""),
-    ("today_pnl", 520, 2, "תוצאות כספיות היסטוריות", "historical_pnl", """\
-להלן תמצית דוחות רווח והפסד לשנים האחרונות:"""),
-    ("today_balance", 530, 2, "מאזן", "historical_balance", ""),
-    ("today_suppliers", 540, 2, "התחייבויות לספקים", "supplier_credits", """\
-יתרות זכות לספקים נכון למאזן הבוחן האחרון:"""),
+    ("today", 500, 1, "מצב היום", "today_kpis", TODAY_BODY),
 
     # ─── 7. תחזית גידול ─────────────────────────────────────────────────
     ("forecast", 600, 1, "תחזית גידול", "", ""),
@@ -245,6 +245,11 @@ REPHRASED: dict[str, tuple[str, str]] = {
     "exec_credit": (_OLD_CREDIT, CREDIT_BODY),
     "conclusion": (_OLD_CONCLUSION, CONCLUSION_BODY),
 }
+
+# פרקים שהוסרו מהמסמך: העסקה היא רכישת פעילות, ולכן הדוחות הכספיים של המוכרת
+# והתחייבויותיה אינם חלק ממנה. הפרקים מוסתרים ולא נמחקים — ניתן להחזירם
+# מהמתג שבמצב עריכה.
+RETIRED_KEYS = ("today_pnl", "today_balance", "today_suppliers", "today_scope")
 
 
 def _refresh_unedited(db: Session) -> int:
@@ -276,6 +281,27 @@ def _fix_parties(db: Session) -> int:
     return 1
 
 
+def _retire_sections(db: Session) -> int:
+    """מסתיר פרקים שהוצאו מהמסמך, ומעלה את תוכן "מצב היום" לפרק עצמו.
+
+    רלוונטי רק למסד שכבר נזרע עם המבנה הקודם; במסד חדש הפרקים אינם נוצרים.
+    """
+    changed = 0
+    for key in RETIRED_KEYS:
+        sec = db.scalar(select(BusinessPlanSection).where(BusinessPlanSection.key == key))
+        if sec is not None and sec.visible:
+            sec.visible = False
+            changed += 1
+
+    today = db.scalar(select(BusinessPlanSection).where(BusinessPlanSection.key == "today"))
+    if today is not None and not today.data_block:
+        today.data_block = "today_kpis"
+        if not today.body.strip():
+            today.body = TODAY_BODY.strip()
+        changed += 1
+    return changed
+
+
 def seed_business_plan(db: Session) -> None:
     """זורע פרקים חסרים בלבד. עריכות קיימות אינן נדרסות."""
     if db.get(BusinessPlanSetting, 1) is None:
@@ -297,6 +323,6 @@ def seed_business_plan(db: Session) -> None:
         ))
         added += 1
 
-    refreshed = _refresh_unedited(db)
+    refreshed = _refresh_unedited(db) + _retire_sections(db)
     if added or refreshed or db.new or db.dirty:
         db.commit()
