@@ -101,9 +101,11 @@ SECTIONS: list[tuple[str, int, int, str, str, str]] = [
     ("exec_deal", 35, 2, "עסקת הרכישה — מקורות ושימושים", "acquisition_terms", """\
 הרכישה היא של הפעילות התפעולית: ההסכמים החתומים מול הבניינים, עמדות הטעינה המותקנות \
 בהם, ובסיס המשתמשים הקיים. הנתונים שלהלן מחושבים מתוך רשימת האתרים בפועל:"""),
-    ("exec_summary_fin", 40, 2, "תמצית נתונים פיננסיים", "summary_financials", """\
-להלן תמצית הנתונים הפיננסיים לתקופת התחזית:"""),
-    ("exec_cashflow", 50, 2, "תזרים מזומנים מצטבר", "cumulative_cashflow", """\
+    # תמצית הנתונים והתזרים המצטבר יושבים בפרק התחזית, אחרי הנחות העבודה —
+    # שניהם נגזרים מהן, ואין להציג תוצאה לפני שהקורא ראה את ההנחה שמאחוריה.
+    ("exec_summary_fin", 612, 2, "תמצית נתונים פיננסיים", "summary_financials", """\
+להלן תמצית הנתונים הפיננסיים לתקופת התחזית, הנגזרת מהנחות העבודה שלעיל:"""),
+    ("exec_cashflow", 614, 2, "תזרים מזומנים מצטבר", "cumulative_cashflow", """\
 התזרים המוצג להלן כולל את קבלת ההלוואה המבוקשת ואת החזריה:"""),
     ("exec_disclaimer", 60, 2, "הבהרות", "", """\
 בגיבוש תכנית זו הסתמכנו על דיוק, שלמות ועדכניות המידע שהתקבל מהחברה, לרבות הנתונים \
@@ -251,6 +253,13 @@ REPHRASED: dict[str, tuple[str, str]] = {
 # מהמתג שבמצב עריכה.
 RETIRED_KEYS = ("today_pnl", "today_balance", "today_suppliers", "today_scope")
 
+# פרקים שמיקומם במסמך שונה לאחר הזריעה הראשונה. סדר הוא נתון מבני ולא טקסט
+# שנערך באתר, ולכן מוחל תמיד.
+REORDERED: dict[str, int] = {
+    "exec_summary_fin": 612,
+    "exec_cashflow": 614,
+}
+
 
 def _refresh_unedited(db: Session) -> int:
     """מעדכן ניסוח של פרק רק אם הוא עדיין זהה לטקסט הזרוע הקודם.
@@ -291,6 +300,12 @@ def _retire_sections(db: Session) -> int:
         sec = db.scalar(select(BusinessPlanSection).where(BusinessPlanSection.key == key))
         if sec is not None and sec.visible:
             sec.visible = False
+            changed += 1
+
+    for key, order in REORDERED.items():
+        sec = db.scalar(select(BusinessPlanSection).where(BusinessPlanSection.key == key))
+        if sec is not None and sec.order != order:
+            sec.order = order
             changed += 1
 
     today = db.scalar(select(BusinessPlanSection).where(BusinessPlanSection.key == "today"))

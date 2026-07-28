@@ -142,7 +142,13 @@ export default function App() {
         {tab === 'cashflow' && <Cashflow loading={loading} horizonMode={horizonMode} excludedIds={excludedIds} agreementVersion={agreementVersion} />}
         {tab === 'building-cashflow' && <BuildingCashflow loading={loading} horizonMode={horizonMode} onHorizonChange={(m) => { setHorizonMode(m); localStorage.setItem('energy-horizon-mode', m) }} excludedIds={excludedIds} onExcludedChange={changeExcludedIds} agreementVersion={agreementVersion} />}
         {tab === 'revenue-check' && <RevenueCheck loading={loading} />}
-        {tab === 'business-plan' && <BusinessPlan agreementVersion={agreementVersion} />}
+        {tab === 'business-plan' && (
+          <BusinessPlan
+            agreementVersion={agreementVersion}
+            horizonMode={horizonMode}
+            onHorizonChange={(m) => { setHorizonMode(m); localStorage.setItem('energy-horizon-mode', m) }}
+          />
+        )}
         {tab === 'tasks' && (
           <Tasks
             tasks={tasks}

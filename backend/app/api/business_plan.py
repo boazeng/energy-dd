@@ -128,14 +128,17 @@ def _monthly_income_per_charger(bm: BuildingModel) -> float:
 
 def _aggregate(
     buildings: list[BuildingModel],
-    horizon: int,
+    horizon: int | None,
     growth_factor: float = 1.0,
 ) -> dict[int, dict[str, float]]:
-    """מסכם את תחזיות כל הבניינים לשנה קלנדרית אחת. מפתח = שנה."""
+    """מסכם את תחזיות כל הבניינים לשנה קלנדרית אחת. מפתח = שנה.
+
+    horizon=None → כל אתר מחושב לפי תקופת ההסכם שלו.
+    """
     agg: dict[int, dict[str, float]] = {}
     for bm in buildings:
-        override = None if growth_factor == 1.0 else bm.annual_growth_rate * growth_factor
-        for yf in _calc_forecast(bm, override_years=horizon, growth_override=override):
+        growth = None if growth_factor == 1.0 else bm.annual_growth_rate * growth_factor
+        for yf in _calc_forecast(bm, override_years=horizon, growth_override=growth):
             row = agg.setdefault(
                 yf.year,
                 {"added": 0.0, "total": 0.0, "income": 0.0, "capex": 0.0, "opex": 0.0, "maint": 0.0},
@@ -164,7 +167,12 @@ def _load_financials() -> dict:
 
 @router.get("/data", response_model=PlanData)
 def get_plan_data(
-    years: int | None = Query(None, ge=1, le=30, description="אופק; ברירת מחדל מההגדרות"),
+    years: int | None = Query(None, ge=1, le=30, description="אופק אחיד; ברירת מחדל מההגדרות"),
+    by_contract: bool = Query(
+        False,
+        description="אופק לפי תקופת ההסכם בכל אתר בנפרד, כמו במצב 'לפי הסכם' "
+                    "בלשוניות תזרים. גובר על years.",
+    ),
     overhead: float = Query(
         0, ge=0,
         description="סה\"כ תקורות שנתיות. נשמר ב-localStorage של לשונית תזרים בניינים "
@@ -175,6 +183,8 @@ def get_plan_data(
     """snapshot אחד ועקבי של כל המספרים במסמך, מחושב מהנתונים החיים."""
     plan_settings = _get_settings(db)
     horizon = years or plan_settings.horizon_years
+    # None = כל אתר לפי תקופת ההסכם שלו; אחרת אופק אחיד לכולם
+    override = None if by_contract else horizon
 
     buildings = list(db.scalars(select(BuildingModel).order_by(BuildingModel.building_name)))
     agreements = list(db.scalars(select(TenantAgreement)))
@@ -319,7 +329,7 @@ def get_plan_data(
     loan_start = int(loan_row.start_month[:4]) if loan_row.start_month else start_year
     loan_end = loan_start + loan_row.years - 1
 
-    agg = _aggregate(buildings, horizon)
+    agg = _aggregate(buildings, override)
     cumulative = today.opening_balance
     forecast: list[ForecastYearRow] = []
     for year in sorted(agg):
@@ -359,6 +369,11 @@ def get_plan_data(
         "final_cumulative": forecast[-1].cumulative if forecast else today.opening_balance,
         "min_cumulative": min((f.cumulative for f in forecast), default=today.opening_balance),
     }
+
+    # הטווח בפועל — במצב "לפי הסכם" הוא נגזר מהאתר עם ההסכם הארוך ביותר
+    first_year = forecast[0].year if forecast else start_year
+    last_year = forecast[-1].year if forecast else start_year
+    span_years = len(forecast) or horizon
 
     monthly = annual_payment / 12
     loan = LoanData(
@@ -415,8 +430,12 @@ def get_plan_data(
     )
 
     assumptions: list[AssumptionRow] = [
-        AssumptionRow(group=G1, label="אופק התחזית", value=f"{horizon} שנים",
-                      note=f"{start_year}–{start_year + horizon - 1}"),
+        AssumptionRow(
+            group=G1, label="אופק התחזית",
+            value=f"{span_years} שנים",
+            note=(f"{first_year}–{last_year} · לפי תקופת ההסכם בכל אתר בנפרד"
+                  if by_contract else f"{first_year}–{last_year} · אחיד לכל האתרים"),
+        ),
         _param(G1, "שיעור גידול שנתי", "annual_growth_rate", _pct,
                note="מטענים חדשים כאחוז מהחניות הפוטנציאליות בכל אתר"),
         _param(G1, "צריכה חודשית ממוצעת למטען", "avg_kwh_per_charger_monthly", _kwh),
@@ -481,7 +500,7 @@ def get_plan_data(
         ("מהיר ב-25%", 1.25),
         ("מהיר ב-50%", 1.5),
     ]:
-        scen = _aggregate(buildings, horizon, growth_factor=factor)
+        scen = _aggregate(buildings, override, growth_factor=factor)
         cum = today.opening_balance
         cums: list[float] = []
         total_profit = 0.0
@@ -502,8 +521,9 @@ def get_plan_data(
 
     return PlanData(
         generated_at=datetime.now(timezone.utc).isoformat(timespec="seconds"),
-        horizon_years=horizon,
-        start_year=start_year,
+        horizon_years=span_years,
+        start_year=first_year,
+        by_contract=by_contract,
         overview=overview,
         today=today,
         acquisition=acquisition,

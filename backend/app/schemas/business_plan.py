@@ -200,6 +200,7 @@ class PlanData(BaseModel):
     generated_at: str
     horizon_years: int
     start_year: int
+    by_contract: bool = False   # האופק נגזר מתקופת ההסכם בכל אתר בנפרד
     overview: OverviewData
     today: TodayData
     acquisition: AcquisitionData

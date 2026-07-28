@@ -655,6 +655,13 @@ function ForecastTable({ d, t, c }) {
           </tr>
         </tfoot>
       </table>
+      {d.by_contract && (
+        <p className="bp-note">
+          האופק נגזר מתקופת ההסכם בכל אתר בנפרד. אתר שתקופת הסכמו מסתיימת יוצא מהתחזית
+          מאותה שנה ואילך — ולכן מספר העמדות הפעילות בשנים המאוחרות נמוך יותר. אין מדובר
+          בנטישת לקוחות אלא בתום התקופה החוזית, שניתנת לחידוש.
+        </p>
+      )}
     </figure>
   )
 }
@@ -869,27 +876,29 @@ function Toc({ numbered }) {
 
 // ─── הדף ─────────────────────────────────────────────────────────────────────
 
-export default function BusinessPlan({ agreementVersion }) {
+// אופק התחזית מגיע מ-App.jsx — אותו מצב שמשמש את לשוניות תזרים ותזרים בניינים,
+// כדי שהמסמך והאתר לעולם לא יראו טווח שונה.
+export default function BusinessPlan({ agreementVersion, horizonMode = 'contract', onHorizonChange }) {
   const [plan, setPlan] = useState(null)
   const [data, setData] = useState(null)
-  const [horizon, setHorizon] = useState(null)
   const [edit, setEdit] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
-  async function load(years) {
+  async function load() {
     setLoading(true)
     try {
+      const byContract = horizonMode === 'contract'
+      const years = byContract ? undefined : parseInt(horizonMode)
       // התקורות נשמרות ב-localStorage של לשונית תזרים בניינים ולא ב-DB, ולכן
       // הבקאנד אינו רואה אותן. בלי להעביר אותן התחזית כאן הייתה מציגה רווח
       // גבוה יותר מאותה לשונית.
       const [p, d] = await Promise.all([
         api.getBusinessPlan(),
-        api.getBusinessPlanData(years, readOverheadTotal()),
+        api.getBusinessPlanData(years, readOverheadTotal(), byContract),
       ])
       setPlan(p)
       setData(d)
-      setHorizon((h) => h ?? d.horizon_years)
       setError('')
     } catch (e) {
       setError(e.message)
@@ -899,12 +908,7 @@ export default function BusinessPlan({ agreementVersion }) {
   }
 
   // נטען מחדש כשמשתנה אופק התחזית או כשנערך הסכם דייר במקום אחר באתר
-  useEffect(() => { load(horizon) }, [horizon, agreementVersion])
-
-  async function changeHorizon(years) {
-    setHorizon(years)
-    await api.updateBusinessPlanSettings({ horizon_years: years })
-  }
+  useEffect(() => { load() }, [horizonMode, agreementVersion])
 
   // מספור פרקים (1, 1.1, …) ומספור רץ לטבלאות ולתרשימים. מחושב מראש ופעם אחת
   // מתוך הנתונים, ולא תוך כדי רינדור.
@@ -935,8 +939,13 @@ export default function BusinessPlan({ agreementVersion }) {
       <div className="bp-toolbar no-print">
         <div className="bp-toolbar-group">
           <label className="bp-sub">אופק תחזית</label>
-          <select value={horizon ?? ''} onChange={(e) => changeHorizon(Number(e.target.value))}>
-            {[3, 4, 5, 6, 7, 8, 9, 10].map((y) => <option key={y} value={y}>{y} שנים</option>)}
+          <select
+            value={horizonMode}
+            onChange={(e) => onHorizonChange?.(e.target.value)}
+            title="אותו אופק המשמש את לשוניות תזרים ותזרים בניינים"
+          >
+            <option value="contract">לפי תקופת ההסכם</option>
+            {[5, 6, 7, 8, 9, 10].map((y) => <option key={y} value={String(y)}>{y} שנים</option>)}
           </select>
         </div>
         <button className={`tact-btn ${edit ? 'tact-btn-primary' : ''}`} onClick={() => setEdit(!edit)}>
@@ -953,7 +962,7 @@ export default function BusinessPlan({ agreementVersion }) {
         </button>
       </div>
 
-      {edit && <PlanSettingsEditor settings={plan.settings} onSaved={() => load(horizon)} />}
+      {edit && <PlanSettingsEditor settings={plan.settings} onSaved={load} />}
 
       <article className="bp-doc" dir="rtl">
         <Cover s={plan.settings} d={data} />
@@ -967,7 +976,7 @@ export default function BusinessPlan({ agreementVersion }) {
                 ? <h2 className="bp-h1"><span className="bp-num">{s.num}</span>{s.title}</h2>
                 : <h3 className="bp-h2"><span className="bp-num">{s.num}</span>{s.title}</h3>}
               <Body text={s.body} />
-              {edit && <SectionEditor section={s} onSaved={() => load(horizon)} />}
+              {edit && <SectionEditor section={s} onSaved={load} />}
               {Block && <Block d={data} t={s.t} c={s.c} />}
             </section>
           )
@@ -981,7 +990,7 @@ export default function BusinessPlan({ agreementVersion }) {
             {plan.sections.filter((s) => !s.visible).map((s) => (
               <div key={s.id} style={{ marginTop: 14 }}>
                 <strong>{s.title}</strong>
-                <SectionEditor section={s} onSaved={() => load(horizon)} />
+                <SectionEditor section={s} onSaved={load} />
               </div>
             ))}
           </section>

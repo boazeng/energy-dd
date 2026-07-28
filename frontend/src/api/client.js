@@ -96,9 +96,11 @@ export const api = {
 
   // תכנית עסקית — תוכן ערוך + snapshot נתונים חי
   getBusinessPlan: () => request('/api/business-plan'),
-  getBusinessPlanData: (years, overhead) => {
+  // years=undefined + byContract=true → כל אתר לפי תקופת ההסכם שלו
+  getBusinessPlanData: (years, overhead, byContract) => {
     const q = new URLSearchParams()
-    if (years) q.set('years', years)
+    if (byContract) q.set('by_contract', 'true')
+    else if (years) q.set('years', years)
     if (overhead) q.set('overhead', overhead)
     const s = q.toString()
     return request(`/api/business-plan/data${s ? `?${s}` : ''}`)
