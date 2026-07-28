@@ -362,12 +362,13 @@ function AgreementsTable({ d, t }) {
   return (
     <figure className="bp-figure">
       <Caption kind="table" n={t}>מרשם ההסכמים החתומים</Caption>
-      <table className="bp-table bp-table-tight">
+      {/* טבלה רגילה ולא tight — נותרו ארבע עמודות בלבד */}
+      <table className="bp-table">
         <thead>
           <tr>
+            {/* ללא תקופה ומספר עמדות — אלה מוצגים בסעיפי פרופיל ההתקשרויות
+                והכלכלה של כל אתר. כאן רק תנאי התמחור. */}
             <th className="bp-rowlabel">אתר</th>
-            <th>עמדות</th>
-            <th>תקופה</th>
             <th>דמי ניהול</th>
             <th>מנגנון תמחור</th>
             <th>עלות עמדה לדייר</th>
@@ -382,8 +383,6 @@ function AgreementsTable({ d, t }) {
                   <span className="bp-sub"> ({a.linked_buildings.length} אתרים)</span>
                 )}
               </td>
-              <td>{a.units || '—'}</td>
-              <td>{a.term || '—'}</td>
               <td>{a.payment || '—'}</td>
               <td>{a.pricing_model || '—'}</td>
               <td>{a.charger_cost || '—'}</td>
