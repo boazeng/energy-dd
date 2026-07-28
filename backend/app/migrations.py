@@ -264,6 +264,48 @@ def migrate_building_models(engine: Engine) -> None:
         conn.commit()
 
 
+def migrate_business_plan(engine: Engine) -> None:
+    """משלים עמודות חסרות בטבלאות התכנית העסקית.
+
+    הטבלאות עצמן נוצרות ב-`init_db()`; המיגרציה נדרשת רק כשמוסיפים עמודה למודל
+    אחרי שהטבלה כבר קיימת בפרודקשן — ראה הכלל בזיכרון הפרויקט.
+    """
+    tables = {
+        "business_plan_sections": [
+            ("key",        "TEXT",    "''"),
+            ('"order"',    "INTEGER", "0"),
+            ("level",      "INTEGER", "1"),
+            ("title",      "TEXT",    "''"),
+            ("body",       "TEXT",    "''"),
+            ("data_block", "TEXT",    "''"),
+            ("visible",    "INTEGER", "1"),
+        ],
+        "business_plan_settings": [
+            ("company_name",  "TEXT",    "''"),
+            ("doc_title",     "TEXT",    "''"),
+            ("submitted_to",  "TEXT",    "''"),
+            ("prepared_by",   "TEXT",    "''"),
+            ("doc_date",      "TEXT",    "''"),
+            ("horizon_years", "INTEGER", "5"),
+            ("contact_name",  "TEXT",    "''"),
+            ("contact_phone", "TEXT",    "''"),
+            ("contact_email", "TEXT",    "''"),
+        ],
+    }
+    with engine.connect() as conn:
+        for table, cols in tables.items():
+            info = list(conn.execute(text(f"PRAGMA table_info({table})")))
+            if not info:
+                continue  # הטבלה טרם נוצרה — create_all יטפל בה
+            existing = {row[1] for row in info}
+            for col_name, col_type, default in cols:
+                if col_name.strip('"') not in existing:
+                    conn.execute(text(
+                        f"ALTER TABLE {table} ADD COLUMN {col_name} {col_type} DEFAULT {default}"
+                    ))
+        conn.commit()
+
+
 def apply_manual_building_corrections(engine: Engine) -> None:
     """תיקונים ידניים לנתונים שגויים במקור (projects.json של החברה).
 

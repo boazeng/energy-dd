@@ -35,8 +35,15 @@ def _effective_forecast_years(bm: BuildingModel) -> int:
     return bm.forecast_years
 
 
-def _calc_forecast(bm: BuildingModel, override_years: int | None = None) -> list[YearForecast]:
-    """מחשב תחזית שנתית לבניין — גידול מטענים, הכנסות, CAPEX ו-OPEX."""
+def _calc_forecast(
+    bm: BuildingModel,
+    override_years: int | None = None,
+    growth_override: float | None = None,
+) -> list[YearForecast]:
+    """מחשב תחזית שנתית לבניין — גידול מטענים, הכנסות, CAPEX ו-OPEX.
+
+    growth_override: שיעור גידול שנתי חלופי (%) במקום זה שב-DB — לניתוח רגישות.
+    """
     monthly_income_per_charger = (
         bm.mgmt_fee_per_charger
         + (bm.electricity_rate_agorot / 100) * bm.avg_kwh_per_charger_monthly
@@ -65,7 +72,8 @@ def _calc_forecast(bm: BuildingModel, override_years: int | None = None) -> list
         + effective_no_rcd * bm.cost_rcd_per_charger
     )
 
-    new_per_year = math.floor(bm.potential_spots * bm.annual_growth_rate / 100) if bm.potential_spots > 0 else 0
+    growth_rate = bm.annual_growth_rate if growth_override is None else growth_override
+    new_per_year = math.floor(bm.potential_spots * growth_rate / 100) if bm.potential_spots > 0 else 0
 
     total = bm.current_chargers
     years: list[YearForecast] = []

@@ -10,6 +10,7 @@ import Financials from './pages/Financials.jsx'
 import Cashflow from './pages/Cashflow.jsx'
 import BuildingCashflow from './pages/BuildingCashflow.jsx'
 import RevenueCheck from './pages/RevenueCheck.jsx'
+import BusinessPlan from './pages/BusinessPlan.jsx'
 import { api } from './api/client.js'
 
 const TABS = [
@@ -18,6 +19,7 @@ const TABS = [
   { key: 'cashflow', label: 'תזרים', icon: 'trending' },
   { key: 'building-cashflow', label: 'תזרים בניינים', icon: 'bolt' },
   { key: 'revenue-check', label: 'בדיקת הכנסות', icon: 'reports' },
+  { key: 'business-plan', label: 'תכנית עסקית', icon: 'document' },
   { key: 'tasks', label: 'רשימת מטלות', icon: 'workflow' },
   { key: 'agreements', label: 'הסכמי דיירים', icon: 'document' },
 ]
@@ -140,6 +142,7 @@ export default function App() {
         {tab === 'cashflow' && <Cashflow loading={loading} horizonMode={horizonMode} excludedIds={excludedIds} agreementVersion={agreementVersion} />}
         {tab === 'building-cashflow' && <BuildingCashflow loading={loading} horizonMode={horizonMode} onHorizonChange={(m) => { setHorizonMode(m); localStorage.setItem('energy-horizon-mode', m) }} excludedIds={excludedIds} onExcludedChange={changeExcludedIds} agreementVersion={agreementVersion} />}
         {tab === 'revenue-check' && <RevenueCheck loading={loading} />}
+        {tab === 'business-plan' && <BusinessPlan agreementVersion={agreementVersion} />}
         {tab === 'tasks' && (
           <Tasks
             tasks={tasks}

@@ -8,14 +8,15 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from app.api import building_models, cashflow, financials, projects, questions, revenue_check, supplier_balances, supplier_ledger, tasks, tenant_agreements
+from app.api import building_models, business_plan, cashflow, financials, projects, questions, revenue_check, supplier_balances, supplier_ledger, tasks, tenant_agreements
 from app.core.config import settings
 from app.core.db import SessionLocal, init_db
 from app.seed import seed_tasks
+from app.seed_business_plan import seed_business_plan
 from app.seed_cashflow import seed_cashflow
 from app.seed_contracts import seed_contracts
 from app.seed_supplier_balances import seed_supplier_balances
-from app.migrations import apply_manual_building_corrections, migrate_building_models
+from app.migrations import apply_manual_building_corrections, migrate_building_models, migrate_business_plan
 from app.seed_building_models import backfill_building_links, seed_building_models, sync_contract_dates, sync_install_income, sync_projects_data
 from app.seed_supplier_ledger import seed_supplier_ledger
 
@@ -30,8 +31,10 @@ async def lifespan(_: FastAPI):
     init_db()
     from app.core.db import engine
     migrate_building_models(engine)
+    migrate_business_plan(engine)
     with SessionLocal() as db:
         seed_tasks(db)
+        seed_business_plan(db)
         seed_cashflow(db)
         seed_contracts(db)
         seed_supplier_balances(db)
@@ -64,6 +67,7 @@ app.include_router(supplier_balances.router)
 app.include_router(supplier_ledger.router)
 app.include_router(building_models.router)
 app.include_router(revenue_check.router)
+app.include_router(business_plan.router)
 
 
 @app.get("/health")

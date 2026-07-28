@@ -4,6 +4,7 @@ import App from './App.jsx'
 import './styles/tokens.css'
 import './styles/recipes.css'
 import './styles/app.css'
+import './styles/business-plan.css'
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

@@ -1,0 +1,230 @@
+/* ═══ תכנית עסקית — מסמך A4 למסך ולהדפסה ═══════════════════════════════════
+   רוחב גוף המסמך קבוע (170mm ≈ 660px) כדי שמה שנראה במסך יהיה בדיוק מה שיצא
+   ב-PDF, וכדי שהגרפים יוכלו לקבל רוחב מפורש בפיקסלים (ResponsiveContainer
+   אינו מודד נכון בהדפסה).
+   ═════════════════════════════════════════════════════════════════════════ */
+
+/* --bp-w הוא רוחב אזור *התוכן* (content-box), לא כולל ריפוד — כדי שהגרפים,
+   שמקבלים רוחב מפורש בפיקסלים (DOC_W ב-BusinessPlan.jsx), יתאימו לו בדיוק. */
+.bp-page { --bp-w: 600px; }
+
+/* ─── סרגל כלים ─── */
+.bp-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 12px 16px;
+  margin-bottom: 20px;
+  background: var(--color-bg-white);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  box-shadow: var(--shadow-md);
+}
+.bp-toolbar-group { display: flex; align-items: center; gap: 7px; }
+.bp-toolbar-spacer { flex: 1; }
+.bp-toolbar select {
+  padding: 5px 9px;
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  background: var(--color-bg-white);
+  font: inherit;
+  font-size: 14px;
+}
+
+/* ─── גוף המסמך ─── */
+.bp-doc {
+  width: var(--bp-w);
+  box-sizing: content-box;
+  margin: 0 auto;
+  padding: 26px 34px 40px;
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: 4px;
+  box-shadow: var(--shadow-lg);
+  color: var(--color-text);
+  font-size: 15px;
+  line-height: 1.75;
+}
+
+/* ─── שער ─── */
+.bp-cover {
+  min-height: 560px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  text-align: center;
+  padding: 40px 0;
+}
+.bp-cover-rule { width: 72px; height: 4px; background: var(--color-accent); margin: 0 auto 34px; border-radius: 2px; }
+.bp-cover-title { font-size: 40px; font-weight: 700; color: var(--color-primary); margin: 0 0 10px; letter-spacing: -0.5px; }
+.bp-cover-company { font-size: 25px; font-weight: 600; margin-bottom: 30px; }
+.bp-cover-to { font-size: 19px; color: var(--color-text-light); margin-bottom: 42px; }
+.bp-cover-facts {
+  display: flex; justify-content: center; flex-wrap: wrap; gap: 10px 26px;
+  font-size: 14px; color: var(--color-text-light);
+  border-block: 1px solid var(--color-border); padding: 15px 0; margin-bottom: 46px;
+}
+.bp-cover-foot { font-size: 14px; color: var(--color-text-light); line-height: 2; }
+.bp-cover-contact { margin-top: 10px; font-size: 13px; }
+
+/* ─── תוכן עניינים ─── */
+.bp-toc { margin-bottom: 34px; }
+.bp-toc-list { list-style: none; padding: 0; margin: 18px 0 0; }
+.bp-toc-list li { display: flex; gap: 10px; padding: 3px 0; }
+.bp-toc-l1 { font-weight: 600; margin-top: 9px; }
+.bp-toc-l2 { padding-inline-start: 26px !important; font-size: 14px; color: var(--color-text-light); }
+.bp-toc-num { min-width: 34px; color: var(--color-primary); font-variant-numeric: tabular-nums; }
+
+/* ─── כותרות ופסקאות ─── */
+.bp-h1 {
+  font-size: 24px; font-weight: 700; color: var(--color-primary);
+  margin: 0 0 16px; padding-bottom: 9px;
+  border-bottom: 2px solid var(--color-primary);
+}
+.bp-h2 { font-size: 18px; font-weight: 600; margin: 26px 0 11px; color: var(--color-text); }
+.bp-h1 .bp-num, .bp-h2 .bp-num {
+  display: inline-block; min-width: 42px; color: var(--color-accent); font-variant-numeric: tabular-nums;
+}
+.bp-section { margin-bottom: 22px; }
+.bp-p { margin: 0 0 12px; text-align: justify; }
+.bp-ul { margin: 0 0 13px; padding-inline-start: 22px; }
+.bp-ul li { margin-bottom: 6px; }
+
+/* ─── טבלאות ותרשימים ─── */
+.bp-figure { margin: 18px 0 24px; }
+.bp-caption {
+  font-size: 13.5px; font-weight: 600; color: var(--color-text-light);
+  margin-bottom: 7px;
+}
+.bp-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.bp-table th, .bp-table td {
+  border: 1px solid var(--color-border);
+  padding: 6px 8px;
+  text-align: right;
+  vertical-align: top;
+}
+.bp-table-tight th, .bp-table-tight td { padding: 4px 5px; font-size: 11.5px; }
+.bp-table thead th {
+  background: var(--color-primary-soft);
+  color: var(--color-primary);
+  font-weight: 600;
+  line-height: 1.35;
+}
+.bp-table tbody tr:nth-child(even) td { background: rgba(231, 226, 214, 0.22); }
+.bp-rowlabel { font-weight: 600; }
+.bp-num { text-align: left; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.bp-total td { background: var(--color-primary-soft) !important; font-weight: 700; }
+.bp-pos { color: var(--color-pos); }
+.bp-neg { color: var(--color-accent); }
+.bp-strong { font-weight: 700; }
+.bp-muted { color: var(--color-text-light); }
+.bp-sub { font-size: 12px; color: var(--color-text-light); font-weight: 400; }
+.bp-note { font-size: 12.5px; color: var(--color-text-light); margin: 7px 0 0; }
+.bp-empty {
+  font-size: 13px; color: var(--color-text-light);
+  border: 1px dashed var(--color-border); border-radius: 6px;
+  padding: 13px; margin: 14px 0;
+}
+
+/* ─── רצועת מדדים ─── */
+/* מספר העמודות נקבע ב-JS לפי מספר הפריטים, כדי למנוע שורה אחרונה חלקית */
+.bp-kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.bp-kpi {
+  border: 1px solid var(--color-border);
+  border-radius: 7px;
+  padding: 11px 13px;
+  background: var(--color-bg);
+}
+.bp-kpi-val { font-size: 21px; font-weight: 700; color: var(--color-primary); line-height: 1.25; }
+.bp-kpi-lbl { font-size: 12.5px; margin-top: 3px; }
+.bp-kpi-note { font-size: 11.5px; color: var(--color-text-light); margin-top: 1px; }
+
+.bp-doc-foot { margin-top: 34px; padding-top: 14px; border-top: 1px solid var(--color-border); }
+
+/* ─── עריכה (מסך בלבד) ─── */
+.bp-editor {
+  border: 1px dashed var(--color-primary);
+  border-radius: 8px;
+  padding: 11px;
+  margin: 11px 0 16px;
+  background: var(--color-primary-soft);
+}
+.bp-editor-title, .bp-editor-body {
+  width: 100%; font: inherit; padding: 7px 9px;
+  border: 1px solid var(--color-border); border-radius: 6px;
+  background: #fff; margin-bottom: 8px;
+}
+.bp-editor-title { font-weight: 600; }
+.bp-editor-body { font-size: 14px; line-height: 1.65; resize: vertical; }
+.bp-editor-actions { display: flex; align-items: center; gap: 11px; }
+
+.bp-settings {
+  width: var(--bp-w); box-sizing: content-box; margin: 0 auto 20px;
+  padding: 16px 18px;
+  border: 1px solid var(--color-border); border-radius: 10px;
+  background: var(--color-bg-white);
+}
+.bp-settings-title { margin: 0 0 13px; font-size: 16px; }
+.bp-settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; margin-bottom: 13px; }
+.bp-settings-field { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.bp-settings-field input {
+  font: inherit; padding: 6px 9px;
+  border: 1px solid var(--color-border); border-radius: 6px;
+}
+
+/* ═══ הדפסה ═══════════════════════════════════════════════════════════════ */
+
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 18mm 20mm;
+  }
+
+  /* צבעי רקע של כותרות טבלה ושורות סיכום חייבים לצאת בהדפסה */
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+
+  html, body { background: #fff !important; }
+
+  /* כל מה שאינו המסמך עצמו */
+  .tact-bar, .tact-footer, .no-print, .q-float-btn, .q-overlay { display: none !important; }
+  .app-main { padding: 0 !important; min-height: 0 !important; }
+  .container { max-width: none !important; width: 100% !important; padding: 0 !important; }
+  .tact-aurora { background: #fff !important; }
+
+  .bp-doc {
+    width: 100% !important;
+    padding: 0 !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    font-size: 10.5pt;
+    line-height: 1.6;
+  }
+
+  /* השער והתוכן עניינים — עמוד לכל אחד */
+  .bp-cover { min-height: 0; height: 235mm; page-break-after: always; break-after: page; }
+  .bp-toc { page-break-after: always; break-after: page; }
+
+  /* כל פרק ראשי פותח עמוד חדש */
+  .bp-level-1 { page-break-before: always; break-before: page; }
+
+  /* פרק שאין בו גוף (רק כותרת) לא ייפרד מתת-הפרק הראשון שלו */
+  .bp-h1, .bp-h2 { page-break-after: avoid; break-after: avoid; }
+  .bp-caption { page-break-after: avoid; break-after: avoid; }
+
+  /* טבלה, תרשים ורצועת מדדים לא נחתכים בין עמודים */
+  .bp-figure, .bp-kpis, .bp-kpi, .recharts-wrapper { page-break-inside: avoid; break-inside: avoid; }
+  .bp-table tr { page-break-inside: avoid; break-inside: avoid; }
+  .bp-table thead { display: table-header-group; }  /* כותרת חוזרת בכל עמוד */
+
+  .bp-p, .bp-ul li { orphans: 3; widows: 3; }
+
+  .bp-cover-title { font-size: 30pt; }
+  .bp-cover-company { font-size: 18pt; }
+  .bp-h1 { font-size: 16pt; }
+  .bp-h2 { font-size: 12.5pt; }
+  .bp-table { font-size: 8.5pt; }
+  .bp-table-tight th, .bp-table-tight td { font-size: 7.5pt; }
+  .bp-kpi-val { font-size: 14pt; }
+}

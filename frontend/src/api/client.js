@@ -93,4 +93,17 @@ export const api = {
     request(`/api/building-models/${id}/forecast${forceYears ? `?force_years=${forceYears}` : ''}`),
   getCombinedForecast: (forceYears) =>
     request(`/api/building-models/forecast/combined${forceYears ? `?force_years=${forceYears}` : ''}`),
+
+  // תכנית עסקית — תוכן ערוך + snapshot נתונים חי
+  getBusinessPlan: () => request('/api/business-plan'),
+  getBusinessPlanData: (years) =>
+    request(`/api/business-plan/data${years ? `?years=${years}` : ''}`),
+  updateBusinessPlanSettings: (data) =>
+    request('/api/business-plan/settings', { method: 'PUT', body: JSON.stringify(data) }),
+  updateBusinessPlanSection: (id, data) =>
+    request(`/api/business-plan/sections/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
+  createBusinessPlanSection: (data) =>
+    request('/api/business-plan/sections', { method: 'POST', body: JSON.stringify(data) }),
+  deleteBusinessPlanSection: (id) =>
+    request(`/api/business-plan/sections/${id}`, { method: 'DELETE' }),
 }
