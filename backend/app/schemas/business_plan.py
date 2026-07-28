@@ -176,7 +176,6 @@ class AcquisitionData(BaseModel):
     chargers: int = 0
     potential_spots: int = 0
     cost_per_building: float = 0
-    cost_per_charger: float = 0         # עלות לכל מטען מותקן היום
     cost_per_potential_spot: float = 0  # עלות לכל חניה בפוטנציאל החוזי
     multiple_on_run_rate: float | None = None  # עלות ÷ הכנסה שנתית נוכחית
 

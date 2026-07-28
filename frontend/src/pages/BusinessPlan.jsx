@@ -249,14 +249,15 @@ function AcquisitionTerms({ d, t }) {
         </table>
       </div>
 
+      {/* אין מדד "עלות למטען מותקן": התמורה בעסקה היא הזכות החוזית להתקין
+          בכל החניות שבהסכם, ולא העמדות שכבר מותקנות. */}
       <Kpis style={{ marginTop: 14 }} items={[
         { label: 'עלות לאתר', value: ils(a.cost_per_building), note: `${nf.format(a.buildings)} אתרים` },
-        { label: 'עלות למטען מותקן', value: ils(a.cost_per_charger), note: `${nf.format(a.chargers)} מטענים` },
         { label: 'עלות לחניה בפוטנציאל', value: ils(a.cost_per_potential_spot), note: `${nf.format(a.potential_spots)} חניות בהסכמים` },
         {
           label: 'מכפיל על ההכנסה השנתית',
           value: a.multiple_on_run_rate === null ? '—' : `×${a.multiple_on_run_rate}`,
-          note: 'לפי ההכנסה מהמטענים הקיימים',
+          note: 'לפי ההכנסה מהעמדות הקיימות',
         },
       ]} />
     </figure>

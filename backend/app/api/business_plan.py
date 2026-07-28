@@ -317,7 +317,6 @@ def get_plan_data(
         chargers=total_current,
         potential_spots=total_potential,
         cost_per_building=round(cost / len(buildings), 2) if buildings else 0,
-        cost_per_charger=round(cost / total_current, 2) if total_current else 0,
         cost_per_potential_spot=round(cost / total_potential, 2) if total_potential else 0,
         multiple_on_run_rate=(
             round(cost / run_rate_income, 1) if run_rate_income > 0 else None
