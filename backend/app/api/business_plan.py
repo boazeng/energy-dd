@@ -24,6 +24,7 @@ from app.models.supplier_balance import SupplierBalance
 from app.models.tenant_agreement import TenantAgreement
 from app.schemas.business_plan import (
     AcquisitionData,
+    AgreementRow,
     AssumptionRow,
     BusinessPlanOut,
     ForecastYearRow,
@@ -36,6 +37,7 @@ from app.schemas.business_plan import (
     SectionOut,
     SectionUpdate,
     SensitivityRow,
+    SiteEconomics,
     TodayData,
 )
 
@@ -163,6 +165,11 @@ def _load_financials() -> dict:
 @router.get("/data", response_model=PlanData)
 def get_plan_data(
     years: int | None = Query(None, ge=1, le=30, description="אופק; ברירת מחדל מההגדרות"),
+    overhead: float = Query(
+        0, ge=0,
+        description="סה\"כ תקורות שנתיות. נשמר ב-localStorage של לשונית תזרים בניינים "
+                    "ולכן חייב להגיע מהדפדפן — בלעדיו התחזית מנפחת את הרווח מול אותה לשונית.",
+    ),
     db: Session = Depends(get_db),
 ):
     """snapshot אחד ועקבי של כל המספרים במסמך, מחושב מהנתונים החיים."""
@@ -191,6 +198,10 @@ def get_plan_data(
                 "contract_duration_years": bm.contract_duration_years,
                 "mgmt_fee": bm.mgmt_fee_per_charger,
                 "elec_rate": bm.electricity_rate_agorot,
+                "avg_kwh": bm.avg_kwh_per_charger_monthly,
+                "subscription": bm.subscription_fee_per_charger,
+                "install_income": bm.charger_install_income,
+                "monthly_income": _monthly_income_per_charger(bm),
                 "growth_rate": bm.annual_growth_rate,
             },
         )
@@ -239,6 +250,49 @@ def get_plan_data(
         financials=_load_financials(),
     )
 
+    # ── מרשם ההסכמים והכלכלה פר-אתר: מה בדיוק נרכש ───────────────────────
+    # שני המרשמים נשלפים חיים; מודעת ההסכמים היא הנכס המרכזי בעסקה.
+    by_agreement: dict[int, list[str]] = {}
+    for bm in buildings:
+        if bm.agreement_id:
+            by_agreement.setdefault(bm.agreement_id, []).append(bm.building_name)
+
+    agreement_rows = [
+        AgreementRow(
+            building=a.building,
+            tenant_name=a.tenant_name,
+            units=a.units,
+            term=a.term,
+            payment=a.payment,
+            pricing_model=a.pricing_model,
+            charger_cost=a.charger_cost,
+            termination=a.termination,
+            linked_buildings=sorted(by_agreement.get(a.id, [])),
+        )
+        for a in sorted(agreements, key=lambda x: x.building or "")
+    ]
+
+    sites = [
+        SiteEconomics(
+            name=g["name"],
+            city=g["city"],
+            members=sorted(g["members"]),
+            current_chargers=g["current_chargers"],
+            potential_spots=g["potential_spots"],
+            mgmt_fee=g["mgmt_fee"],
+            elec_rate_agorot=g["elec_rate"],
+            avg_kwh=g["avg_kwh"],
+            subscription=g["subscription"],
+            install_income=g["install_income"],
+            monthly_income_per_charger=round(g["monthly_income"], 2),
+            current_annual_income=round(g["current_chargers"] * g["monthly_income"] * 12, 2),
+            potential_annual_income=round(g["potential_spots"] * g["monthly_income"] * 12, 2),
+            contract_start_year=g["contract_start_year"],
+            contract_duration_years=g["contract_duration_years"],
+        )
+        for g in sorted(groups.values(), key=lambda x: -x["potential_spots"])
+    ]
+
     # ── עסקת הרכישה: מקורות ושימושים ─────────────────────────────────────
     loan_row = _get_loan(db)
     cost = plan_settings.acquisition_cost or 0
@@ -270,7 +324,7 @@ def get_plan_data(
     forecast: list[ForecastYearRow] = []
     for year in sorted(agg):
         r = agg[year]
-        profit_before_loan = r["income"] - r["capex"] - r["opex"] - r["maint"]
+        profit_before_loan = r["income"] - r["capex"] - r["opex"] - r["maint"] - overhead
         repayment = round(annual_payment, 2) if loan_start <= year <= loan_end else 0.0
         net = profit_before_loan - repayment
         cumulative += net
@@ -282,7 +336,8 @@ def get_plan_data(
             capex=round(r["capex"], 2),
             opex=round(r["opex"], 2),
             maintenance=round(r["maint"], 2),
-            ebitda=round(r["income"] - r["opex"] - r["maint"], 2),
+            overhead=round(overhead, 2),
+            ebitda=round(r["income"] - r["opex"] - r["maint"] - overhead, 2),
             profit_before_loan=round(profit_before_loan, 2),
             loan_repayment=repayment,
             net_profit=round(net, 2),
@@ -295,6 +350,7 @@ def get_plan_data(
         "capex": round(sum(f.capex for f in forecast), 2),
         "opex": round(sum(f.opex for f in forecast), 2),
         "maintenance": round(sum(f.maintenance for f in forecast), 2),
+        "overhead": round(sum(f.overhead for f in forecast), 2),
         "profit_before_loan": round(sum(f.profit_before_loan for f in forecast), 2),
         "loan_repayment": round(sum(f.loan_repayment for f in forecast), 2),
         "net_profit": round(sum(f.net_profit for f in forecast), 2),
@@ -329,36 +385,91 @@ def get_plan_data(
     def _money(v: float) -> str:
         return f"₪{v:,.0f}" if abs(v - round(v)) < 0.005 else f"₪{v:,.2f}"
 
-    first = buildings[0] if buildings else None
+    def _uniform(attr: str) -> float | None:
+        """הערך אם הוא זהה בכל האתרים, אחרת None.
+
+        פאנל ההגדרות הגלובלי מחיל את רוב הפרמטרים על כל הבניינים יחד, ולכן
+        בדרך כלל יש ערך אחד מדויק. אם מישהו שינה בניין בודד — נופלים לממוצע
+        משוקלל, וההערה בטבלה אומרת זאת במפורש.
+        """
+        if not buildings:
+            return None
+        vals = {round(getattr(b, attr), 4) for b in buildings}
+        return vals.pop() if len(vals) == 1 else None
+
+    def _param(group: str, label: str, attr: str, fmt, note: str = "") -> AssumptionRow:
+        exact = _uniform(attr)
+        val = exact if exact is not None else _wavg(attr)
+        src = note or ("חל על כל האתרים" if exact is not None else "ממוצע משוקלל — הערך אינו אחיד בין האתרים")
+        return AssumptionRow(group=group, label=label, value=fmt(val), note=src)
+
+    _ils = _money
+    _pct = lambda v: f"{v:,.1f}%"                    # noqa: E731
+    _kwh = lambda v: f'{v:,.0f} קוט"ש'               # noqa: E731
+    _ag = lambda v: f"{v:,.1f} אג'"                  # noqa: E731
+    _int = lambda v: f"{v:,.0f}"                     # noqa: E731
+
+    G1, G2, G3, G4, G5, G6 = (
+        "הנחות יסוד", "הכנסה חודשית למטען", "עלות התקנת מטען חדש (CAPEX)",
+        "עלויות התאמה למטענים קיימים", "תפעול שוטף", "מימון ורכישה",
+    )
+
     assumptions: list[AssumptionRow] = [
-        AssumptionRow(label="אופק התחזית", value=f"{horizon} שנים", note=f"{start_year}–{start_year + horizon - 1}"),
-        AssumptionRow(label="דמי ניהול חודשיים למטען", value=_money(_wavg("mgmt_fee_per_charger")), note="ממוצע משוקלל לפי חניות פוטנציאליות"),
-        AssumptionRow(label="תוספת על תעריף החשמל", value=f"{_wavg('electricity_rate_agorot'):.1f} אג'/קוט\"ש", note="ממוצע משוקלל"),
-        AssumptionRow(label="צריכה חודשית ממוצעת למטען", value=f"{_wavg('avg_kwh_per_charger_monthly'):.0f} קוט\"ש", note="ממוצע משוקלל"),
-        AssumptionRow(label="שיעור חדירה שנתי", value=f"{_wavg('annual_growth_rate'):.1f}%", note="מטענים חדשים כאחוז מהחניות הפוטנציאליות בבניין"),
+        AssumptionRow(group=G1, label="אופק התחזית", value=f"{horizon} שנים",
+                      note=f"{start_year}–{start_year + horizon - 1}"),
+        _param(G1, "שיעור גידול שנתי", "annual_growth_rate", _pct,
+               note="מטענים חדשים כאחוז מהחניות הפוטנציאליות בכל אתר"),
+        _param(G1, "צריכה חודשית ממוצעת למטען", "avg_kwh_per_charger_monthly", _kwh),
+
+        _param(G2, "דמי ניהול", "mgmt_fee_per_charger", _ils),
+        _param(G2, 'תוספת על תעריף החשמל (לקוט"ש)', "electricity_rate_agorot", _ag),
+        _param(G2, "דמי מנוי", "subscription_fee_per_charger", _ils),
+        _param(G2, "הכנסה חד-פעמית מהתקנה", "charger_install_income", _ils,
+               note="לפי ההסכם מול הדייר; נזקפת בשנה שבה הותקן המטען"),
+
+        _param(G3, "עלות המטען", "cost_charger_unit", _ils),
+        _param(G3, "תשתית חשמל ותקשורת", "cost_infra_per_charger", _ils),
+        _param(G3, "התקנה", "cost_install_per_charger", _ils),
+        _param(G3, "ארון חשמל", "cost_elec_panel", _ils, note="מתחלק במספר המטענים לארון"),
+        _param(G3, "ארון תקשורת", "cost_comm_panel", _ils, note="מתחלק במספר המטענים לארון"),
+        _param(G3, "מטענים לארון", "chargers_per_panel", _int),
+
+        _param(G4, "פחת חסר (RCD)", "cost_rcd_per_charger", _ils,
+               note="חד-פעמי בשנה הראשונה, רק למטענים קיימים ללא RCD"),
+        _param(G4, "אינטרנט", "cost_internet_per_charger", _ils, note="חד-פעמי בשנה הראשונה, למטענים קיימים"),
+        _param(G4, "אישור בודק חשמל", "cost_inspector_per_charger", _ils, note="חד-פעמי בשנה הראשונה, למטענים קיימים"),
+
+        _param(G5, "תחזוקה שנתית למטען", "cost_maintenance_per_charger", _ils, note="לכל מטען פעיל, בכל שנה"),
+        AssumptionRow(group=G5, label="הוצאות תקורה שנתיות", value=_money(overhead),
+                      note="כמוגדר בלשונית תזרים בניינים" if overhead else
+                           "לא הוגדרו תקורות בלשונית תזרים בניינים"),
     ]
-    if first:
-        panel = first.cost_elec_panel + first.cost_comm_panel
-        per_panel = max(1, first.chargers_per_panel)
-        capex_unit = (
-            first.cost_charger_unit + first.cost_infra_per_charger + first.cost_install_per_charger
+
+    # סה"כ CAPEX למטען — הסכום שבאמת נכנס לתחזית
+    if buildings:
+        b0 = buildings[0]
+        panel = b0.cost_elec_panel + b0.cost_comm_panel
+        per_panel = max(1, b0.chargers_per_panel)
+        total_capex = (
+            b0.cost_charger_unit + b0.cost_infra_per_charger + b0.cost_install_per_charger
+            + panel / per_panel
         )
-        assumptions += [
-            AssumptionRow(label="השקעה למטען חדש (CAPEX)", value=_money(capex_unit + panel / per_panel),
-                          note=f"מטען {_money(first.cost_charger_unit)} · תשתית {_money(first.cost_infra_per_charger)} · "
-                               f"התקנה {_money(first.cost_install_per_charger)} · ארונות {_money(panel)} ל-{per_panel} מטענים"),
-            AssumptionRow(label="תפעול שנתי למטען (OPEX)", value=_money(first.cost_maintenance_per_charger),
-                          note="תחזוקה שוטפת; בשנה הראשונה נוספים אינטרנט ובודק חשמל למטענים הקיימים"),
-        ]
+        assumptions.insert(
+            next(i for i, a in enumerate(assumptions) if a.group == G4),
+            AssumptionRow(group=G3, label='סה"כ השקעה למטען חדש', value=_money(total_capex),
+                          note="סכום הרכיבים שמעל, כולל חלק יחסי בארונות"),
+        )
+
     assumptions += [
-        AssumptionRow(label="עלות הרכישה", value=_money(acquisition.cost),
+        AssumptionRow(group=G6, label="עלות הרכישה", value=_money(acquisition.cost),
                       note=f"{acquisition.buildings} אתרים · {_money(acquisition.cost_per_building)} לאתר"),
-        AssumptionRow(label="אשראי מבוקש", value=_money(loan.amount),
+        AssumptionRow(group=G6, label="אשראי מבוקש", value=_money(loan.amount),
                       note=f"{loan.years} שנים · פריים {loan.prime}% + מרווח {loan.margin}% · לוח שפיצר"),
-        AssumptionRow(label="החזר שנתי", value=_money(loan.annual_payment), note=f"{_money(loan.monthly_payment)} לחודש"),
-        AssumptionRow(label="יתרת מזומנים לתחילת התקופה", value=_money(today.opening_balance),
+        AssumptionRow(group=G6, label="החזר שנתי", value=_money(loan.annual_payment),
+                      note=f"{_money(loan.monthly_payment)} לחודש"),
+        AssumptionRow(group=G6, label="יתרת מזומנים לתחילת התקופה", value=_money(today.opening_balance),
                       note=today.opening_balance_date or "לפי לשונית תזרים"),
-        AssumptionRow(label="מע\"מ", value="מנוטרל", note="כל הסכומים בתכנית אינם כוללים מע\"מ"),
+        AssumptionRow(group=G6, label='מע"מ', value="מנוטרל", note="כל הסכומים בתכנית אינם כוללים מע\"מ"),
     ]
 
     # ── רגישות — קצב חדירה איטי/מהיר מהמתוכנן ─────────────────────────────
@@ -376,7 +487,7 @@ def get_plan_data(
         total_profit = 0.0
         for year in sorted(scen):
             r = scen[year]
-            pbl = r["income"] - r["capex"] - r["opex"] - r["maint"]
+            pbl = r["income"] - r["capex"] - r["opex"] - r["maint"] - overhead
             repay = annual_payment if loan_start <= year <= loan_end else 0.0
             total_profit += pbl - repay
             cum += pbl - repay
@@ -396,6 +507,8 @@ def get_plan_data(
         overview=overview,
         today=today,
         acquisition=acquisition,
+        agreements=agreement_rows,
+        sites=sites,
         forecast=forecast,
         totals=totals,
         loan=loan,

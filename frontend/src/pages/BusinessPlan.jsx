@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { Fragment, useEffect, useMemo, useState } from 'react'
 import {
   Bar, BarChart, CartesianGrid, Cell, Line, LineChart,
   ReferenceLine, Tooltip, XAxis, YAxis,
@@ -23,6 +23,22 @@ const GRID = '#E7E2D6'
 const AXIS = '#706A60'
 
 const nf = new Intl.NumberFormat('he-IL')
+
+// אותו מפתח שבו לשונית תזרים בניינים שומרת את פריטי התקורה
+const OVERHEAD_KEY = 'energy-overhead'
+
+function readOverheadItems() {
+  try {
+    const raw = JSON.parse(localStorage.getItem(OVERHEAD_KEY) || '[]')
+    return Array.isArray(raw) ? raw.filter((x) => x && (x.annual_amount || 0) > 0) : []
+  } catch {
+    return []
+  }
+}
+
+function readOverheadTotal() {
+  return readOverheadItems().reduce((s, x) => s + (x.annual_amount || 0), 0)
+}
 
 function ils(v) {
   if (v === null || v === undefined || Number.isNaN(v)) return '—'
@@ -108,6 +124,8 @@ function blockCounts(key, d) {
     case 'forecast_table': return [hasForecast ? 1 : 0, 0]
     case 'profit_chart': return [0, hasForecast ? 1 : 0]
     case 'buildings_table': return [d.overview.buildings.length ? 1 : 0, 0]
+    case 'agreements_table': return [d.agreements.length ? 1 : 0, 0]
+    case 'site_economics': return [d.sites.length ? 1 : 0, 0]
     case 'historical_pnl': return [hasFin('pnl'), 0]
     case 'historical_balance': return [hasFin('balance'), 0]
     case 'supplier_credits': return [d.today.supplier_credits.length ? 1 : 0, 0]
@@ -125,7 +143,7 @@ function SummaryFinancials({ d, t, c }) {
     ['מספר מטענים פעילים (סוף שנה)', f.map((r) => nf.format(r.total_chargers)), true],
     ['מטענים שנוספו במהלך השנה', f.map((r) => nf.format(r.chargers_added)), true],
     ['הכנסות', f.map((r) => ils(r.income))],
-    ['הוצאות תפעול ותחזוקה', f.map((r) => ils(-(r.opex + r.maintenance)))],
+    ['הוצאות תפעול, תחזוקה ותקורה', f.map((r) => ils(-(r.opex + r.maintenance + r.overhead)))],
     ['השקעה בתשתית (CAPEX)', f.map((r) => ils(-r.capex))],
     ['תזרים לפני החזר הלוואה', f.map((r) => ils(r.profit_before_loan)), false, true],
     ['החזר הלוואה', f.map((r) => ils(-r.loan_repayment))],
@@ -336,6 +354,104 @@ function AgreementsProfile({ d, t, c }) {
   )
 }
 
+// מרשם ההסכמים — התוכן מוצג כפי שנותח מהחוזים, בלי עיבוד
+function AgreementsTable({ d, t }) {
+  const rows = d.agreements
+  if (!rows.length) return <p className="bp-empty">אין הסכמים במערכת.</p>
+  return (
+    <figure className="bp-figure">
+      <Caption kind="table" n={t}>מרשם ההסכמים החתומים</Caption>
+      <table className="bp-table bp-table-tight">
+        <thead>
+          <tr>
+            <th className="bp-rowlabel">אתר</th>
+            <th>עמדות</th>
+            <th>תקופה</th>
+            <th>דמי ניהול</th>
+            <th>מנגנון תמחור</th>
+            <th>עלות עמדה לדייר</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((a, i) => (
+            <tr key={i}>
+              <td className="bp-rowlabel">
+                {a.building || '—'}
+                {a.linked_buildings.length > 1 && (
+                  <span className="bp-sub"> ({a.linked_buildings.length} אתרים)</span>
+                )}
+              </td>
+              <td>{a.units || '—'}</td>
+              <td>{a.term || '—'}</td>
+              <td>{a.payment || '—'}</td>
+              <td>{a.pricing_model || '—'}</td>
+              <td>{a.charger_cost || '—'}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </figure>
+  )
+}
+
+// הכלכלה פר-אתר: ההכנסה היום מול ההכנסה אילו כל החניות שבהסכם היו מאוישות.
+// הפער בין שתי העמודות האחרונות הוא פוטנציאל ההשבחה שנרכש.
+function SiteEconomicsTable({ d, t }) {
+  const rows = d.sites
+  if (!rows.length) return <p className="bp-empty">אין נתוני אתרים.</p>
+  const sum = (k) => rows.reduce((s, r) => s + r[k], 0)
+  return (
+    <figure className="bp-figure">
+      <Caption kind="table" n={t}>תנאים כלכליים ופוטנציאל לפי אתר</Caption>
+      <table className="bp-table bp-table-tight">
+        <thead>
+          <tr>
+            <th className="bp-rowlabel">אתר</th>
+            <th>דמי<br />ניהול</th>
+            <th>אג'/<br />קוט&quot;ש</th>
+            <th>קוט&quot;ש<br />לחודש</th>
+            <th>דמי<br />מנוי</th>
+            <th>הכנסה חודשית<br />לעמדה</th>
+            <th>עמדות<br />היום</th>
+            <th>הכנסה<br />שנתית היום</th>
+            <th>חניות<br />בהסכם</th>
+            <th>פוטנציאל<br />שנתי מלא</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr key={r.name}>
+              <td className="bp-rowlabel">{r.name}</td>
+              <td className="bp-num">{num(r.mgmt_fee)}</td>
+              <td className="bp-num">{r.elec_rate_agorot || '—'}</td>
+              <td className="bp-num">{num(r.avg_kwh)}</td>
+              <td className="bp-num">{r.subscription ? num(r.subscription) : '—'}</td>
+              <td className="bp-num bp-strong">{num(r.monthly_income_per_charger)}</td>
+              <td className="bp-num">{nf.format(r.current_chargers)}</td>
+              <td className="bp-num">{num(r.current_annual_income)}</td>
+              <td className="bp-num">{nf.format(r.potential_spots)}</td>
+              <td className="bp-num bp-pos">{num(r.potential_annual_income)}</td>
+            </tr>
+          ))}
+        </tbody>
+        <tfoot>
+          <tr className="bp-total">
+            <td className="bp-rowlabel" colSpan={6}>סה&quot;כ</td>
+            <td className="bp-num">{nf.format(sum('current_chargers'))}</td>
+            <td className="bp-num">{num(sum('current_annual_income'))}</td>
+            <td className="bp-num">{nf.format(sum('potential_spots'))}</td>
+            <td className="bp-num bp-pos">{num(sum('potential_annual_income'))}</td>
+          </tr>
+        </tfoot>
+      </table>
+      <p className="bp-note">
+        הסכומים בש&quot;ח ואינם כוללים מע&quot;מ. &quot;פוטנציאל שנתי מלא&quot; מבטא את ההכנסה
+        אילו כל החניות שבהסכם היו מאוישות — אינו יעד התחזית, אלא תקרת ההשבחה החוזית.
+      </p>
+    </figure>
+  )
+}
+
 // שורות מדדים: בוחרים מספר עמודות שמתחלק במספר הפריטים, כדי שלא תיווצר שורה
 // אחרונה חלקית עם חור.
 function Kpis({ items, style }) {
@@ -432,22 +548,56 @@ function SupplierCredits({ d, t, c }) {
   )
 }
 
+// כל פרמטר הבסיס מלשונית תזרים בניינים, מקובץ לפי עמודות פאנל ההגדרות שם.
 function AssumptionsTable({ d, t, c }) {
+  const items = readOverheadItems()
+  const groups = []
+  for (const a of d.assumptions) {
+    const g = a.group || 'כללי'
+    if (!groups.length || groups[groups.length - 1].name !== g) groups.push({ name: g, rows: [] })
+    groups[groups.length - 1].rows.push(a)
+  }
   return (
     <figure className="bp-figure">
       <Caption kind="table" n={t}>הנחות העבודה</Caption>
       <table className="bp-table">
         <thead><tr><th className="bp-rowlabel">פרמטר</th><th>ערך</th><th>הערה</th></tr></thead>
         <tbody>
-          {d.assumptions.map((a, i) => (
-            <tr key={i}>
-              <td className="bp-rowlabel">{a.label}</td>
-              <td className="bp-num bp-strong">{a.value}</td>
-              <td className="bp-sub">{a.note}</td>
-            </tr>
+          {groups.map((g) => (
+            <Fragment key={g.name}>
+              <tr className="bp-group"><td className="bp-rowlabel" colSpan={3}>{g.name}</td></tr>
+              {g.rows.map((a, i) => (
+                <tr key={i}>
+                  <td className="bp-rowlabel">{a.label}</td>
+                  <td className="bp-num bp-strong">{a.value}</td>
+                  <td className="bp-sub">{a.note}</td>
+                </tr>
+              ))}
+            </Fragment>
           ))}
         </tbody>
       </table>
+
+      {items.length > 0 && (
+        <>
+          <div className="bp-caption" style={{ marginTop: 16 }}>פירוט הוצאות התקורה השנתיות</div>
+          <table className="bp-table">
+            <thead><tr><th className="bp-rowlabel">סעיף</th><th>עלות שנתית</th></tr></thead>
+            <tbody>
+              {items.map((x, i) => (
+                <tr key={i}>
+                  <td className="bp-rowlabel">{x.name || '—'}</td>
+                  <td className="bp-num">{ils(x.annual_amount)}</td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot>
+              <tr className="bp-total"><td className="bp-rowlabel">סה&quot;כ</td>
+                <td className="bp-num">{ils(readOverheadTotal())}</td></tr>
+            </tfoot>
+          </table>
+        </>
+      )}
     </figure>
   )
 }
@@ -467,7 +617,7 @@ function ForecastTable({ d, t, c }) {
             <th>סה&quot;כ<br />מטענים</th>
             <th>הכנסות</th>
             <th>השקעה<br />(CAPEX)</th>
-            <th>תפעול<br />ותחזוקה</th>
+            <th>תפעול, תחזוקה<br />ותקורה</th>
             <th>תזרים לפני<br />החזר</th>
             <th>החזר<br />הלוואה</th>
             <th>תזרים<br />נטו</th>
@@ -482,7 +632,7 @@ function ForecastTable({ d, t, c }) {
               <td className="bp-num">{nf.format(r.total_chargers)}</td>
               <td className="bp-num">{num(r.income)}</td>
               <td className="bp-num">{r.capex ? num(-r.capex) : '—'}</td>
-              <td className="bp-num">{num(-(r.opex + r.maintenance))}</td>
+              <td className="bp-num">{num(-(r.opex + r.maintenance + r.overhead))}</td>
               <td className={`bp-num ${r.profit_before_loan < 0 ? 'bp-neg' : 'bp-pos'}`}>{num(r.profit_before_loan)}</td>
               <td className="bp-num">{r.loan_repayment ? num(-r.loan_repayment) : '—'}</td>
               <td className={`bp-num ${r.net_profit < 0 ? 'bp-neg' : 'bp-pos'}`}>{num(r.net_profit)}</td>
@@ -497,7 +647,7 @@ function ForecastTable({ d, t, c }) {
             <td className="bp-num">{nf.format(T.chargers_end)}</td>
             <td className="bp-num">{num(T.income)}</td>
             <td className="bp-num">{num(-T.capex)}</td>
-            <td className="bp-num">{num(-(T.opex + T.maintenance))}</td>
+            <td className="bp-num">{num(-(T.opex + T.maintenance + (T.overhead || 0)))}</td>
             <td className={`bp-num ${T.profit_before_loan < 0 ? 'bp-neg' : 'bp-pos'}`}>{num(T.profit_before_loan)}</td>
             <td className="bp-num">{num(-T.loan_repayment)}</td>
             <td className={`bp-num ${T.net_profit < 0 ? 'bp-neg' : 'bp-pos'}`}>{num(T.net_profit)}</td>
@@ -597,6 +747,8 @@ function SensitivityTable({ d, t, c }) {
 
 const BLOCKS = {
   acquisition_terms: AcquisitionTerms,
+  agreements_table: AgreementsTable,
+  site_economics: SiteEconomicsTable,
   summary_financials: SummaryFinancials,
   cumulative_cashflow: CumulativeCashflow,
   buildings_table: BuildingsTable,
@@ -715,9 +867,12 @@ export default function BusinessPlan({ agreementVersion }) {
   async function load(years) {
     setLoading(true)
     try {
+      // התקורות נשמרות ב-localStorage של לשונית תזרים בניינים ולא ב-DB, ולכן
+      // הבקאנד אינו רואה אותן. בלי להעביר אותן התחזית כאן הייתה מציגה רווח
+      // גבוה יותר מאותה לשונית.
       const [p, d] = await Promise.all([
         api.getBusinessPlan(),
-        api.getBusinessPlanData(years),
+        api.getBusinessPlanData(years, readOverheadTotal()),
       ])
       setPlan(p)
       setData(d)

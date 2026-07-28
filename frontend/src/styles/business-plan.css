@@ -116,6 +116,12 @@
 .bp-rowlabel { font-weight: 600; }
 .bp-num { text-align: left; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .bp-total td { background: var(--color-primary-soft) !important; font-weight: 700; }
+/* שורת כותרת-קבוצה בתוך טבלה */
+.bp-group td {
+  background: var(--color-bg) !important;
+  font-weight: 700; font-size: 12px;
+  letter-spacing: .04em; color: var(--color-primary);
+}
 .bp-pos { color: var(--color-pos); }
 .bp-neg { color: var(--color-accent); }
 .bp-strong { font-weight: 700; }

@@ -108,6 +108,7 @@ class ForecastYearRow(BaseModel):
     capex: float = 0
     opex: float = 0                     # OPEX חד-פעמי (שנה ראשונה)
     maintenance: float = 0
+    overhead: float = 0                 # תקורות שנתיות (מלשונית תזרים בניינים)
     ebitda: float = 0                   # הכנסות פחות OPEX ותחזוקה (לפני CAPEX והחזר)
     profit_before_loan: float = 0
     loan_repayment: float = 0
@@ -129,6 +130,40 @@ class LoanData(BaseModel):
     total_interest: float = 0
 
 
+class AgreementRow(BaseModel):
+    """שורה במרשם ההסכמים — הנכס המרכזי הנרכש."""
+
+    building: str = ""
+    tenant_name: str = ""
+    units: str = ""
+    term: str = ""
+    payment: str = ""
+    pricing_model: str = ""
+    charger_cost: str = ""
+    termination: str = ""
+    linked_buildings: list[str] = []    # אתרים ב-building_models המקושרים להסכם
+
+
+class SiteEconomics(BaseModel):
+    """הכלכלה של אתר בודד — מה בדיוק נרכש בכל אתר."""
+
+    name: str = ""
+    city: str = ""
+    members: list[str] = []
+    current_chargers: int = 0
+    potential_spots: int = 0
+    mgmt_fee: float = 0
+    elec_rate_agorot: float = 0
+    avg_kwh: float = 0
+    subscription: float = 0
+    install_income: float = 0
+    monthly_income_per_charger: float = 0
+    current_annual_income: float = 0
+    potential_annual_income: float = 0   # אילו כל החניות היו מאוישות
+    contract_start_year: int | None = None
+    contract_duration_years: int | None = None
+
+
 class AcquisitionData(BaseModel):
     """מקורות ושימושים לעסקת הרכישה — הבסיס לבחינת הבנק."""
 
@@ -147,6 +182,7 @@ class AcquisitionData(BaseModel):
 
 
 class AssumptionRow(BaseModel):
+    group: str = ""     # כותרת קבוצה בטבלה; מקביל לעמודות פאנל ההגדרות
     label: str
     value: str
     note: str = ""
@@ -167,6 +203,8 @@ class PlanData(BaseModel):
     overview: OverviewData
     today: TodayData
     acquisition: AcquisitionData
+    agreements: list[AgreementRow]
+    sites: list[SiteEconomics]
     forecast: list[ForecastYearRow]
     totals: dict
     loan: LoanData

@@ -39,7 +39,7 @@ class BusinessPlanSetting(Base):
     __tablename__ = "business_plan_settings"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)  # תמיד 1
-    company_name: Mapped[str] = mapped_column(String(200), default="ש.א.ר מוביליטי בע\"מ")
+    company_name: Mapped[str] = mapped_column(String(200), default="אנרגיה ירוקה")
     doc_title: Mapped[str] = mapped_column(String(200), default="תכנית עסקית")
     submitted_to: Mapped[str] = mapped_column(String(200), default="בנק הפועלים")
     prepared_by: Mapped[str] = mapped_column(String(200), default="")

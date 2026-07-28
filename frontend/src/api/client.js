@@ -96,8 +96,13 @@ export const api = {
 
   // תכנית עסקית — תוכן ערוך + snapshot נתונים חי
   getBusinessPlan: () => request('/api/business-plan'),
-  getBusinessPlanData: (years) =>
-    request(`/api/business-plan/data${years ? `?years=${years}` : ''}`),
+  getBusinessPlanData: (years, overhead) => {
+    const q = new URLSearchParams()
+    if (years) q.set('years', years)
+    if (overhead) q.set('overhead', overhead)
+    const s = q.toString()
+    return request(`/api/business-plan/data${s ? `?${s}` : ''}`)
+  },
   updateBusinessPlanSettings: (data) =>
     request('/api/business-plan/settings', { method: 'PUT', body: JSON.stringify(data) }),
   updateBusinessPlanSection: (id, data) =>
