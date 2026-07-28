@@ -417,6 +417,25 @@ def get_plan_data(
         src = note or ("חל על כל האתרים" if exact is not None else "ממוצע משוקלל — הערך אינו אחיד בין האתרים")
         return AssumptionRow(group=group, label=label, value=fmt(val), note=src)
 
+    def _contractual(group: str, label: str, attr: str, fmt) -> AssumptionRow:
+        """תנאי שנקבע בהסכם ולא הנחה שלנו — מוצג כטווח ולא כממוצע.
+
+        התחזית מחשבת כל אתר לפי התנאי שלו; ממוצע היה יוצר רושם שגוי של
+        פרמטר יחיד. אתרים שבהם הרכיב אינו קיים (למשל מודל חלוקת הכנסות)
+        אינם נספרים בטווח.
+        """
+        vals = sorted(getattr(b, attr) for b in buildings if getattr(b, attr))
+        if not vals:
+            return AssumptionRow(group=group, label=label, value="—",
+                                 note="לא מוגדר באף אתר")
+        lo, hi = vals[0], vals[-1]
+        value = fmt(lo) if lo == hi else f"{fmt(lo)}–{fmt(hi)}"
+        scope = ("בכל האתרים" if len(vals) == len(buildings)
+                 else f"ב-{len(vals)} מתוך {len(buildings)} אתרים")
+        note = ("נקבע בהסכם פר-אתר, ולא הנחת עבודה. התחזית מחשבת כל אתר לפי התנאי "
+                f"שלו — פירוט מלא בסעיף הכלכלה של כל אתר ({scope}).")
+        return AssumptionRow(group=group, label=label, value=value, note=note)
+
     _ils = _money
     _pct = lambda v: f"{v:,.1f}%"                    # noqa: E731
     _kwh = lambda v: f'{v:,.0f} קוט"ש'               # noqa: E731
@@ -424,7 +443,9 @@ def get_plan_data(
     _int = lambda v: f"{v:,.0f}"                     # noqa: E731
 
     G1, G2, G3, G4, G5, G6 = (
-        "הנחות יסוד", "הכנסה חודשית למטען", "עלות התקנת מטען חדש (CAPEX)",
+        "הנחות יסוד",
+        "תנאי ההכנסה — נקבעים בהסכמים, אינם הנחת עבודה",
+        "עלות התקנת מטען חדש (CAPEX)",
         "עלויות התאמה למטענים קיימים", "תפעול שוטף", "מימון ורכישה",
     )
 
@@ -439,11 +460,11 @@ def get_plan_data(
                note="מטענים חדשים כאחוז מהחניות הפוטנציאליות בכל אתר"),
         _param(G1, "צריכה חודשית ממוצעת למטען", "avg_kwh_per_charger_monthly", _kwh),
 
-        # "דמי מנוי" אינם שורה נפרדת — זהו אותו רכיב הכנסה כמו דמי הניהול
-        _param(G2, "דמי ניהול", "mgmt_fee_per_charger", _ils),
-        _param(G2, 'תוספת על תעריף החשמל (לקוט"ש)', "electricity_rate_agorot", _ag),
-        _param(G2, "הכנסה חד-פעמית מהתקנה", "charger_install_income", _ils,
-               note="לפי ההסכם מול הדייר; נזקפת בשנה שבה הותקן המטען"),
+        # רכיבי ההכנסה נקבעים בהסכם ואינם הנחה — מוצגים כטווח, לא כממוצע.
+        # "דמי מנוי" אינם שורה נפרדת: זהו אותו רכיב כמו דמי הניהול.
+        _contractual(G2, "דמי ניהול חודשיים לעמדה", "mgmt_fee_per_charger", _ils),
+        _contractual(G2, 'תוספת על תעריף החשמל (לקוט"ש)', "electricity_rate_agorot", _ag),
+        _contractual(G2, "הכנסה חד-פעמית מהתקנה", "charger_install_income", _ils),
 
         _param(G3, "עלות המטען", "cost_charger_unit", _ils),
         _param(G3, "תשתית חשמל ותקשורת", "cost_infra_per_charger", _ils),
@@ -458,9 +479,12 @@ def get_plan_data(
         _param(G4, "אישור בודק חשמל", "cost_inspector_per_charger", _ils, note="חד-פעמי בשנה הראשונה, למטענים קיימים"),
 
         _param(G5, "תחזוקה שנתית למטען", "cost_maintenance_per_charger", _ils, note="לכל מטען פעיל, בכל שנה"),
-        AssumptionRow(group=G5, label="הוצאות תקורה שנתיות", value=_money(overhead),
-                      note="כמוגדר בלשונית תזרים בניינים" if overhead else
-                           "לא הוגדרו תקורות בלשונית תזרים בניינים"),
+        AssumptionRow(
+            group=G5, label="הוצאות תקורה שנתיות", value=_money(overhead),
+            note=("תקורה ייעודית לפעילות הנרכשת" if overhead else
+                  "אין תוספת תקורה: הפעילות נקלטת לתוך החברה הקיימת ומנוהלת "
+                  "על ידי מערך הניהול, התפעול והגבייה שלה"),
+        ),
     ]
 
     # סה"כ CAPEX למטען — הסכום שבאמת נכנס לתחזית

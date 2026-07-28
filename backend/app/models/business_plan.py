@@ -26,6 +26,9 @@ class BusinessPlanSection(Base):
     level: Mapped[int] = mapped_column(Integer, default=1)   # 1 = פרק, 2 = תת-פרק
     title: Mapped[str] = mapped_column(String(200), default="")
     body: Mapped[str] = mapped_column(Text, default="")      # טקסט; שורה שמתחילה ב-"- " = תבליט
+    # הטקסט כפי שנזרע. כשהוא זהה ל-body — הפרק לא נערך באתר, וניתן לעדכן את
+    # הניסוח בבטחה. כך תיקון נוסח מגיע לפרודקשן בלי לדרוס עריכה של משתמשת.
+    seeded_body: Mapped[str] = mapped_column(Text, default="")
     data_block: Mapped[str] = mapped_column(String(40), default="")  # ריק = טקסט בלבד
     visible: Mapped[bool] = mapped_column(Boolean, default=True)
 
