@@ -5,7 +5,7 @@ financials בכל טעינה (ראה api/business_plan.py). כאן נשמר רק
 """
 from datetime import datetime, timezone
 
-from sqlalchemy import Boolean, DateTime, Integer, String, Text
+from sqlalchemy import Boolean, DateTime, Float, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.db import Base
@@ -45,6 +45,12 @@ class BusinessPlanSetting(Base):
     prepared_by: Mapped[str] = mapped_column(String(200), default="")
     doc_date: Mapped[str] = mapped_column(String(10), default="")   # YYYY-MM-DD; ריק = היום
     horizon_years: Mapped[int] = mapped_column(Integer, default=5)
+
+    # עסקת הרכישה — התכנית תומכת בבקשת אשראי לרכישת הפעילות.
+    # האשראי המבוקש עצמו נלקח מ-cashflow_loan.amount (לשונית תזרים), כדי שלא
+    # יהיו שני מקורות אמת לאותו מספר. ההפרש ביניהם = ההון העצמי הנדרש.
+    acquisition_cost: Mapped[float] = mapped_column(Float, default=0)
+    target_company: Mapped[str] = mapped_column(String(200), default="")
     contact_name: Mapped[str] = mapped_column(String(120), default="")
     contact_phone: Mapped[str] = mapped_column(String(60), default="")
     contact_email: Mapped[str] = mapped_column(String(120), default="")

@@ -47,6 +47,8 @@ class PlanSettingsIn(BaseModel):
     contact_name: str | None = None
     contact_phone: str | None = None
     contact_email: str | None = None
+    acquisition_cost: float | None = Field(default=None, ge=0)
+    target_company: str | None = None
 
 
 class PlanSettingsOut(BaseModel):
@@ -61,6 +63,8 @@ class PlanSettingsOut(BaseModel):
     contact_name: str
     contact_phone: str
     contact_email: str
+    acquisition_cost: float = 0
+    target_company: str = ""
 
 
 class BusinessPlanOut(BaseModel):
@@ -125,6 +129,23 @@ class LoanData(BaseModel):
     total_interest: float = 0
 
 
+class AcquisitionData(BaseModel):
+    """מקורות ושימושים לעסקת הרכישה — הבסיס לבחינת הבנק."""
+
+    target_company: str = ""
+    cost: float = 0                     # עלות הרכישה
+    credit_requested: float = 0         # האשראי המבוקש (= cashflow_loan.amount)
+    equity_required: float = 0          # cost − credit, כשחיובי
+    surplus_working_capital: float = 0  # credit − cost, כשחיובי
+    buildings: int = 0
+    chargers: int = 0
+    potential_spots: int = 0
+    cost_per_building: float = 0
+    cost_per_charger: float = 0         # עלות לכל מטען מותקן היום
+    cost_per_potential_spot: float = 0  # עלות לכל חניה בפוטנציאל החוזי
+    multiple_on_run_rate: float | None = None  # עלות ÷ הכנסה שנתית נוכחית
+
+
 class AssumptionRow(BaseModel):
     label: str
     value: str
@@ -145,6 +166,7 @@ class PlanData(BaseModel):
     start_year: int
     overview: OverviewData
     today: TodayData
+    acquisition: AcquisitionData
     forecast: list[ForecastYearRow]
     totals: dict
     loan: LoanData

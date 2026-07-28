@@ -290,6 +290,9 @@ def migrate_business_plan(engine: Engine) -> None:
             ("contact_name",  "TEXT",    "''"),
             ("contact_phone", "TEXT",    "''"),
             ("contact_email", "TEXT",    "''"),
+            # עסקת הרכישה — ברירת מחדל 2.2M ₪ לפי מתווה העסקה
+            ("acquisition_cost", "REAL", "2200000"),
+            ("target_company",   "TEXT", "''"),
         ],
     }
     with engine.connect() as conn:

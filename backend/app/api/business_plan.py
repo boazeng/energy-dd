@@ -23,6 +23,7 @@ from app.models.business_plan import BusinessPlanSection, BusinessPlanSetting
 from app.models.supplier_balance import SupplierBalance
 from app.models.tenant_agreement import TenantAgreement
 from app.schemas.business_plan import (
+    AcquisitionData,
     AssumptionRow,
     BusinessPlanOut,
     ForecastYearRow,
@@ -238,8 +239,28 @@ def get_plan_data(
         financials=_load_financials(),
     )
 
-    # ── פרק 3: תחזית ──────────────────────────────────────────────────────
+    # ── עסקת הרכישה: מקורות ושימושים ─────────────────────────────────────
     loan_row = _get_loan(db)
+    cost = plan_settings.acquisition_cost or 0
+    credit = loan_row.amount or 0
+    acquisition = AcquisitionData(
+        target_company=plan_settings.target_company,
+        cost=cost,
+        credit_requested=credit,
+        equity_required=round(max(0.0, cost - credit), 2),
+        surplus_working_capital=round(max(0.0, credit - cost), 2),
+        buildings=len(buildings),
+        chargers=total_current,
+        potential_spots=total_potential,
+        cost_per_building=round(cost / len(buildings), 2) if buildings else 0,
+        cost_per_charger=round(cost / total_current, 2) if total_current else 0,
+        cost_per_potential_spot=round(cost / total_potential, 2) if total_potential else 0,
+        multiple_on_run_rate=(
+            round(cost / run_rate_income, 1) if run_rate_income > 0 else None
+        ),
+    )
+
+    # ── פרק 3: תחזית ──────────────────────────────────────────────────────
     annual_payment = _shpitzer_annual(loan_row)
     loan_start = int(loan_row.start_month[:4]) if loan_row.start_month else start_year
     loan_end = loan_start + loan_row.years - 1
@@ -330,7 +351,9 @@ def get_plan_data(
                           note="תחזוקה שוטפת; בשנה הראשונה נוספים אינטרנט ובודק חשמל למטענים הקיימים"),
         ]
     assumptions += [
-        AssumptionRow(label="הלוואה", value=_money(loan.amount),
+        AssumptionRow(label="עלות הרכישה", value=_money(acquisition.cost),
+                      note=f"{acquisition.buildings} אתרים · {_money(acquisition.cost_per_building)} לאתר"),
+        AssumptionRow(label="אשראי מבוקש", value=_money(loan.amount),
                       note=f"{loan.years} שנים · פריים {loan.prime}% + מרווח {loan.margin}% · לוח שפיצר"),
         AssumptionRow(label="החזר שנתי", value=_money(loan.annual_payment), note=f"{_money(loan.monthly_payment)} לחודש"),
         AssumptionRow(label="יתרת מזומנים לתחילת התקופה", value=_money(today.opening_balance),
@@ -372,6 +395,7 @@ def get_plan_data(
         start_year=start_year,
         overview=overview,
         today=today,
+        acquisition=acquisition,
         forecast=forecast,
         totals=totals,
         loan=loan,

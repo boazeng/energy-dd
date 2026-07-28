@@ -59,6 +59,7 @@
 .bp-cover-rule { width: 72px; height: 4px; background: var(--color-accent); margin: 0 auto 34px; border-radius: 2px; }
 .bp-cover-title { font-size: 40px; font-weight: 700; color: var(--color-primary); margin: 0 0 10px; letter-spacing: -0.5px; }
 .bp-cover-company { font-size: 25px; font-weight: 600; margin-bottom: 30px; }
+.bp-cover-purpose { font-size: 17px; color: var(--color-accent); margin: -20px 0 26px; font-weight: 600; }
 .bp-cover-to { font-size: 19px; color: var(--color-text-light); margin-bottom: 42px; }
 .bp-cover-facts {
   display: flex; justify-content: center; flex-wrap: wrap; gap: 10px 26px;
@@ -126,6 +127,9 @@
   border: 1px dashed var(--color-border); border-radius: 6px;
   padding: 13px; margin: 14px 0;
 }
+
+/* מקורות ושימושים — שתי טבלאות זו לצד זו */
+.bp-su { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: start; }
 
 /* ─── רצועת מדדים ─── */
 /* מספר העמודות נקבע ב-JS לפי מספר הפריטים, כדי למנוע שורה אחרונה חלקית */
@@ -214,7 +218,7 @@
   .bp-caption { page-break-after: avoid; break-after: avoid; }
 
   /* טבלה, תרשים ורצועת מדדים לא נחתכים בין עמודים */
-  .bp-figure, .bp-kpis, .bp-kpi, .recharts-wrapper { page-break-inside: avoid; break-inside: avoid; }
+  .bp-figure, .bp-kpis, .bp-kpi, .bp-su, .recharts-wrapper { page-break-inside: avoid; break-inside: avoid; }
   .bp-table tr { page-break-inside: avoid; break-inside: avoid; }
   .bp-table thead { display: table-header-group; }  /* כותרת חוזרת בכל עמוד */
 

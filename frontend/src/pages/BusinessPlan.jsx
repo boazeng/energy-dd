@@ -194,6 +194,57 @@ function CumulativeCashflow({ d, t, c }) {
   )
 }
 
+// מקורות ושימושים — הטבלה שהבנק בוחן ראשונה. הפער בין עלות הרכישה לאשראי
+// המבוקש מוצג במפורש כהון עצמי, ולא נבלע.
+function AcquisitionTerms({ d, t }) {
+  const a = d.acquisition
+  const uses = [['רכישת הפעילות', a.cost]]
+  const sources = [['אשראי בנקאי מבוקש', a.credit_requested]]
+  if (a.equity_required > 0) sources.push(['הון עצמי', a.equity_required])
+  if (a.surplus_working_capital > 0) uses.push(['הון חוזר לפעילות', a.surplus_working_capital])
+  const totalUses = uses.reduce((s, [, v]) => s + v, 0)
+  const totalSources = sources.reduce((s, [, v]) => s + v, 0)
+
+  return (
+    <figure className="bp-figure">
+      <Caption kind="table" n={t}>מקורות ושימושים</Caption>
+      <div className="bp-su">
+        <table className="bp-table">
+          <thead><tr><th className="bp-rowlabel">שימושים</th><th>סכום</th></tr></thead>
+          <tbody>
+            {uses.map(([l, v]) => (
+              <tr key={l}><td className="bp-rowlabel">{l}</td><td className="bp-num">{ils(v)}</td></tr>
+            ))}
+          </tbody>
+          <tfoot><tr className="bp-total"><td className="bp-rowlabel">סה&quot;כ</td>
+            <td className="bp-num">{ils(totalUses)}</td></tr></tfoot>
+        </table>
+        <table className="bp-table">
+          <thead><tr><th className="bp-rowlabel">מקורות</th><th>סכום</th></tr></thead>
+          <tbody>
+            {sources.map(([l, v]) => (
+              <tr key={l}><td className="bp-rowlabel">{l}</td><td className="bp-num">{ils(v)}</td></tr>
+            ))}
+          </tbody>
+          <tfoot><tr className="bp-total"><td className="bp-rowlabel">סה&quot;כ</td>
+            <td className="bp-num">{ils(totalSources)}</td></tr></tfoot>
+        </table>
+      </div>
+
+      <Kpis style={{ marginTop: 14 }} items={[
+        { label: 'עלות לאתר', value: ils(a.cost_per_building), note: `${nf.format(a.buildings)} אתרים` },
+        { label: 'עלות למטען מותקן', value: ils(a.cost_per_charger), note: `${nf.format(a.chargers)} מטענים` },
+        { label: 'עלות לחניה בפוטנציאל', value: ils(a.cost_per_potential_spot), note: `${nf.format(a.potential_spots)} חניות בהסכמים` },
+        {
+          label: 'מכפיל על ההכנסה השנתית',
+          value: a.multiple_on_run_rate === null ? '—' : `×${a.multiple_on_run_rate}`,
+          note: 'לפי ההכנסה מהמטענים הקיימים',
+        },
+      ]} />
+    </figure>
+  )
+}
+
 function BuildingsTable({ d, t, c }) {
   const rows = d.overview.buildings
   if (!rows.length) return <p className="bp-empty">אין נתוני אתרים.</p>
@@ -545,6 +596,7 @@ function SensitivityTable({ d, t, c }) {
 }
 
 const BLOCKS = {
+  acquisition_terms: AcquisitionTerms,
   summary_financials: SummaryFinancials,
   cumulative_cashflow: CumulativeCashflow,
   buildings_table: BuildingsTable,
@@ -609,11 +661,15 @@ function Cover({ s, d }) {
       <div className="bp-cover-rule" />
       <h1 className="bp-cover-title">{s.doc_title}</h1>
       <div className="bp-cover-company">{s.company_name}</div>
+      {s.target_company && (
+        <div className="bp-cover-purpose">מימון רכישת פעילות {s.target_company}</div>
+      )}
       <div className="bp-cover-to">מוגש ל{s.submitted_to}</div>
       {d && (
         <div className="bp-cover-facts">
           <span>{nf.format(d.overview.buildings_count)} אתרים</span>
           <span>{nf.format(d.overview.current_chargers)} מטענים מותקנים</span>
+          <span>אשראי מבוקש {ils(d.acquisition.credit_requested)}</span>
           <span>תחזית {d.horizon_years} שנים · {d.start_year}–{d.start_year + d.horizon_years - 1}</span>
         </div>
       )}
@@ -763,9 +819,11 @@ export default function BusinessPlan({ agreementVersion }) {
 // ─── עריכת פרטי המסמך ────────────────────────────────────────────────────────
 
 const SETTINGS_FIELDS = [
-  ['company_name', 'שם החברה'],
+  ['company_name', 'שם המגיש (מבקש האשראי)'],
+  ['target_company', 'חברת המטרה (הנרכשת)'],
   ['doc_title', 'כותרת המסמך'],
   ['submitted_to', 'מוגש ל'],
+  ['acquisition_cost', 'עלות הרכישה (₪)', 'number'],
   ['prepared_by', 'הוכן על ידי'],
   ['doc_date', 'תאריך המסמך (YYYY-MM-DD)'],
   ['contact_name', 'איש קשר'],
@@ -781,6 +839,7 @@ function PlanSettingsEditor({ settings, onSaved }) {
     setSaving(true)
     try {
       const { horizon_years, ...rest } = form
+      rest.acquisition_cost = parseFloat(rest.acquisition_cost) || 0
       await api.updateBusinessPlanSettings(rest)
       onSaved()
     } finally {
@@ -792,13 +851,21 @@ function PlanSettingsEditor({ settings, onSaved }) {
     <div className="bp-settings no-print">
       <h3 className="bp-settings-title">פרטי המסמך</h3>
       <div className="bp-settings-grid">
-        {SETTINGS_FIELDS.map(([key, label]) => (
+        {SETTINGS_FIELDS.map(([key, label, type]) => (
           <label key={key} className="bp-settings-field">
             <span>{label}</span>
-            <input value={form[key] ?? ''} onChange={(e) => setForm({ ...form, [key]: e.target.value })} />
+            <input
+              type={type || 'text'}
+              value={form[key] ?? ''}
+              onChange={(e) => setForm({ ...form, [key]: e.target.value })}
+            />
           </label>
         ))}
       </div>
+      <p className="bp-sub" style={{ marginBottom: 11 }}>
+        האשראי המבוקש נלקח מסכום ההלוואה שבלשונית תזרים, כדי שלא יהיו שני מקורות
+        לאותו מספר. ההפרש בינו לבין עלות הרכישה מוצג במסמך כהון עצמי.
+      </p>
       <button className="tact-btn tact-btn-primary" onClick={save} disabled={saving}>
         {saving ? 'שומר…' : 'שמור פרטים'}
       </button>
