@@ -410,7 +410,7 @@ function SiteEconomicsTable({ d, t }) {
             <th>דמי<br />ניהול</th>
             <th>אג'/<br />קוט&quot;ש</th>
             <th>קוט&quot;ש<br />לחודש</th>
-            <th>דמי<br />מנוי</th>
+            {/* אין עמודת דמי מנוי — דמי הניהול הם אותו רכיב הכנסה */}
             <th>הכנסה חודשית<br />לעמדה</th>
             <th>עמדות<br />היום</th>
             <th>הכנסה<br />שנתית היום</th>
@@ -425,7 +425,6 @@ function SiteEconomicsTable({ d, t }) {
               <td className="bp-num">{num(r.mgmt_fee)}</td>
               <td className="bp-num">{r.elec_rate_agorot || '—'}</td>
               <td className="bp-num">{num(r.avg_kwh)}</td>
-              <td className="bp-num">{r.subscription ? num(r.subscription) : '—'}</td>
               <td className="bp-num bp-strong">{num(r.monthly_income_per_charger)}</td>
               <td className="bp-num">{nf.format(r.current_chargers)}</td>
               <td className="bp-num">{num(r.current_annual_income)}</td>
@@ -436,7 +435,7 @@ function SiteEconomicsTable({ d, t }) {
         </tbody>
         <tfoot>
           <tr className="bp-total">
-            <td className="bp-rowlabel" colSpan={6}>סה&quot;כ</td>
+            <td className="bp-rowlabel" colSpan={5}>סה&quot;כ</td>
             <td className="bp-num">{nf.format(sum('current_chargers'))}</td>
             <td className="bp-num">{num(sum('current_annual_income'))}</td>
             <td className="bp-num">{nf.format(sum('potential_spots'))}</td>

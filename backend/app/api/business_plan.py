@@ -439,9 +439,9 @@ def get_plan_data(
                note="מטענים חדשים כאחוז מהחניות הפוטנציאליות בכל אתר"),
         _param(G1, "צריכה חודשית ממוצעת למטען", "avg_kwh_per_charger_monthly", _kwh),
 
+        # "דמי מנוי" אינם שורה נפרדת — זהו אותו רכיב הכנסה כמו דמי הניהול
         _param(G2, "דמי ניהול", "mgmt_fee_per_charger", _ils),
         _param(G2, 'תוספת על תעריף החשמל (לקוט"ש)', "electricity_rate_agorot", _ag),
-        _param(G2, "דמי מנוי", "subscription_fee_per_charger", _ils),
         _param(G2, "הכנסה חד-פעמית מהתקנה", "charger_install_income", _ils,
                note="לפי ההסכם מול הדייר; נזקפת בשנה שבה הותקן המטען"),
 
