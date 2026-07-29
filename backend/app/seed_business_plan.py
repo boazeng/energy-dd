@@ -12,9 +12,13 @@ from sqlalchemy.orm import Session
 from app.models.business_plan import BusinessPlanSection, BusinessPlanSetting
 
 # ─── צדדי העסקה ──────────────────────────────────────────────────────────────
-APPLICANT = "אנרגיה ירוקה"                 # מבקשת האשראי (הרוכשת)
-TARGET = 'ש.א.ר מוביליטי בע"מ'             # חברת המטרה (הנרכשת)
-_OLD_COMPANY = 'ש.א.ר מוביליטי בע"מ'       # ההנחה השגויה בגרסה הראשונה
+APPLICANT = 'אנרגיה ירוקה מקבוצה אורבנית בע"מ'   # מבקשת האשראי (הרוכשת)
+TARGET = 'ש.א.ר מוביליטי בע"מ'                   # חברת המטרה (הנרכשת)
+
+# ערכים שנזרעו בעבר בשדה המגיש. מזוהים כ"לא נערך ידנית" וניתנים לעדכון:
+#   • ש.א.ר מוביליטי — ההנחה השגויה בגרסה הראשונה, לפני שהתברר מי הרוכשת
+#   • אנרגיה ירוקה — השם המקוצר, לפני שהתקבל השם הרשום המלא
+_PREVIOUS_APPLICANTS = ("", 'ש.א.ר מוביליטי בע"מ', "אנרגיה ירוקה")
 
 # שימושים חד-פעמיים מעבר לעלות הרכישה, הנזקפים בשנה הראשונה של התחזית.
 # האשראי המבוקש (3M) = רכישה (2.2M) + התאמת המטענים הקיימים (800K).
@@ -415,12 +419,15 @@ def _fix_parties(db: Session) -> int:
     if s.one_time_costs is None:
         s.one_time_costs = list(DEFAULT_ONE_TIME_COSTS)
         changed = 1
-    if s.target_company:
-        return changed  # שאר הזהויות כבר טופלו
-    if s.company_name in ("", _OLD_COMPANY):
+    # שם המגיש מתעדכן כל עוד הוא אחד הערכים שנזרעו בעבר; שם שהוקלד באתר
+    # אינו ברשימה ולכן לא נדרס.
+    if s.company_name in _PREVIOUS_APPLICANTS:
         s.company_name = APPLICANT
-    s.target_company = TARGET
-    return 1
+        changed = 1
+    if not s.target_company:
+        s.target_company = TARGET
+        changed = 1
+    return changed
 
 
 def _retire_sections(db: Session) -> int:
