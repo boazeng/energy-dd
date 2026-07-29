@@ -231,12 +231,11 @@
     line-height: 1.6;
   }
 
-  /* שער → תמצית הבקשה → תוכן עניינים → פירוט */
+  /* שער → תוכן עניינים → תמצית הבקשה → פירוט.
+     ל-toc אין break-before: השער כבר שובר אחריו, ושתי הוראות רצופות יוצרות
+     עמוד ריק. */
   .bp-cover { min-height: 0; height: 235mm; page-break-after: always; break-after: page; }
-  .bp-toc {
-    page-break-before: always; break-before: page;
-    page-break-after: always; break-after: page;
-  }
+  .bp-toc { page-break-after: always; break-after: page; }
 
   /* כל פרק ראשי פותח עמוד חדש */
   .bp-level-1 { page-break-before: always; break-before: page; }

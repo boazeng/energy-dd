@@ -65,6 +65,14 @@ function ratio(v) {
   return v < 0 ? `(${s})` : s
 }
 
+// אותו יחס בתוך משפט: סוגריים הן קונבנציה של טבלאות ואינן נקראות בטקסט רץ.
+// המילה "מינוס" חד-משמעית וגם אינה נודדת ב-RTL כמו הסימן.
+function ratioProse(v) {
+  if (v === null || v === undefined || Number.isNaN(v)) return '—'
+  const s = Math.abs(v).toFixed(2)
+  return v < 0 ? `מינוס ${s}` : s
+}
+
 // מספרים לטבלה צפופה — ללא סימן ₪ (מצוין בכותרת), שלילי בסוגריים
 function num(v) {
   if (v === null || v === undefined || Number.isNaN(v)) return '—'
@@ -129,7 +137,7 @@ function blockCounts(key, d) {
   const hasFin = (which) => (fin.years?.length && fin[which]?.length) ? 1 : 0
   switch (key) {
     case '': return [0, 0]
-    case 'request_headline': return [0, 0]   // רצועת מדדים, אינה טבלה ממוספרת
+    case 'request_narrative': return [0, 0]   // מלל בלבד, אין טבלה ממוספרת
     case 'summary_compact': return [hasForecast ? 1 : 0, 0]
     case 'summary_financials': return [hasForecast ? 1 : 0, 0]
     case 'cumulative_cashflow': return hasForecast ? [1, 1] : [0, 0]
@@ -231,34 +239,53 @@ function CumulativeCashflow({ d, t, c }) {
 
 // ─── בלוקי התמצית (שלושת העמודים הראשונים) ──────────────────────────────────
 
-// רצועת הנתונים שמנהל אשראי צריך כדי להבין את הבקשה בלי לקרוא הלאה.
-function RequestHeadline({ d }) {
+// תמצית הבקשה כמלל רץ. המספרים מוזרקים מהנתונים החיים ולא נכתבים בטקסט,
+// כדי שהפסקאות ימשיכו להיות נכונות כשמשתנים הנתונים באתר.
+function RequestNarrative({ d }) {
   const a = d.acquisition
   const L = d.loan
+  const o = d.overview
   const dscr = d.forecast.map((r) => r.dscr).filter((x) => x !== null && x !== undefined)
   const positive = d.forecast.find((r) => r.cumulative >= 0)
+
+  const oneTime = a.one_time_costs
+    .map((c) => `${ils(c.amount)} ל${c.name}`)
+    .join(', ')
+
   return (
-    <Kpis items={[
-      { label: 'אשראי מבוקש', value: ils(L.amount), note: `${L.years} שנים · פריים ${L.prime}% + ${L.margin}%` },
-      { label: 'סך השימושים', value: ils(a.total_uses), note: `רכישה ${ils(a.cost)} · ${nf.format(a.buildings)} אתרים` },
-      {
-        label: 'עלויות חד-פעמיות',
-        value: ils(a.one_time_total),
-        note: a.one_time_costs.map((c) => c.name).join(' · ') || 'אין',
-      },
-      { label: 'החזר חודשי', value: ils(L.monthly_payment), note: 'לוח שפיצר' },
-      {
-        // שלילי בסוגריים — ב-RTL סימן המינוס נודד ונקרא כערך חיובי
-        label: 'יחס כיסוי חוב',
-        value: dscr.length ? `${ratio(Math.min(...dscr))}–${ratio(Math.max(...dscr))}` : '—',
-        note: 'טווח לאורך תקופת ההלוואה',
-      },
-      {
-        label: 'מעבר ליתרה חיובית',
-        value: positive ? String(positive.year) : 'מעבר לתקופה',
-        note: positive ? 'שנת ההתאזנות התזרימית' : 'לפי אופק התחזית הנוכחי',
-      },
-    ]} />
+    <>
+      <p className="bp-p">
+        החברה מבקשת אשראי בסך <strong>{ils(L.amount)}</strong> לתקופה של {L.years} שנים,
+        בריבית פריים {L.prime}% בתוספת מרווח של {L.margin}%, בלוח סילוקין שפיצר.
+        ההחזר החודשי הצפוי הוא {ils(L.monthly_payment)}, ובמצטבר לאורך חיי ההלוואה
+        {' '}{ils(L.total_repayment)}, מהם {ils(L.total_interest)} ריבית.
+      </p>
+
+      <p className="bp-p">
+        האשראי מיועד למימון רכישת פעילותה של {a.target_company || 'חברת המטרה'}:
+        {' '}<strong>{ils(a.cost)}</strong> עלות הרכישה
+        {oneTime && <> ובנוסף {oneTime}</>}, ובסך הכול {ils(a.total_uses)}.
+        {a.equity_required > 0
+          ? <> יתרת השימושים, בסך {ils(a.equity_required)}, תמומן בהון עצמי של הרוכשת.</>
+          : <> האשראי המבוקש מכסה את מלוא השימושים, ואינו נדרש הון עצמי נוסף.</>}
+      </p>
+
+      <p className="bp-p">
+        הפעילות הנרכשת כוללת {nf.format(o.buildings_count)} אתרים
+        ב-{nf.format(o.cities.length)} ערים, ובהם {nf.format(o.current_chargers)} עמדות טעינה
+        מותקנות ופועלות מתוך {nf.format(o.potential_spots)} חניות שההסכמים החתומים מתירים —
+        כלומר {o.penetration_pct}% מהפוטנציאל החוזי מומשו עד כה. ההכנסה השנתית מהעמדות
+        הקיימות, ללא הנחת גידול כלשהי, עומדת על {ils(d.today.run_rate_annual_income)}.
+      </p>
+
+      <p className="bp-p">
+        לאורך תקופת ההלוואה נע יחס כיסוי החוב בטווח של{' '}
+        {dscr.length ? `${ratioProse(Math.min(...dscr))} עד ${ratioProse(Math.max(...dscr))}` : '—'},
+        {positive
+          ? <> והתזרים המצטבר צפוי לעבור ליתרה חיובית בשנת {positive.year}.</>
+          : <> והתזרים המצטבר אינו עובר ליתרה חיובית בתוך אופק התחזית הנוכחי.</>}
+      </p>
+    </>
   )
 }
 
@@ -866,7 +893,7 @@ function SensitivityTable({ d, t, c }) {
 }
 
 const BLOCKS = {
-  request_headline: RequestHeadline,
+  request_narrative: RequestNarrative,
   summary_compact: SummaryCompact,
   acquisition_terms: AcquisitionTerms,
   agreements_table: AgreementsTable,
@@ -972,8 +999,6 @@ function Cover({ s, d }) {
     </section>
   )
 }
-
-const chapterOf = (s) => String(s.num).split('.')[0]
 
 function Toc({ numbered }) {
   return (
@@ -1083,25 +1108,19 @@ export default function BusinessPlan({ agreementVersion, horizonMode = 'contract
 
       <article className="bp-doc" dir="rtl">
         <Cover s={plan.settings} d={data} />
+        <Toc numbered={numbered} />
 
-        {/* תוכן העניינים מגיע אחרי פרק התמצית, לא לפניו: התמצית אמורה לעמוד
-            בפני עצמה בפתח המסמך, והפירוט מתחיל אחריה. */}
-        {numbered.map((s, i) => {
+        {numbered.map((s) => {
           const Block = BLOCKS[s.data_block]
-          const lastOfSummary = numbered[i + 1] && chapterOf(numbered[i + 1]) !== '1'
-            && chapterOf(s) === '1'
           return (
-            <Fragment key={s.id}>
-              <section className={`bp-section bp-level-${s.level}`}>
-                {s.level === 1
-                  ? <h2 className="bp-h1"><span className="bp-num">{s.num}</span>{s.title}</h2>
-                  : <h3 className="bp-h2"><span className="bp-num">{s.num}</span>{s.title}</h3>}
-                <Body text={s.body} />
-                {edit && <SectionEditor section={s} onSaved={load} />}
-                {Block && <Block d={data} t={s.t} c={s.c} />}
-              </section>
-              {lastOfSummary && <Toc numbered={numbered} />}
-            </Fragment>
+            <section key={s.id} className={`bp-section bp-level-${s.level}`}>
+              {s.level === 1
+                ? <h2 className="bp-h1"><span className="bp-num">{s.num}</span>{s.title}</h2>
+                : <h3 className="bp-h2"><span className="bp-num">{s.num}</span>{s.title}</h3>}
+              <Body text={s.body} />
+              {edit && <SectionEditor section={s} onSaved={load} />}
+              {Block && <Block d={data} t={s.t} c={s.c} />}
+            </section>
           )
         })}
 
