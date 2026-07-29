@@ -294,6 +294,8 @@ def migrate_business_plan(engine: Engine) -> None:
             # עסקת הרכישה — ברירת מחדל 2.2M ₪ לפי מתווה העסקה
             ("acquisition_cost", "REAL", "2200000"),
             ("target_company",   "TEXT", "''"),
+            # NULL מבדיל בין "טרם הוגדר" (הזריעה תמלא) לבין רשימה ריקה במפורש
+            ("one_time_costs",   "TEXT", "NULL"),
         ],
     }
     with engine.connect() as conn:

@@ -157,6 +157,7 @@ function SummaryFinancials({ d, t, c }) {
     ['הכנסות', f.map((r) => ils(r.income))],
     ['הוצאות תפעול, תחזוקה ותקורה', f.map((r) => ils(-(r.opex + r.maintenance + r.overhead)))],
     ['השקעה בתשתית (CAPEX)', f.map((r) => ils(-r.capex))],
+    ...(d.totals.one_time ? [['עלויות חד-פעמיות', f.map((r) => ils(-r.one_time))]] : []),
     ['תזרים לפני החזר הלוואה', f.map((r) => ils(r.profit_before_loan)), false, true],
     ['החזר הלוואה', f.map((r) => ils(-r.loan_repayment))],
     ['תזרים נטו', f.map((r) => ils(r.net_profit)), false, true],
@@ -239,11 +240,11 @@ function RequestHeadline({ d }) {
   return (
     <Kpis items={[
       { label: 'אשראי מבוקש', value: ils(L.amount), note: `${L.years} שנים · פריים ${L.prime}% + ${L.margin}%` },
-      { label: 'עלות הרכישה', value: ils(a.cost), note: `${nf.format(a.buildings)} אתרים · ${nf.format(a.potential_spots)} חניות בהסכמים` },
+      { label: 'סך השימושים', value: ils(a.total_uses), note: `רכישה ${ils(a.cost)} · ${nf.format(a.buildings)} אתרים` },
       {
-        label: a.equity_required > 0 ? 'הון עצמי' : 'להתאמת מטענים קיימים',
-        value: ils(a.equity_required > 0 ? a.equity_required : a.surplus_working_capital),
-        note: a.equity_required > 0 ? 'מושקע על ידי הרוכשת' : 'יתרת האשראי מעבר לעלות הרכישה',
+        label: 'עלויות חד-פעמיות',
+        value: ils(a.one_time_total),
+        note: a.one_time_costs.map((c) => c.name).join(' · ') || 'אין',
       },
       { label: 'החזר חודשי', value: ils(L.monthly_payment), note: 'לוח שפיצר' },
       {
@@ -273,6 +274,7 @@ function SummaryCompact({ d, t }) {
     ['הכנסות', f.map((r) => r.income), T.income],
     ['הוצאות תפעול, תחזוקה ותקורה', f.map((r) => -(r.opex + r.maintenance + r.overhead)), -(T.opex + T.maintenance + (T.overhead || 0))],
     ['השקעה בעמדות חדשות', f.map((r) => -r.capex), -T.capex],
+    ...(T.one_time ? [['עלויות חד-פעמיות', f.map((r) => -r.one_time), -T.one_time]] : []),
     ['תזרים לפני החזר החוב', f.map((r) => r.profit_before_loan), T.profit_before_loan, true],
     ['החזר ההלוואה', f.map((r) => -r.loan_repayment), -T.loan_repayment],
     ['תזרים נטו', f.map((r) => r.net_profit), T.net_profit, true],
@@ -326,11 +328,12 @@ function SummaryCompact({ d, t }) {
 // המבוקש מוצג במפורש כהון עצמי, ולא נבלע.
 function AcquisitionTerms({ d, t }) {
   const a = d.acquisition
-  // יתרת האשראי מעבר לעלות הרכישה מיועדת להתאמת המטענים הקיימים — לא "עודף"
-  const uses = [['רכישת הפעילות', a.cost]]
+  // השימושים מפורטים במפורש (רכישה + עלויות חד-פעמיות), וההון העצמי נגזר
+  // מהפער בינם לבין האשראי — ולא להפך.
+  const uses = [['רכישת הפעילות', a.cost], ...a.one_time_costs.map((c) => [c.name, c.amount])]
   const sources = [['אשראי בנקאי מבוקש', a.credit_requested]]
   if (a.equity_required > 0) sources.push(['הון עצמי', a.equity_required])
-  if (a.surplus_working_capital > 0) uses.push(['עלויות התאמה למטענים קיימים', a.surplus_working_capital])
+  if (a.surplus_working_capital > 0) uses.push(['הון חוזר לפעילות', a.surplus_working_capital])
   const totalUses = uses.reduce((s, [, v]) => s + v, 0)
   const totalSources = sources.reduce((s, [, v]) => s + v, 0)
 
@@ -726,7 +729,7 @@ function ForecastTable({ d, t, c }) {
             <th>מטענים<br />שנוספו</th>
             <th>סה&quot;כ<br />מטענים</th>
             <th>הכנסות</th>
-            <th>השקעה<br />(CAPEX)</th>
+            <th>השקעה<br />וחד-פעמי</th>
             <th>תפעול, תחזוקה<br />ותקורה</th>
             <th>תזרים לפני<br />החזר</th>
             <th>החזר<br />הלוואה</th>
@@ -741,7 +744,7 @@ function ForecastTable({ d, t, c }) {
               <td className="bp-num">{r.chargers_added || '—'}</td>
               <td className="bp-num">{nf.format(r.total_chargers)}</td>
               <td className="bp-num">{num(r.income)}</td>
-              <td className="bp-num">{r.capex ? num(-r.capex) : '—'}</td>
+              <td className="bp-num">{num(-(r.capex + r.one_time)) }</td>
               <td className="bp-num">{num(-(r.opex + r.maintenance + r.overhead))}</td>
               <td className={`bp-num ${r.profit_before_loan < 0 ? 'bp-neg' : 'bp-pos'}`}>{num(r.profit_before_loan)}</td>
               <td className="bp-num">{r.loan_repayment ? num(-r.loan_repayment) : '—'}</td>
@@ -756,7 +759,7 @@ function ForecastTable({ d, t, c }) {
             <td className="bp-num">{nf.format(T.chargers_added)}</td>
             <td className="bp-num">{nf.format(T.chargers_end)}</td>
             <td className="bp-num">{num(T.income)}</td>
-            <td className="bp-num">{num(-T.capex)}</td>
+            <td className="bp-num">{num(-(T.capex + (T.one_time || 0)))}</td>
             <td className="bp-num">{num(-(T.opex + T.maintenance + (T.overhead || 0)))}</td>
             <td className={`bp-num ${T.profit_before_loan < 0 ? 'bp-neg' : 'bp-pos'}`}>{num(T.profit_before_loan)}</td>
             <td className="bp-num">{num(-T.loan_repayment)}</td>
@@ -1146,11 +1149,20 @@ function PlanSettingsEditor({ settings, onSaved }) {
   const [form, setForm] = useState(settings)
   const [saving, setSaving] = useState(false)
 
+  const costs = form.one_time_costs || []
+
+  function setCosts(next) {
+    setForm({ ...form, one_time_costs: next })
+  }
+
   async function save() {
     setSaving(true)
     try {
       const { horizon_years, ...rest } = form
       rest.acquisition_cost = parseFloat(rest.acquisition_cost) || 0
+      rest.one_time_costs = costs
+        .filter((c) => (c.name || '').trim() || Number(c.amount) > 0)
+        .map((c) => ({ name: (c.name || '').trim(), amount: Number(c.amount) || 0 }))
       await api.updateBusinessPlanSettings(rest)
       onSaved()
     } finally {
@@ -1173,9 +1185,35 @@ function PlanSettingsEditor({ settings, onSaved }) {
           </label>
         ))}
       </div>
-      <p className="bp-sub" style={{ marginBottom: 11 }}>
+      <h4 className="bp-settings-sub">עלויות חד-פעמיות</h4>
+      <p className="bp-sub" style={{ marginBottom: 8 }}>
+        שימושים מעבר לעלות הרכישה, הנזקפים כולם בשנה הראשונה של התחזית ומשפיעים
+        על התזרים, על יחס כיסוי החוב ועל ניתוח הרגישות.
+      </p>
+      <div className="bp-costs">
+        {costs.map((c, i) => (
+          <div className="bp-cost-row" key={i}>
+            <input
+              placeholder="שם ההוצאה"
+              value={c.name ?? ''}
+              onChange={(e) => setCosts(costs.map((x, j) => j === i ? { ...x, name: e.target.value } : x))}
+            />
+            <input
+              type="number" min="0" step="1000" placeholder="₪"
+              value={c.amount ?? ''}
+              onChange={(e) => setCosts(costs.map((x, j) => j === i ? { ...x, amount: e.target.value } : x))}
+            />
+            <button className="cf-del" title="מחק" onClick={() => setCosts(costs.filter((_, j) => j !== i))}>✕</button>
+          </div>
+        ))}
+        <button className="tact-btn" onClick={() => setCosts([...costs, { name: '', amount: 0 }])}>
+          + הוסף עלות חד-פעמית
+        </button>
+      </div>
+
+      <p className="bp-sub" style={{ margin: '12px 0 11px' }}>
         האשראי המבוקש נלקח מסכום ההלוואה שבלשונית תזרים, כדי שלא יהיו שני מקורות
-        לאותו מספר. ההפרש בינו לבין עלות הרכישה מוצג במסמך כהון עצמי.
+        לאותו מספר. הפער בינו לבין סך השימושים מוצג במסמך כהון עצמי.
       </p>
       <button className="tact-btn tact-btn-primary" onClick={save} disabled={saving}>
         {saving ? 'שומר…' : 'שמור פרטים'}

@@ -307,12 +307,26 @@ def get_plan_data(
     loan_row = _get_loan(db)
     cost = plan_settings.acquisition_cost or 0
     credit = loan_row.amount or 0
+
+    # שימושים חד-פעמיים נוספים (למשל התאמת המטענים הקיימים). הם חלק מהשימושים
+    # בעסקה, ולכן ההון העצמי נגזר מסך השימושים ולא מעלות הרכישה בלבד.
+    one_time_items = [
+        {"name": (c.get("name") or "").strip(), "amount": float(c.get("amount") or 0)}
+        for c in (plan_settings.one_time_costs or [])
+        if float(c.get("amount") or 0) > 0
+    ]
+    one_time_total = round(sum(c["amount"] for c in one_time_items), 2)
+    total_uses = round(cost + one_time_total, 2)
+
     acquisition = AcquisitionData(
         target_company=plan_settings.target_company,
         cost=cost,
+        one_time_costs=one_time_items,
+        one_time_total=one_time_total,
+        total_uses=total_uses,
         credit_requested=credit,
-        equity_required=round(max(0.0, cost - credit), 2),
-        surplus_working_capital=round(max(0.0, credit - cost), 2),
+        equity_required=round(max(0.0, total_uses - credit), 2),
+        surplus_working_capital=round(max(0.0, credit - total_uses), 2),
         buildings=len(buildings),
         chargers=total_current,
         potential_spots=total_potential,
@@ -331,9 +345,14 @@ def get_plan_data(
     agg = _aggregate(buildings, override)
     cumulative = today.opening_balance
     forecast: list[ForecastYearRow] = []
+    first_forecast_year = min(agg) if agg else start_year
     for year in sorted(agg):
         r = agg[year]
-        profit_before_loan = r["income"] - r["capex"] - r["opex"] - r["maint"] - overhead
+        # העלויות החד-פעמיות נזקפות כולן בשנה הראשונה
+        one_time = one_time_total if year == first_forecast_year else 0.0
+        profit_before_loan = (
+            r["income"] - r["capex"] - r["opex"] - r["maint"] - overhead - one_time
+        )
         repayment = round(annual_payment, 2) if loan_start <= year <= loan_end else 0.0
         net = profit_before_loan - repayment
         cumulative += net
@@ -346,6 +365,7 @@ def get_plan_data(
             opex=round(r["opex"], 2),
             maintenance=round(r["maint"], 2),
             overhead=round(overhead, 2),
+            one_time=round(one_time, 2),
             ebitda=round(r["income"] - r["opex"] - r["maint"] - overhead, 2),
             profit_before_loan=round(profit_before_loan, 2),
             loan_repayment=repayment,
@@ -360,6 +380,7 @@ def get_plan_data(
         "opex": round(sum(f.opex for f in forecast), 2),
         "maintenance": round(sum(f.maintenance for f in forecast), 2),
         "overhead": round(sum(f.overhead for f in forecast), 2),
+        "one_time": round(sum(f.one_time for f in forecast), 2),
         "profit_before_loan": round(sum(f.profit_before_loan for f in forecast), 2),
         "loan_repayment": round(sum(f.loan_repayment for f in forecast), 2),
         "net_profit": round(sum(f.net_profit for f in forecast), 2),
@@ -505,6 +526,11 @@ def get_plan_data(
     assumptions += [
         AssumptionRow(group=G6, label="עלות הרכישה", value=_money(acquisition.cost),
                       note=f"{acquisition.buildings} אתרים · {_money(acquisition.cost_per_building)} לאתר"),
+    ] + [
+        AssumptionRow(group=G6, label=c["name"] or "עלות חד-פעמית", value=_money(c["amount"]),
+                      note=f"חד-פעמי, נזקף בשנת {first_year}")
+        for c in acquisition.one_time_costs
+    ] + [
         AssumptionRow(group=G6, label="אשראי מבוקש", value=_money(loan.amount),
                       note=f"{loan.years} שנים · פריים {loan.prime}% + מרווח {loan.margin}% · לוח שפיצר"),
         AssumptionRow(group=G6, label="החזר שנתי", value=_money(loan.annual_payment),
@@ -527,9 +553,11 @@ def get_plan_data(
         cum = today.opening_balance
         cums: list[float] = []
         total_profit = 0.0
+        scen_first = min(scen) if scen else start_year
         for year in sorted(scen):
             r = scen[year]
-            pbl = r["income"] - r["capex"] - r["opex"] - r["maint"] - overhead
+            pbl = (r["income"] - r["capex"] - r["opex"] - r["maint"] - overhead
+                   - (one_time_total if year == scen_first else 0.0))
             repay = annual_payment if loan_start <= year <= loan_end else 0.0
             total_profit += pbl - repay
             cum += pbl - repay

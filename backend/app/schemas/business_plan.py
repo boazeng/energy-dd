@@ -49,6 +49,7 @@ class PlanSettingsIn(BaseModel):
     contact_email: str | None = None
     acquisition_cost: float | None = Field(default=None, ge=0)
     target_company: str | None = None
+    one_time_costs: list[dict] | None = None
 
 
 class PlanSettingsOut(BaseModel):
@@ -65,6 +66,7 @@ class PlanSettingsOut(BaseModel):
     contact_email: str
     acquisition_cost: float = 0
     target_company: str = ""
+    one_time_costs: list[dict] = []
 
 
 class BusinessPlanOut(BaseModel):
@@ -109,6 +111,7 @@ class ForecastYearRow(BaseModel):
     opex: float = 0                     # OPEX חד-פעמי (שנה ראשונה)
     maintenance: float = 0
     overhead: float = 0                 # תקורות שנתיות (מלשונית תזרים בניינים)
+    one_time: float = 0                 # עלויות חד-פעמיות; נזקפות בשנה הראשונה בלבד
     ebitda: float = 0                   # הכנסות פחות OPEX ותחזוקה (לפני CAPEX והחזר)
     profit_before_loan: float = 0
     loan_repayment: float = 0
@@ -169,9 +172,12 @@ class AcquisitionData(BaseModel):
 
     target_company: str = ""
     cost: float = 0                     # עלות הרכישה
+    one_time_costs: list[dict] = []     # שימושים חד-פעמיים נוספים בשנה הראשונה
+    one_time_total: float = 0
+    total_uses: float = 0               # cost + one_time_total
     credit_requested: float = 0         # האשראי המבוקש (= cashflow_loan.amount)
-    equity_required: float = 0          # cost − credit, כשחיובי
-    surplus_working_capital: float = 0  # credit − cost, כשחיובי
+    equity_required: float = 0          # total_uses − credit, כשחיובי
+    surplus_working_capital: float = 0  # credit − total_uses, כשחיובי
     buildings: int = 0
     chargers: int = 0
     potential_spots: int = 0

@@ -16,6 +16,12 @@ APPLICANT = "אנרגיה ירוקה"                 # מבקשת האשראי 
 TARGET = 'ש.א.ר מוביליטי בע"מ'             # חברת המטרה (הנרכשת)
 _OLD_COMPANY = 'ש.א.ר מוביליטי בע"מ'       # ההנחה השגויה בגרסה הראשונה
 
+# שימושים חד-פעמיים מעבר לעלות הרכישה, הנזקפים בשנה הראשונה של התחזית.
+# האשראי המבוקש (3M) = רכישה (2.2M) + התאמת המטענים הקיימים (800K).
+DEFAULT_ONE_TIME_COSTS = [
+    {"name": "התאמת מטענים קיימים", "amount": 800_000},
+]
+
 
 # ─── טקסטים שהוחלפו לאחר שהתבררה מטרת האשראי ────────────────────────────────
 # הניסוח הראשון תיאר אשראי לגישור פער תזרימי; בפועל מדובר במימון רכישת פעילות.
@@ -402,8 +408,15 @@ def _fix_parties(db: Session) -> int:
     את האשראי כדי לרכוש את פעילות ש.א.ר.
     """
     s = db.get(BusinessPlanSetting, 1)
-    if s is None or s.target_company:
-        return 0  # כבר הוגדרה חברת מטרה — כלומר מישהו כבר טיפל בזה
+    if s is None:
+        return 0
+    changed = 0
+    # NULL = טרם הוגדר. רשימה ריקה היא בחירה מפורשת ואינה נדרסת.
+    if s.one_time_costs is None:
+        s.one_time_costs = list(DEFAULT_ONE_TIME_COSTS)
+        changed = 1
+    if s.target_company:
+        return changed  # שאר הזהויות כבר טופלו
     if s.company_name in ("", _OLD_COMPANY):
         s.company_name = APPLICANT
     s.target_company = TARGET
@@ -440,6 +453,7 @@ def seed_business_plan(db: Session) -> None:
         db.add(BusinessPlanSetting(
             id=1, acquisition_cost=2_200_000,
             company_name=APPLICANT, target_company=TARGET,
+            one_time_costs=list(DEFAULT_ONE_TIME_COSTS),
         ))
         db.flush()
     _fix_parties(db)

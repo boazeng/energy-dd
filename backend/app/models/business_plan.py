@@ -5,7 +5,7 @@ financials בכל טעינה (ראה api/business_plan.py). כאן נשמר רק
 """
 from datetime import datetime, timezone
 
-from sqlalchemy import Boolean, DateTime, Float, Integer, String, Text
+from sqlalchemy import Boolean, DateTime, Float, Integer, JSON, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.db import Base
@@ -54,6 +54,11 @@ class BusinessPlanSetting(Base):
     # יהיו שני מקורות אמת לאותו מספר. ההפרש ביניהם = ההון העצמי הנדרש.
     acquisition_cost: Mapped[float] = mapped_column(Float, default=0)
     target_company: Mapped[str] = mapped_column(String(200), default="")
+
+    # עלויות חד-פעמיות הנזקפות בשנה הראשונה, מעבר לעלות הרכישה:
+    # [{"name": "התאמת מטענים קיימים", "amount": 800000}, ...]
+    # NULL = טרם הוגדר (הזריעה תמלא ברירת מחדל); [] = הוגדר במפורש כריק.
+    one_time_costs: Mapped[list | None] = mapped_column(JSON, nullable=True, default=None)
     contact_name: Mapped[str] = mapped_column(String(120), default="")
     contact_phone: Mapped[str] = mapped_column(String(60), default="")
     contact_email: Mapped[str] = mapped_column(String(120), default="")

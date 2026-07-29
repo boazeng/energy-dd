@@ -195,6 +195,12 @@
   font: inherit; padding: 6px 9px;
   border: 1px solid var(--color-border); border-radius: 6px;
 }
+.bp-settings-sub { margin: 4px 0 6px; font-size: 14px; }
+.bp-costs { display: flex; flex-direction: column; gap: 7px; align-items: flex-start; }
+.bp-cost-row { display: flex; gap: 7px; align-items: center; width: 100%; }
+.bp-cost-row input { font: inherit; padding: 5px 9px; border: 1px solid var(--color-border); border-radius: 6px; }
+.bp-cost-row input:first-child { flex: 1; }
+.bp-cost-row input[type='number'] { width: 130px; text-align: left; }
 
 /* ═══ הדפסה ═══════════════════════════════════════════════════════════════ */
 
