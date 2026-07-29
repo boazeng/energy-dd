@@ -130,6 +130,10 @@ _STRENGTHS_V2 = """- פתרון לחסם מבני בשוק — הוספת עמד
 
 _SUMMARY_FIN_V1 = """להלן תמצית הנתונים הפיננסיים לתקופת התחזית:"""
 
+EXEC_INTRO_BODY = """\
+פרק זה מרכז את עיקרי הבקשה ואת הנתונים הנדרשים לבחינתה. הפירוט המלא — תיאור הפעילות \
+הנרכשת, מרשם ההסכמים, הנחות העבודה והתחזית המפורטת — מובא בפרקים שלאחריו."""
+
 SUMMARY_FIN_BODY = """\
 להלן תמצית הנתונים הפיננסיים לתקופת התחזית, הנגזרת מהנחות העבודה שלעיל:"""
 
@@ -186,8 +190,10 @@ TODAY_BODY = """\
 
 # (key, order, level, title, data_block, body)
 SECTIONS: list[tuple[str, int, int, str, str, str]] = [
-    # ─── 1. תמצית מנהלים ────────────────────────────────────────────────
-    ("exec", 10, 1, "תמצית מנהלים", "", ""),
+    # ─── 1. תמצית הבקשה — יחידה עצמאית בפתח המסמך ───────────────────────
+    # מיועדת לעמוד בפני עצמה: מנהל אשראי שקורא רק אותה אמור לדעת מה מבוקש,
+    # על מה משולם הכסף, ומהי יכולת ההחזר. כל השאר הוא פירוט תומך.
+    ("exec", 10, 1, "תמצית הבקשה", "request_headline", EXEC_INTRO_BODY),
     ("exec_background", 20, 2, "רקע כללי ותיאור החברה", "", """\
 החברה עוסקת בהקמה, הפעלה וניהול של תשתיות טעינה לרכבים חשמליים בחניוני בנייני מגורים \
 ומבנים מסחריים. החברה מספקת פתרון מקצה לקצה — תכנון והנדסה, הקמת התשתית ומערכת ניהול \
@@ -205,7 +211,18 @@ SECTIONS: list[tuple[str, int, int, str, str, str]] = [
     ("exec_summary_fin", 612, 2, "תמצית נתונים פיננסיים", "summary_financials", SUMMARY_FIN_BODY),
     ("exec_cashflow", 614, 2, "תזרים מזומנים מצטבר", "cumulative_cashflow", """\
 התזרים המוצג להלן כולל את קבלת ההלוואה המבוקשת ואת החזריה:"""),
-    ("exec_disclaimer", 60, 2, "הבהרות", "", """\
+    ("exec_snapshot", 38, 2, "תמצית התחזית הכספית", "summary_compact", """\
+להלן תמצית התחזית לתקופת ההלוואה. הנתונים נגזרים מהתנאים החוזיים של האתרים הנרכשים \
+ומהנחות העבודה המפורטות בפרק תחזית הגידול:"""),
+    ("exec_why", 45, 2, "עיקרי הבקשה", "", """\
+- הפעילות הנרכשת מייצרת הכנסה חוזרת כבר במועד ההשלמה, ואינה תלויה בתקופת הרצה;
+- ההכנסה מעוגנת בהסכמים ארוכי טווח מול ועדי בתים, ומפוזרת בין אתרים וערים רבים;
+- מקור ההשבחה אינו הרחבה לאתרים חדשים אלא מימוש הפוטנציאל החוזי הקיים באותם אתרים;
+- הפעילות נקלטת לתוך חברה פעילה ואינה מוסיפה עלויות תקורה — מלוא ההכנסה מצטרפת לתזרים;
+- קצב ההשקעה נתון לשליטת החברה וניתן להתאמה לתזרים בפועל, כפי שמדגים ניתוח הרגישות."""),
+
+    # ההבהרות הן טקסט משפטי סטנדרטי ואינן חלק מהתמצית — מיקומן בסוף המסמך.
+    ("exec_disclaimer", 900, 2, "הבהרות", "", """\
 בגיבוש תכנית זו הסתמכנו על דיוק, שלמות ועדכניות המידע שהתקבל מהחברה, לרבות הנתונים \
 הפיננסיים, התחזיות והאומדנים. לא נערכה בחינה עצמאית בלתי תלויה של מידע זה, למעט מבחני \
 סבירות כלליים.
@@ -338,12 +355,6 @@ REPHRASED: dict[str, tuple[list[str], str]] = {
 # מהמתג שבמצב עריכה.
 RETIRED_KEYS = ("today_pnl", "today_balance", "today_suppliers", "today_scope")
 
-# פרקים שמיקומם במסמך שונה לאחר הזריעה הראשונה. סדר הוא נתון מבני ולא טקסט
-# שנערך באתר, ולכן מוחל תמיד.
-REORDERED: dict[str, int] = {
-    "exec_summary_fin": 612,
-    "exec_cashflow": 614,
-}
 
 
 def _refresh_unedited(db: Session) -> int:
@@ -366,7 +377,9 @@ def _refresh_unedited(db: Session) -> int:
         current = sec.body.strip()
         seeded = (sec.seeded_body or "").strip()
 
-        if seeded:
+        if not current:
+            unedited = True          # פרק ריק מעולם לא נערך
+        elif seeded:
             unedited = current == seeded
         else:
             # רשומה ישנה: מזהים "לא נערך" מול רשימת הנוסחים הידועים
@@ -409,18 +422,15 @@ def _retire_sections(db: Session) -> int:
             sec.visible = False
             changed += 1
 
-    for key, order in REORDERED.items():
+    # מבנה המסמך (מיקום, כותרת, רמה, ובלוק הנתונים) הוא נתון של הקוד ולא תוכן
+    # שנערך באתר, ולכן מסונכרן תמיד. רק `body` שייך למשתמשת.
+    for key, order, level, title, data_block, _body in SECTIONS:
         sec = db.scalar(select(BusinessPlanSection).where(BusinessPlanSection.key == key))
-        if sec is not None and sec.order != order:
-            sec.order = order
+        if sec is None:
+            continue
+        if (sec.order, sec.level, sec.title, sec.data_block) != (order, level, title, data_block):
+            sec.order, sec.level, sec.title, sec.data_block = order, level, title, data_block
             changed += 1
-
-    today = db.scalar(select(BusinessPlanSection).where(BusinessPlanSection.key == "today"))
-    if today is not None and not today.data_block:
-        today.data_block = "today_kpis"
-        if not today.body.strip():
-            today.body = TODAY_BODY.strip()
-        changed += 1
     return changed
 
 

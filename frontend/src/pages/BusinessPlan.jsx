@@ -58,6 +58,13 @@ function fmtK(v) {
   return v < 0 ? `(${mag})` : mag
 }
 
+// יחס (DSCR וכדומה) — שלילי בסוגריים, מאותה סיבה כמו ב-fmtK
+function ratio(v) {
+  if (v === null || v === undefined || Number.isNaN(v)) return '—'
+  const s = Math.abs(v).toFixed(2)
+  return v < 0 ? `(${s})` : s
+}
+
 // מספרים לטבלה צפופה — ללא סימן ₪ (מצוין בכותרת), שלילי בסוגריים
 function num(v) {
   if (v === null || v === undefined || Number.isNaN(v)) return '—'
@@ -110,6 +117,9 @@ function Caption({ kind, n, children }) {
   )
 }
 
+// עוטף טבלה שרוחבה תלוי באורך אופק התחזית — ראה .bp-scroll ב-CSS
+const Wide = ({ children }) => <div className="bp-scroll">{children}</div>
+
 // כמה טבלאות ותרשימים כל בלוק מייצר בפועל — הבסיס למספור. חייב להיות פונקציה
 // טהורה של הנתונים ולא מונה שמתקדם תוך כדי רינדור: React מרנדר קומפוננטה יותר
 // מפעם אחת (StrictMode), ומונה כזה היה מכפיל את המספרים.
@@ -119,6 +129,8 @@ function blockCounts(key, d) {
   const hasFin = (which) => (fin.years?.length && fin[which]?.length) ? 1 : 0
   switch (key) {
     case '': return [0, 0]
+    case 'request_headline': return [0, 0]   // רצועת מדדים, אינה טבלה ממוספרת
+    case 'summary_compact': return [hasForecast ? 1 : 0, 0]
     case 'summary_financials': return [hasForecast ? 1 : 0, 0]
     case 'cumulative_cashflow': return hasForecast ? [1, 1] : [0, 0]
     case 'forecast_table': return [hasForecast ? 1 : 0, 0]
@@ -152,7 +164,8 @@ function SummaryFinancials({ d, t, c }) {
   return (
     <figure className="bp-figure">
       <Caption kind="table" n={t}>תמצית נתונים פיננסיים</Caption>
-      <table className="bp-table">
+      <Wide>
+      <table className="bp-table bp-table-tight bp-table-nowrap">
         <thead>
           <tr><th className="bp-rowlabel">סעיף</th>{f.map((r) => <th key={r.year}>{r.year}</th>)}</tr>
         </thead>
@@ -165,6 +178,7 @@ function SummaryFinancials({ d, t, c }) {
           ))}
         </tbody>
       </table>
+      </Wide>
     </figure>
   )
 }
@@ -176,7 +190,8 @@ function CumulativeCashflow({ d, t, c }) {
     <>
       <figure className="bp-figure">
         <Caption kind="table" n={t}>יתרת מזומנים מצטברת</Caption>
-        <table className="bp-table">
+        <Wide>
+        <table className="bp-table bp-table-tight bp-table-nowrap">
           <thead>
             <tr><th className="bp-rowlabel">סעיף</th>{d.forecast.map((r) => <th key={r.year}>{r.year}</th>)}</tr>
           </thead>
@@ -187,6 +202,7 @@ function CumulativeCashflow({ d, t, c }) {
               {d.forecast.map((r) => <td key={r.year} className="bp-num"><Money v={r.cumulative} /></td>)}</tr>
           </tbody>
         </table>
+        </Wide>
         <p className="bp-note">
           היתרה המצטברת פותחת ביתרת המזומנים בפועל
           {d.today.opening_balance_date ? ` נכון ל-${d.today.opening_balance_date}` : ''} ({ils(d.today.opening_balance)}).
@@ -212,14 +228,109 @@ function CumulativeCashflow({ d, t, c }) {
   )
 }
 
+// ─── בלוקי התמצית (שלושת העמודים הראשונים) ──────────────────────────────────
+
+// רצועת הנתונים שמנהל אשראי צריך כדי להבין את הבקשה בלי לקרוא הלאה.
+function RequestHeadline({ d }) {
+  const a = d.acquisition
+  const L = d.loan
+  const dscr = d.forecast.map((r) => r.dscr).filter((x) => x !== null && x !== undefined)
+  const positive = d.forecast.find((r) => r.cumulative >= 0)
+  return (
+    <Kpis items={[
+      { label: 'אשראי מבוקש', value: ils(L.amount), note: `${L.years} שנים · פריים ${L.prime}% + ${L.margin}%` },
+      { label: 'עלות הרכישה', value: ils(a.cost), note: `${nf.format(a.buildings)} אתרים · ${nf.format(a.potential_spots)} חניות בהסכמים` },
+      {
+        label: a.equity_required > 0 ? 'הון עצמי' : 'להתאמת מטענים קיימים',
+        value: ils(a.equity_required > 0 ? a.equity_required : a.surplus_working_capital),
+        note: a.equity_required > 0 ? 'מושקע על ידי הרוכשת' : 'יתרת האשראי מעבר לעלות הרכישה',
+      },
+      { label: 'החזר חודשי', value: ils(L.monthly_payment), note: 'לוח שפיצר' },
+      {
+        // שלילי בסוגריים — ב-RTL סימן המינוס נודד ונקרא כערך חיובי
+        label: 'יחס כיסוי חוב',
+        value: dscr.length ? `${ratio(Math.min(...dscr))}–${ratio(Math.max(...dscr))}` : '—',
+        note: 'טווח לאורך תקופת ההלוואה',
+      },
+      {
+        label: 'מעבר ליתרה חיובית',
+        value: positive ? String(positive.year) : 'מעבר לתקופה',
+        note: positive ? 'שנת ההתאזנות התזרימית' : 'לפי אופק התחזית הנוכחי',
+      },
+    ]} />
+  )
+}
+
+// טבלה כספית מרוכזת לתמצית. הפירוט המלא — בפרק התחזית, אחרי הנחות העבודה.
+function SummaryCompact({ d, t }) {
+  const f = d.forecast
+  if (!f.length) return null
+  const T = d.totals
+  // באופק ארוך עמודת הסה"כ דוחקת את הטבלה מעבר לרוחב העמוד. בתמצית עדיפה
+  // קריאות; הסיכומים מופיעים ממילא בטבלה המפורטת שבפרק התחזית.
+  const showTotal = f.length <= 6
+  const rows = [
+    ['הכנסות', f.map((r) => r.income), T.income],
+    ['הוצאות תפעול, תחזוקה ותקורה', f.map((r) => -(r.opex + r.maintenance + r.overhead)), -(T.opex + T.maintenance + (T.overhead || 0))],
+    ['השקעה בעמדות חדשות', f.map((r) => -r.capex), -T.capex],
+    ['תזרים לפני החזר החוב', f.map((r) => r.profit_before_loan), T.profit_before_loan, true],
+    ['החזר ההלוואה', f.map((r) => -r.loan_repayment), -T.loan_repayment],
+    ['תזרים נטו', f.map((r) => r.net_profit), T.net_profit, true],
+  ]
+  return (
+    <figure className="bp-figure">
+      <Caption kind="table" n={t}>תמצית התחזית הכספית (בש&quot;ח)</Caption>
+      {/* tight + תוויות ללא גלישת שורה: האופק עשוי להגיע ל-10 שנים, וכל שנה
+          היא עמודה. בלי זה התוויות נשברות לארבע שורות והטבלה גולשת. */}
+      <Wide>
+      <table className="bp-table bp-table-tight bp-table-nowrap">
+        <thead>
+          <tr>
+            <th className="bp-rowlabel">סעיף</th>
+            {f.map((r) => <th key={r.year}>{r.year}</th>)}
+            {showTotal && <th>סה&quot;כ</th>}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map(([label, vals, total, strong], i) => (
+            <tr key={i} className={strong ? 'bp-total' : ''}>
+              <td className="bp-rowlabel">{label}</td>
+              {vals.map((v, j) => <td key={j} className="bp-num">{num(v)}</td>)}
+              {showTotal && <td className="bp-num">{num(total)}</td>}
+            </tr>
+          ))}
+          <tr>
+            <td className="bp-rowlabel">יתרת מזומנים מצטברת</td>
+            {f.map((r) => (
+              <td key={r.year} className={`bp-num ${r.cumulative < 0 ? 'bp-neg' : 'bp-pos'}`}>{num(r.cumulative)}</td>
+            ))}
+            {showTotal && <td className="bp-num" />}
+          </tr>
+          <tr>
+            <td className="bp-rowlabel">עמדות פעילות בסוף השנה</td>
+            {f.map((r) => <td key={r.year} className="bp-num">{nf.format(r.total_chargers)}</td>)}
+            {showTotal && <td className="bp-num" />}
+          </tr>
+        </tbody>
+      </table>
+      </Wide>
+      <p className="bp-note">
+        הסכומים מנוטרלי מע&quot;מ. הפירוט המלא, לרבות הנחות העבודה שמהן נגזרת התחזית,
+        מופיע בפרק תחזית הגידול.
+      </p>
+    </figure>
+  )
+}
+
 // מקורות ושימושים — הטבלה שהבנק בוחן ראשונה. הפער בין עלות הרכישה לאשראי
 // המבוקש מוצג במפורש כהון עצמי, ולא נבלע.
 function AcquisitionTerms({ d, t }) {
   const a = d.acquisition
+  // יתרת האשראי מעבר לעלות הרכישה מיועדת להתאמת המטענים הקיימים — לא "עודף"
   const uses = [['רכישת הפעילות', a.cost]]
   const sources = [['אשראי בנקאי מבוקש', a.credit_requested]]
   if (a.equity_required > 0) sources.push(['הון עצמי', a.equity_required])
-  if (a.surplus_working_capital > 0) uses.push(['הון חוזר לפעילות', a.surplus_working_capital])
+  if (a.surplus_working_capital > 0) uses.push(['עלויות התאמה למטענים קיימים', a.surplus_working_capital])
   const totalUses = uses.reduce((s, [, v]) => s + v, 0)
   const totalSources = sources.reduce((s, [, v]) => s + v, 0)
 
@@ -714,7 +825,7 @@ function DscrTable({ d, t, c }) {
               <td className="bp-num"><Money v={r.profit_before_loan} /></td>
               <td className="bp-num">{ils(r.loan_repayment)}</td>
               <td className={`bp-num bp-strong ${r.dscr >= 1 ? 'bp-pos' : 'bp-neg'}`}>
-                {r.dscr === null ? '—' : r.dscr.toFixed(2)}
+                {ratio(r.dscr)}
               </td>
             </tr>
           ))}
@@ -752,6 +863,8 @@ function SensitivityTable({ d, t, c }) {
 }
 
 const BLOCKS = {
+  request_headline: RequestHeadline,
+  summary_compact: SummaryCompact,
   acquisition_terms: AcquisitionTerms,
   agreements_table: AgreementsTable,
   site_economics: SiteEconomicsTable,
@@ -856,6 +969,8 @@ function Cover({ s, d }) {
     </section>
   )
 }
+
+const chapterOf = (s) => String(s.num).split('.')[0]
 
 function Toc({ numbered }) {
   return (
@@ -965,19 +1080,25 @@ export default function BusinessPlan({ agreementVersion, horizonMode = 'contract
 
       <article className="bp-doc" dir="rtl">
         <Cover s={plan.settings} d={data} />
-        <Toc numbered={numbered} />
 
-        {numbered.map((s) => {
+        {/* תוכן העניינים מגיע אחרי פרק התמצית, לא לפניו: התמצית אמורה לעמוד
+            בפני עצמה בפתח המסמך, והפירוט מתחיל אחריה. */}
+        {numbered.map((s, i) => {
           const Block = BLOCKS[s.data_block]
+          const lastOfSummary = numbered[i + 1] && chapterOf(numbered[i + 1]) !== '1'
+            && chapterOf(s) === '1'
           return (
-            <section key={s.id} className={`bp-section bp-level-${s.level}`}>
-              {s.level === 1
-                ? <h2 className="bp-h1"><span className="bp-num">{s.num}</span>{s.title}</h2>
-                : <h3 className="bp-h2"><span className="bp-num">{s.num}</span>{s.title}</h3>}
-              <Body text={s.body} />
-              {edit && <SectionEditor section={s} onSaved={load} />}
-              {Block && <Block d={data} t={s.t} c={s.c} />}
-            </section>
+            <Fragment key={s.id}>
+              <section className={`bp-section bp-level-${s.level}`}>
+                {s.level === 1
+                  ? <h2 className="bp-h1"><span className="bp-num">{s.num}</span>{s.title}</h2>
+                  : <h3 className="bp-h2"><span className="bp-num">{s.num}</span>{s.title}</h3>}
+                <Body text={s.body} />
+                {edit && <SectionEditor section={s} onSaved={load} />}
+                {Block && <Block d={data} t={s.t} c={s.c} />}
+              </section>
+              {lastOfSummary && <Toc numbered={numbered} />}
+            </Fragment>
           )
         })}
 
