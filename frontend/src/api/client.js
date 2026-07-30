@@ -10,7 +10,11 @@ async function request(path, options) {
     window.location.href = '/login'
     throw new Error('לא מחובר')
   }
-  if (!res.ok) throw new Error(`שגיאת רשת (${res.status})`)
+  if (!res.ok) {
+    // ה-backend מחזיר {detail: "..."} בעברית — עדיף על קוד HTTP יבש
+    const detail = await res.json().then((b) => b?.detail).catch(() => null)
+    throw new Error(detail || `שגיאת רשת (${res.status})`)
+  }
   return res.status === 204 ? null : res.json()
 }
 
@@ -107,6 +111,14 @@ export const api = {
   },
   updateBusinessPlanSettings: (data) =>
     request('/api/business-plan/settings', { method: 'PUT', body: JSON.stringify(data) }),
+  // אימות והרשאות (shared-auth) — לא תחת /api/
+  getAuthMe: () => request('/auth/me'),
+  listUsers: () => request('/auth/users'),
+  saveUser: (data) =>
+    request('/auth/users', { method: 'POST', body: JSON.stringify(data) }),
+  deleteUser: (email) =>
+    request('/auth/users/delete', { method: 'POST', body: JSON.stringify({ email }) }),
+
   updateBusinessPlanSection: (id, data) =>
     request(`/api/business-plan/sections/${id}`, { method: 'PATCH', body: JSON.stringify(data) }),
   createBusinessPlanSection: (data) =>

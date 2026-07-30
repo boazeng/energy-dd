@@ -11,7 +11,11 @@ import Cashflow from './pages/Cashflow.jsx'
 import BuildingCashflow from './pages/BuildingCashflow.jsx'
 import RevenueCheck from './pages/RevenueCheck.jsx'
 import BusinessPlan from './pages/BusinessPlan.jsx'
+import Users from './pages/Users.jsx'
 import { api } from './api/client.js'
+
+// לשונית ניהול המשתמשים נוספת בזמן ריצה רק כשהמשתמש המחובר הוא admin
+const ADMIN_TAB = { key: 'users', label: 'ניהול משתמשים', icon: 'users' }
 
 const TABS = [
   { key: 'projects', label: 'סטטוס פרויקטים', icon: 'bolt' },
@@ -24,7 +28,7 @@ const TABS = [
   { key: 'agreements', label: 'הסכמי דיירים', icon: 'document' },
 ]
 
-const VALID_TABS = TABS.map((t) => t.key)
+const VALID_TABS = [...TABS, ADMIN_TAB].map((t) => t.key)
 
 function initialTab() {
   const t = new URLSearchParams(window.location.search).get('tab')
@@ -42,6 +46,7 @@ export default function App() {
   const [supplierLedger, setSupplierLedger] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [me, setMe] = useState(undefined)   // undefined = טרם נטען
   const [horizonMode, setHorizonMode] = useState(() => {
     const s = localStorage.getItem('energy-horizon-mode')
     if (s === 'contract') return 'contract'
@@ -105,14 +110,19 @@ export default function App() {
 
   useEffect(() => {
     refresh()
+    // בפיתוח מקומי ללא אישורי Google הנתיב לא קיים — נכשל בשקט, בלי לשונית ניהול
+    api.getAuthMe().then(setMe).catch(() => setMe(null))
   }, [])
+
+  const isAdmin = me?.role === 'admin'
+  const tabs = isAdmin ? [...TABS, ADMIN_TAB] : TABS
 
   return (
     <div className="tact-aurora">
       <header className="tact-bar">
         <TactLogo word="בדיקת נאותות" />
         <nav className="tact-nav">
-          {TABS.map((t) => (
+          {tabs.map((t) => (
             <button
               key={t.key}
               className={tab === t.key ? 'active' : ''}
@@ -158,6 +168,11 @@ export default function App() {
         )}
         {tab === 'agreements' && (
           <TenantAgreements agreements={agreements} loading={loading} onSave={() => setAgreementVersion((v) => v + 1)} />
+        )}
+        {tab === 'users' && me !== undefined && (
+          isAdmin
+            ? <Users me={me} />
+            : <p className="muted">אין לך הרשאה לנהל משתמשים.</p>
         )}
       </main>
 
