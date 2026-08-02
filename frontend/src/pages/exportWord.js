@@ -113,6 +113,12 @@ function collectCss() {
   return colorsToHex(resolveVars([...screen, ...print].join('\n')))
 }
 
+// גופן וגודל ברירת המחדל של המסמך בוורד. הכותרות אינן מושפעות — הן נשארות
+// בגופן של העיצוב באתר, שאותו וורד פותר ל-Segoe UI (‎Heebo אינו מותקן).
+const BODY_FONT = "David, 'Segoe UI', serif"
+const BODY_SIZE = '14pt'
+const HEADING_FONT = "'Segoe UI', Arial, sans-serif"
+
 // התאמות שקיימות רק בייצוא: מה שוורד אינו יודע לקרוא מ-business-plan.css
 const WORD_CSS = `
 @page WordSection1 { size: 210mm 297mm; margin: 18mm 20mm; mso-page-orientation: portrait; }
@@ -122,12 +128,22 @@ div.WordSection1 { page: WordSection1; }
 p.MsoNormal, li.MsoNormal, div.MsoNormal { margin: 0; }
 body {
   direction: rtl;
-  font-family: 'Segoe UI', Arial, sans-serif;
-  font-size: 10.5pt;
+  font-family: ${BODY_FONT};
+  font-size: ${BODY_SIZE};
   line-height: 1.6;
   color: #2A2A28;
 }
-.bp-doc { width: auto; border: 0; padding: 0; box-shadow: none; }
+/* ‎.bp-doc קובע 10.5pt בכללי ההדפסה, ולכן הגדרת ה-body לבדה לא הייתה מגיעה
+   לפסקאות */
+.bp-doc {
+  width: auto; border: 0; padding: 0; box-shadow: none;
+  font-family: ${BODY_FONT};
+  font-size: ${BODY_SIZE};
+}
+/* הכותרות נשארות בגופן ובגדלים של העיצוב. אלמנטים בעלי גודל מפורש משלהם —
+   טבלאות, כיתובים והערות — שומרים על גודלם ומקבלים רק את הגופן החדש. */
+.bp-h1, .bp-h2, .bp-cover-title, .bp-cover-company,
+.bp-cover-purpose, .bp-cover-to { font-family: ${HEADING_FONT}; }
 table { mso-table-lspace: 0; mso-table-rspace: 0; }
 .bp-table { direction: rtl; }
 /* וורד מתעלם מ-padding-inline / border-block הלוגיים */
