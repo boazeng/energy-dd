@@ -5,6 +5,7 @@ import {
 } from 'recharts'
 import TactIcon from '../components/TactIcon.jsx'
 import { api } from '../api/client.js'
+import { exportBusinessPlanWord } from './exportWord.js'
 
 // רוחב הגרפים בפיקסלים. קבוע בכוונה — ResponsiveContainer לא מודד נכון בהדפסה.
 // חייב להיות ≤ רוחב אזור התוכן של המסמך בשני המצבים:
@@ -1026,6 +1027,7 @@ export default function BusinessPlan({ agreementVersion, horizonMode = 'contract
   const [edit, setEdit] = useState(false)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [exporting, setExporting] = useState(false)
 
   async function load() {
     setLoading(true)
@@ -1051,6 +1053,21 @@ export default function BusinessPlan({ agreementVersion, horizonMode = 'contract
 
   // נטען מחדש כשמשתנה אופק התחזית או כשנערך הסכם דייר במקום אחר באתר
   useEffect(() => { load() }, [horizonMode, agreementVersion])
+
+  // ייצוא Word — נגזר מה-DOM המוצג, ולכן זהה למסמך שיוצא ב"ייצוא PDF"
+  async function exportWord() {
+    setExporting(true)
+    try {
+      const s = plan.settings
+      const name = [s.doc_title, s.company_name].filter(Boolean).join(' — ') || 'תכנית עסקית'
+      // תווים שאינם חוקיים בשם קובץ בחלונות
+      await exportBusinessPlanWord(`${name.replace(/[\\/:*?"<>|]/g, '-')}.doc`)
+    } catch (e) {
+      setError(`ייצוא ל-Word נכשל: ${e.message}`)
+    } finally {
+      setExporting(false)
+    }
+  }
 
   // מספור פרקים (1, 1.1, …) ומספור רץ לטבלאות ולתרשימים. מחושב מראש ופעם אחת
   // מתוך הנתונים, ולא תוך כדי רינדור.
@@ -1098,6 +1115,10 @@ export default function BusinessPlan({ agreementVersion, horizonMode = 'contract
         <span className="bp-sub">
           הנתונים מתעדכנים אוטומטית מהאתר · עודכן {new Date(data.generated_at).toLocaleString('he-IL')}
         </span>
+        <button className="tact-btn" onClick={exportWord} disabled={exporting}>
+          <TactIcon name="document" size={15} />
+          <span style={{ marginInlineStart: 6 }}>{exporting ? 'מייצא…' : 'ייצוא Word'}</span>
+        </button>
         <button className="tact-btn tact-btn-primary" onClick={() => window.print()}>
           <TactIcon name="reports" size={15} />
           <span style={{ marginInlineStart: 6 }}>ייצוא PDF</span>
