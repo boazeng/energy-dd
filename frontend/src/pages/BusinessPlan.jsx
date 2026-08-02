@@ -249,26 +249,14 @@ function RequestNarrative({ d }) {
   const dscr = d.forecast.map((r) => r.dscr).filter((x) => x !== null && x !== undefined)
   const positive = d.forecast.find((r) => r.cumulative >= 0)
 
-  const oneTime = a.one_time_costs
-    .map((c) => `${ils(c.amount)} ל${c.name}`)
-    .join(', ')
-
   return (
     <>
+      {/* תנאי ההלוואה המלאים — ריבית, לוח הסילוקין וההחזר — מופיעים בפרק יחסי
+          כיסוי החוב, ופירוט השימושים בהנחות העבודה. כאן רק עצם הבקשה. */}
       <p className="bp-p">
-        החברה מבקשת אשראי בסך <strong>{ils(L.amount)}</strong> לתקופה של {L.years} שנים,
-        בריבית פריים {L.prime}% בתוספת מרווח של {L.margin}%, בלוח סילוקין שפיצר.
-        ההחזר החודשי הצפוי הוא {ils(L.monthly_payment)}, ובמצטבר לאורך חיי ההלוואה
-        {' '}{ils(L.total_repayment)}, מהם {ils(L.total_interest)} ריבית.
-      </p>
-
-      <p className="bp-p">
-        האשראי מיועד למימון רכישת פעילותה של {a.target_company || 'חברת המטרה'}:
-        {' '}<strong>{ils(a.cost)}</strong> עלות הרכישה
-        {oneTime && <> ובנוסף {oneTime}</>}, ובסך הכול {ils(a.total_uses)}.
-        {a.equity_required > 0
-          ? <> יתרת השימושים, בסך {ils(a.equity_required)}, תמומן בהון עצמי של הרוכשת.</>
-          : <> האשראי המבוקש מכסה את מלוא השימושים, ואינו נדרש הון עצמי נוסף.</>}
+        החברה מבקשת אשראי בסך <strong>{ils(L.amount)}</strong> לתקופה
+        של {L.years} שנים. האשראי מיועד למימון רכישת פעילותה של
+        חברת {a.target_company || 'המטרה'}.
       </p>
 
       <p className="bp-p">
