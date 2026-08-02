@@ -161,6 +161,9 @@ body {
 .bp-h1, .bp-h2, .bp-cover-title, .bp-cover-company,
 .bp-cover-purpose, .bp-cover-to { font-family: ${HEADING_FONT}; }
 .bp-p, .bp-ul li { line-height: ${PROSE_LEADING}; }
+/* גודל הגופן בטבלאות נקבע לכל טבלה בנפרד וניצרב על התאים (ראה fitTableSizes),
+   כי כלל בגיליון אינו יכול להבחין בין טבלה צרה לרחבה. */
+.bp-table th, .bp-table td { line-height: ${PROSE_LEADING}; }
 table { mso-table-lspace: 0; mso-table-rspace: 0; }
 .bp-table { direction: rtl; }
 /* וורד מתעלם מ-padding-inline / border-block הלוגיים */
@@ -233,6 +236,59 @@ function toDiv(el) {
   return div
 }
 
+// ─── גודל הגופן בטבלאות ──────────────────────────────────────────────────────
+
+// רוחב אזור התוכן: A4 בניכוי שוליים, 170mm, ב-96dpi
+const CONTENT_PX = Math.round(170 / 25.4 * 96)
+const BODY_PT = parseFloat(BODY_SIZE)
+// מתחת לזה הטבלה כבר אינה קריאה, ועדיף שתיחתך ותיראה כבעיה
+const MIN_TABLE_PT = 8
+
+/**
+ * צורב גודל גופן על תאי כל טבלה: {@link BODY_SIZE} כברירת מחדל, ופחות מזה רק
+ * בטבלה שברוחב זה הייתה חורגת מהעמוד. הרוחב הטבעי נמדד בדפדפן על שיבוט מוסתר,
+ * כי הוא תלוי בתוכן בפועל — מספר העמודות לבדו אינו מנבא אותו (עמודת שנה צרה,
+ * ‎"(4,271,651)"‎ עם white-space: nowrap רחבה פי כמה).
+ * הגודל ניצרב על התאים ולא על הטבלה: וורד אינו מוריש font-size לתוך טבלה.
+ */
+function fitTableSizes(doc) {
+  const host = document.createElement('div')
+  host.className = 'bp-doc'
+  host.dir = 'rtl'
+  host.style.cssText = 'position:absolute;left:-20000px;top:0;width:auto;visibility:hidden'
+  const style = document.createElement('style')
+  // ‎min-content ולא auto: המידה הקובעת היא הרוחב המינימלי שבו הטבלה עדיין
+  // תקינה. ב-auto טבלה עם טקסט ארוך נמדדת כרחבה פי כמה ממה שהיא צריכה,
+  // ומוקטנת שלא לצורך.
+  // ‎white-space: normal מבטל את ה-nowrap שבעיצוב, כי וורד ממילא מתעלם ממנו
+  // וגולש. הרצפה נשארת המספר הארוך ביותר — אותו אי אפשר לשבור.
+  style.textContent = '.bp-word-probe { width: min-content !important; }'
+    + '.bp-word-probe th, .bp-word-probe td'
+    + ' { font-size: inherit !important; white-space: normal !important; }'
+  document.body.append(style, host)
+
+  try {
+    for (const table of doc.querySelectorAll('.bp-table')) {
+      const probe = table.cloneNode(true)
+      probe.classList.add('bp-word-probe')
+      probe.style.fontFamily = BODY_FONT
+      probe.style.fontSize = BODY_SIZE
+      host.replaceChildren(probe)
+
+      const natural = probe.scrollWidth
+      const pt = natural > CONTENT_PX
+        ? Math.max(MIN_TABLE_PT, Math.floor(BODY_PT * CONTENT_PX / natural * 10) / 10)
+        : BODY_PT
+      for (const cell of table.querySelectorAll('th, td')) {
+        cell.style.fontSize = `${pt}pt`
+      }
+    }
+  } finally {
+    host.remove()
+    style.remove()
+  }
+}
+
 // שבירת עמוד. זו הצורה היחידה שוורד מכבד בעקביות — סגנון על האלמנט עצמו,
 // ולא כלל בגיליון.
 function pageBreak() {
@@ -281,6 +337,9 @@ function tocToTable(list) {
 function transformForWord(doc) {
   // מה שאינו חלק מהמסמך המודפס
   doc.querySelectorAll('.no-print, .bp-hidden-list').forEach((n) => n.remove())
+
+  // לפני כל המרה אחרת — נמדד על מבנה הטבלה כפי שהוא באתר
+  fitTableSizes(doc)
 
   doc.querySelectorAll(LEGACY).forEach(toDiv)
   doc.querySelectorAll('.bp-toc-list').forEach(tocToTable)
