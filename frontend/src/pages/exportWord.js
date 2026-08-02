@@ -118,10 +118,26 @@ function collectCss() {
 const BODY_FONT = "David, 'Segoe UI', serif"
 const BODY_SIZE = '14pt'
 const HEADING_FONT = "'Segoe UI', Arial, sans-serif"
+// מרווח השורות במלל הרץ. הטבלאות והכיתובים שומרים על הצפיפות שלהם.
+// באחוזים ולא כמספר חסר יחידה — את הצורה חסרת היחידה וורד פשוט מתעלם ממנה.
+const PROSE_LEADING = '115%'
+// מסגרת העמוד — הכחול של TACT, שהוא גם הכחול של המסגרת בתכנית הייחוס
+const FRAME_COLOR = '#1F3A5F'
 
 // התאמות שקיימות רק בייצוא: מה שוורד אינו יודע לקרוא מ-business-plan.css
 const WORD_CSS = `
-@page WordSection1 { size: 210mm 297mm; margin: 18mm 20mm; mso-page-orientation: portrait; }
+/* מסגרת העמוד. בוורד היא נגזרת מ-border ומ-padding שבתוך @page עצמו, לא
+   מאלמנט בגוף המסמך — padding הוא המרחק בין המסגרת לשולי הטקסט. */
+@page WordSection1 {
+  size: 210mm 297mm;
+  margin: 18mm 20mm;
+  mso-page-orientation: portrait;
+  border: double ${FRAME_COLOR} 4.5pt;
+  mso-border-alt: double ${FRAME_COLOR} 4.5pt;
+  padding: 24pt;
+  mso-page-border-surround-header: no;
+  mso-page-border-surround-footer: no;
+}
 div.WordSection1 { page: WordSection1; }
 /* וורד עוטף כל טקסט חופשי בפסקת MsoNormal, ולסגנון Normal שלו יש רווח־אחרי של
    8pt. בלי איפוסו כל תא טבלה וכל שורת תוכן־עניינים מקבלים ריווח כפול. */
@@ -144,6 +160,7 @@ body {
    טבלאות, כיתובים והערות — שומרים על גודלם ומקבלים רק את הגופן החדש. */
 .bp-h1, .bp-h2, .bp-cover-title, .bp-cover-company,
 .bp-cover-purpose, .bp-cover-to { font-family: ${HEADING_FONT}; }
+.bp-p, .bp-ul li { line-height: ${PROSE_LEADING}; }
 table { mso-table-lspace: 0; mso-table-rspace: 0; }
 .bp-table { direction: rtl; }
 /* וורד מתעלם מ-padding-inline / border-block הלוגיים */
