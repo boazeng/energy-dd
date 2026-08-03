@@ -654,10 +654,30 @@ def sync_tenants_data_sites(db: Session) -> int:
     return added
 
 
+# בניינים שנמחקים בכוונה ב-migrate_building_models — אסור לזרוע אותם מחדש,
+# אחרת הם ייווצרו וימחקו לסירוגין בכל עליית שרת.
+_NEVER_RESEED = {"קין קאורין 9, אשקלון"}
+
+
 def seed_building_models(db: Session) -> int:
-    if db.scalar(select(BuildingModel.id).limit(1)) is not None:
-        return 0
+    """זורע בניינים חסרים מ-BUILDING_SEEDS — בדיקה פר-בניין, לא רק כשהטבלה ריקה.
+
+    קודם הפונקציה יצאה מיד אם הייתה ולו שורה אחת בטבלה, ולכן בניין מהזריעה
+    שנמחק (ידנית דרך הממשק, או ע"י אחת המחיקות ב-migrate_building_models)
+    לא חזר לעולם — כך נעלם "שדרות היובל 3, ראשון לציון" מתזרים בניינים.
+    בניין חדש נזרע עם current_chargers=0, ו-sync_projects_data שרץ אחריו
+    ב-lifespan ממלא את הערך האמיתי מ-projects.json.
+    """
+    # השוואה מנורמלת (בלי גרשיים/מקפים/פסיקים) ולא מחרוזת גולמית — שמות כמו
+    # ג'ו עמר 4A או צה"ל 5 נשמרים ב-DB עם תווי גרש שונים מאלה שבקוד, והשוואה
+    # גולמית הייתה מזריעה כפילות במקום לזהות שהבניין כבר קיים.
+    existing = {_normalize_keep_digits(n) for n in db.scalars(select(BuildingModel.building_name))}
+    seeded_names = []
     for b in BUILDING_SEEDS:
+        name = b["building_name"]
+        if _normalize_keep_digits(name) in existing or name in _NEVER_RESEED:
+            continue
+        seeded_names.append(name)
         db.add(BuildingModel(
             building_name=b["building_name"],
             current_chargers=0,
@@ -677,5 +697,8 @@ def seed_building_models(db: Session) -> int:
             start_year=2026,
             forecast_years=5,
         ))
-    db.commit()
-    return len(BUILDING_SEEDS)
+    if seeded_names:
+        db.commit()
+        logger.info("seed_building_models: נזרעו %d בניינים חסרים — %s",
+                    len(seeded_names), ", ".join(seeded_names))
+    return len(seeded_names)
