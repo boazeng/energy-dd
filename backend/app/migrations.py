@@ -353,3 +353,22 @@ def apply_manual_building_corrections(engine: Engine) -> None:
             )
 
         conn.commit()
+
+
+def shift_forecast_start_to_2027(engine: Engine) -> None:
+    """מזיז את תחילת תקופת התחזית מ-2026 ל-2027 (2027–2031).
+
+    התחזית נבנית כ-`bm.start_year + i`, ולכן שנת הפתיחה נקבעת בנתונים ולא בקוד,
+    ואין לה שדה בפאנל ההגדרות. ההזזה מותנית בערך הישן ולכן היא חד-כיוונית:
+    היא תרוץ פעם אחת, ולא תדרוס שנה אחרת שתיקבע בהמשך.
+
+    ההלוואה מוזזת יחד עם התחזית כדי שחמש שנות ההחזר יישארו חופפות לחמש שנות
+    התחזית — אחרת שנת 2031 הייתה מוצגת ללא החזר ו-DSCR של השנה האחרונה היה
+    יוצא מנופח. start_month ריק ממילא עוקב אחרי שנת הפתיחה, ולכן אינו נדרס.
+    """
+    with engine.connect() as conn:
+        conn.execute(text("UPDATE building_models SET start_year = 2027 WHERE start_year = 2026"))
+        conn.execute(
+            text("UPDATE cashflow_loan SET start_month = '2027-01' WHERE start_month LIKE '2026-%'")
+        )
+        conn.commit()

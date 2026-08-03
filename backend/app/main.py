@@ -16,7 +16,7 @@ from app.seed_business_plan import seed_business_plan
 from app.seed_cashflow import seed_cashflow
 from app.seed_contracts import seed_contracts
 from app.seed_supplier_balances import seed_supplier_balances
-from app.migrations import apply_manual_building_corrections, migrate_building_models, migrate_business_plan
+from app.migrations import apply_manual_building_corrections, migrate_building_models, migrate_business_plan, shift_forecast_start_to_2027
 from app.seed_building_models import backfill_building_links, seed_building_models, sync_contract_dates, sync_install_income, sync_projects_data
 from app.seed_supplier_ledger import seed_supplier_ledger
 
@@ -45,6 +45,9 @@ async def lifespan(_: FastAPI):
         sync_install_income(db)
         sync_contract_dates(db)
     apply_manual_building_corrections(engine)
+    # אחרי הסנכרונים — sync_contract_dates נוגע ב-contract_start_year, לא בשנת
+    # הפתיחה של התחזית, ולכן אין ביניהם התנגשות.
+    shift_forecast_start_to_2027(engine)
     yield
 
 
