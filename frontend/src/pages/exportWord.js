@@ -53,9 +53,14 @@ async function svgToPng(svg) {
 
 // ─── CSS ─────────────────────────────────────────────────────────────────────
 
-// var(--x) / var(--x, fallback) → הערך המחושב בפועל על שורש המסמך
-function resolveVars(css) {
-  const root = getComputedStyle(document.documentElement)
+// var(--x) / var(--x, fallback) → הערך המחושב בפועל.
+//
+// המשתנים נקראים מהמסמך עצמו ולא משורש ה-HTML: משתני TACT (‎--color-*) יושבים
+// על ‎:root, אבל אלה של תכנית הבנק (‎--bkp-*) מוגדרים על ‎.bkp-page. משתני CSS
+// עוברים בירושה, ולכן חישוב על צומת המסמך מוצא את שתי הקבוצות — בעוד חישוב על
+// שורש ה-HTML מחזיר ריק לשנייה, וכל צבעי המסמך נופלים ל-inherit.
+function resolveVars(css, scope) {
+  const root = getComputedStyle(scope || document.documentElement)
   let out = css
   for (let i = 0; i < 5 && out.includes('var('); i += 1) {
     out = out.replace(/var\(\s*(--[\w-]+)\s*(?:,\s*([^()]*?))?\s*\)/g, (_, name, fallback) => {
@@ -85,7 +90,7 @@ function colorsToHex(css) {
 
 // אוספים מגיליונות הסגנון של האתר רק את הכללים של המסמך. כך העיצוב בוורד ממשיך
 // להיגזר מגיליון המקור ולא מעותק שיסטה ממנו עם הזמן.
-function collectCss(prefix) {
+function collectCss(prefix, scope) {
   // התחיליות זרות זו לזו ("bkp-" אינו מכיל "bp-"), ולכן כל מסמך אוסף רק את
   // הכללים שלו ואין דליפה בין השניים.
   const relevant = (sel) => sel.includes(prefix) || sel.includes('recharts')
@@ -112,7 +117,7 @@ function collectCss(prefix) {
       }
     }
   }
-  return colorsToHex(resolveVars([...screen, ...print].join('\n')))
+  return colorsToHex(resolveVars([...screen, ...print].join('\n'), scope))
 }
 
 // גופן וגודל ברירת המחדל של המסמך בוורד. הכותרות אינן מושפעות — הן נשארות
@@ -191,11 +196,30 @@ table { mso-table-lspace: 0; mso-table-rspace: 0; }
 .${p}cover { height: auto !important; min-height: 0 !important; padding-top: 60px; }
 `
 
-// ‎.bp-table tbody tr:nth-child(even) td — וורד אינו מכיר :nth-child, ולכן
-// ההצללה לסירוגין נצרבת על השורות. הערך הוא ‎rgba(231,226,214,.22)‎ על לבן.
-const ZEBRA_BG = '#FAF9F6'
-
 // ─── המרות DOM ───────────────────────────────────────────────────────────────
+
+/**
+ * צורב על תאי הטבלאות את צבע הרקע שלהם בפועל.
+ *
+ * וורד אינו מכיר ‎:nth-child, ואיתו נופלת ההצללה לסירוגין. במקום לשכפל כאן את
+ * כללי ההצללה — שהם שונים בין הטבלה הרגילה (קרם) לטבלת המבטא (תכלת) ומשתנים
+ * עם העיצוב — נקרא הצבע המחושב מהמסך. כך נצרב גם רקע כותרות הטבלה, שורות
+ * הסיכום ושורות כותרת-הקבוצה, בלי לדעת עליהן דבר.
+ *
+ * הקריאה היא מהמסמך החי; לשיבוט אין סגנון מחושב. שני העצים זהים במבנה,
+ * ולכן ההתאמה היא לפי סדר.
+ */
+function bakeCellBackgrounds(source, clone) {
+  const live = source.querySelectorAll('th, td')
+  const copy = clone.querySelectorAll('th, td')
+  if (live.length !== copy.length) return
+  live.forEach((cell, i) => {
+    const bg = getComputedStyle(cell).backgroundColor
+    // rgba(0,0,0,0) = שקוף; אין מה לצרוב
+    if (!bg || /^rgba\(0,\s*0,\s*0,\s*0\)$/.test(bg) || bg === 'transparent') return
+    copy[i].style.backgroundColor = colorsToHex(bg)
+  })
+}
 
 // grid → טבלה. וורד מרנדר grid כרצף בלוקים, ובלי זה כל כרטיס מדד יופיע בשורה
 // נפרדת ורצועת "מקורות ושימושים" תאבד את שני הטורים.
@@ -391,8 +415,11 @@ function transformForWord(doc, cfg) {
   doc.querySelectorAll(`.${p}kpis`).forEach((el) => gridToTable(el, columnsOf(el, 3)))
   doc.querySelectorAll(`.${p}su`).forEach((el) => gridToTable(el, 2))
 
-  // רצועת העובדות בשער — flex עם gap; בוורד מחברים למשפט אחד
+  // רצועת העובדות בשער — flex עם gap; בוורד מחברים למשפט אחד.
+  // רק כשהרצועה בנויה מאלמנטים: בתכנית הבנק היא מלל אחד רצוף, ואיחוד ה"ילדים"
+  // שלה היה מוחק אותה.
   doc.querySelectorAll(`.${p}cover-facts`).forEach((el) => {
+    if (!el.children.length) return
     const parts = Array.from(el.children).map((c) => c.textContent.trim()).filter(Boolean)
     el.textContent = parts.join('  ·  ')
   })
@@ -400,12 +427,25 @@ function transformForWord(doc, cfg) {
   // גלילה אופקית אינה קיימת בנייר
   doc.querySelectorAll(`.${p}scroll`).forEach((el) => { el.style.overflow = 'visible' })
 
-  // הצללה לסירוגין. שורות סיכום וכותרות-קבוצה שומרות על הרקע שלהן.
-  doc.querySelectorAll(cfg.zebra).forEach((tbody) => {
-    Array.from(tbody.rows).forEach((tr, i) => {
-      if (i % 2 === 0 || tr.classList.contains(`${p}total`) || tr.classList.contains(`${p}group`)) return
-      Array.from(tr.cells).forEach((td) => { td.style.background = ZEBRA_BG })
-    })
+  // וורד מתעלם מ-border על <img>. תא טבלה הוא האלמנט היחיד שבו הוא מרנדר
+  // מסגרת בעקביות — אותו פתרון שכבר משמש את כרטיסי המדדים ואת פס השער.
+  // חייב לרוץ לפני המרת שורות התמונה, כדי שהעטיפה תיכנס לתא במקום התמונה.
+  doc.querySelectorAll('img[style*="border"]').forEach((img) => {
+    const { border } = img.style
+    if (!border) return
+    img.style.border = ''
+    const table = document.createElement('table')
+    table.style.cssText = 'border-collapse:collapse;margin:0 auto'
+    const td = document.createElement('td')
+    // line-height אפס — אחרת וורד מוסיף רווח שורה מתחת לתמונה בתוך המסגרת
+    td.setAttribute('style', `padding:0;line-height:0;border:${border}`)
+    img.replaceWith(table)
+    td.appendChild(img)
+    const tr = document.createElement('tr')
+    tr.appendChild(td)
+    const tbody = document.createElement('tbody')
+    tbody.appendChild(tr)
+    table.appendChild(tbody)
   })
 
   // שורות תמונה שמסודרות ב-flex — וורד מרנדר flex כרצף בלוקים, והתמונות היו
@@ -466,7 +506,6 @@ function download(html, filename) {
  * @property {string} secNum    סלקטור מספרי הסעיפים שבכותרות
  * @property {string[]} remove  אלמנטים שיורדים בייצוא
  * @property {string[]} flexRows מכלי flex שיומרו לטבלה בת שורה אחת
- * @property {string} zebra     סלקטור ה-tbody שבהם נצרבת ההצללה לסירוגין
  */
 const BUSINESS_PLAN = {
   root: '.bp-doc',
@@ -474,7 +513,6 @@ const BUSINESS_PLAN = {
   secNum: '.bp-h1 .bp-num, .bp-h2 .bp-num',
   remove: [],
   flexRows: [],
-  zebra: '.bp-table tbody',
 }
 
 // לשונית "תכנית עסקית לבנק". השינויים מול המסמך האחר: שורש אחר, מחלקה נפרדת
@@ -486,7 +524,6 @@ export const BANK_PLAN = {
   secNum: '.bkp-secnum',
   remove: ['.bkp-frame'],
   flexRows: ['.bkp-cover-pics', '.bkp-products'],
-  zebra: '.bkp-table tbody, .bkp-table-accent tbody',
 }
 
 /**
@@ -504,18 +541,31 @@ export async function exportBusinessPlanWord(filename = 'תכנית עסקית.d
     Array.from(source.querySelectorAll('.recharts-wrapper svg')).map(svgToPng),
   )
 
-  // מידות התמונות נמדדות מהמסמך החי ונצרבות כתכונות width/height. הגודל מגיע
-  // בעיצוב מכללי-צאצא (‎.bkp-products .bkp-prod-a), ואלה מפסיקים להתאים ברגע
-  // שמכל ה-flex מוחלף בטבלה — בלי הצריבה התמונות היו יוצאות בגודלן המקורי.
-  const sizes = Array.from(source.querySelectorAll('img'))
-    .map((img) => img.getBoundingClientRect())
+  // הגודל והמסגרת של התמונות מגיעים בעיצוב מכללי-צאצא (‎.bkp-products
+  // .bkp-prod-a), ואלה מפסיקים להתאים ברגע שמכל ה-flex מוחלף בטבלה. לכן שניהם
+  // נמדדים מהמסמך החי ונצרבים על התמונה עצמה — אחרת היא יוצאת בגודלה המקורי
+  // וללא המסגרת.
+  const looks = Array.from(source.querySelectorAll('img')).map((img) => {
+    const cs = getComputedStyle(img)
+    const r = img.getBoundingClientRect()
+    const bw = parseFloat(cs.borderTopWidth) || 0
+    return {
+      // תכונות width/height ב-HTML מתארות את תיבת התוכן, ללא המסגרת
+      w: Math.round(r.width - bw * 2),
+      h: Math.round(r.height - bw * 2),
+      border: bw ? `${cs.borderTopWidth} ${cs.borderTopStyle} ${colorsToHex(cs.borderTopColor)}` : '',
+    }
+  })
 
   const doc = source.cloneNode(true)
+  // לפני כל שינוי מבנה — בעוד שני העצים זהים
+  bakeCellBackgrounds(source, doc)
   doc.querySelectorAll('img').forEach((img, i) => {
-    const r = sizes[i]
-    if (!r?.width) return
-    img.setAttribute('width', Math.round(r.width))
-    img.setAttribute('height', Math.round(r.height))
+    const look = looks[i]
+    if (!look?.w) return
+    img.setAttribute('width', look.w)
+    img.setAttribute('height', look.h)
+    if (look.border) img.style.border = look.border
   })
 
   doc.querySelectorAll('.recharts-wrapper').forEach((wrapper, i) => {
@@ -539,10 +589,12 @@ export async function exportBusinessPlanWord(filename = 'תכנית עסקית.d
     + `<!--[if gte mso 9]><xml><w:WordDocument>`
     + `<w:View>Print</w:View><w:Zoom>100</w:Zoom><w:DoNotOptimizeForBrowser/>`
     + `</w:WordDocument></xml><![endif]-->`
-    + `<style>${collectCss(cfg.prefix)}\n${wordCss(cfg.prefix)}</style></head>`
+    + `<style>${collectCss(cfg.prefix, source)}\n${wordCss(cfg.prefix)}</style></head>`
     // שורש המסמך הוא article — שורש השיבוט עצמו, ולכן אינו נתפס ע"י ההמרה ל-div
     + `<body dir="rtl"><div class="WordSection1">`
-    + `<div class="${cfg.prefix}doc" dir="rtl">${doc.innerHTML}</div>`
+    // גם הסגנון המוטבע עובר המרה ל-hex: ה-CSSOM מנרמל כל צבע שנצרב על אלמנט
+    // חזרה ל-rgb() בעת הסריאליזציה, ו-hex הוא הצורה היחידה שוורד קורא בעקביות.
+    + `<div class="${cfg.prefix}doc" dir="rtl">${colorsToHex(doc.innerHTML)}</div>`
     + `</div></body></html>`
 
   download(html, filename)

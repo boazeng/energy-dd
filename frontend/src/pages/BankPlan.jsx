@@ -80,6 +80,12 @@ function ratioProse(v) {
   return v < 0 ? `מינוס ${s}` : s
 }
 
+// ירוק לחיובי, אדום לשלילי. אפס נשאר בצבע הגוף — הוא אינו רווח ואינו הפסד.
+function signCls(v) {
+  if (v === null || v === undefined || Number.isNaN(v) || v === 0) return ''
+  return v > 0 ? 'bkp-pos' : 'bkp-neg'
+}
+
 function Money({ v, plain }) {
   if (v === null || v === undefined) return <span className="bkp-muted">—</span>
   const cls = plain ? '' : v < 0 ? 'bkp-neg' : v > 0 ? 'bkp-pos' : ''
@@ -128,15 +134,17 @@ function SummaryCompact({ d }) {
   const f = d.forecast
   if (!f.length) return null
   const T = d.totals
+  // הדגשה על שתי שורות התזרים בלבד — כך זה בקובץ שאושר. תוויות השורה נשארות
+  // במשקל רגיל, גם הן כמו בקובץ.
   const rows = [
     ['הכנסות', f.map((r) => r.income), T.income],
     ['הוצאות תפעול, תחזוקה ותקורה', f.map((r) => -(r.opex + r.maintenance + r.overhead)),
       -(T.opex + T.maintenance + (T.overhead || 0))],
     ['השקעה בעמדות חדשות', f.map((r) => -r.capex), -T.capex],
     ...(T.one_time ? [['עלויות חד-פעמיות', f.map((r) => -r.one_time), -T.one_time]] : []),
-    ['תזרים לפני החזר החוב', f.map((r) => r.profit_before_loan), T.profit_before_loan],
+    ['תזרים לפני החזר החוב', f.map((r) => r.profit_before_loan), T.profit_before_loan, true],
     ['החזר ההלוואה', f.map((r) => -r.loan_repayment), -T.loan_repayment],
-    ['תזרים נטו', f.map((r) => r.net_profit), T.net_profit],
+    ['תזרים נטו', f.map((r) => r.net_profit), T.net_profit, true],
   ]
   return (
     <figure className="bkp-figure">
@@ -150,18 +158,21 @@ function SummaryCompact({ d }) {
           </tr>
         </thead>
         <tbody>
-          {rows.map(([label, vals, total], i) => (
-            <tr key={i}>
+          {rows.map(([label, vals, total, strong], i) => (
+            <tr key={i} className={strong ? 'bkp-total-row' : ''}>
               <td className="bkp-rowlabel">{label}</td>
-              {vals.map((v, j) => <td key={j}>{num(v)}</td>)}
-              <td>{num(total)}</td>
+              {vals.map((v, j) => <td key={j} className={signCls(v)}>{num(v)}</td>)}
+              <td className={signCls(total)}>{num(total)}</td>
             </tr>
           ))}
           <tr>
             <td className="bkp-rowlabel">יתרת מזומנים מצטברת</td>
-            {f.map((r) => <td key={r.year}>{num(r.cumulative)}</td>)}
+            {f.map((r) => (
+              <td key={r.year} className={signCls(r.cumulative)}>{num(r.cumulative)}</td>
+            ))}
             <td />
           </tr>
+          {/* ספירת עמדות אינה סכום ולכן אינה נצבעת */}
           <tr>
             <td className="bkp-rowlabel">עמדות פעילות בסוף השנה</td>
             {f.map((r) => <td key={r.year}>{nf.format(r.total_chargers)}</td>)}

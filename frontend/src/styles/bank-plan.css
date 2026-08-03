@@ -243,7 +243,10 @@
   border-color: #156082;
 }
 .bkp-table-accent tbody tr:nth-child(odd) td { background: #C1E4F5; }
-.bkp-table-accent .bkp-rowlabel { text-align: right; font-weight: 700; }
+/* תווית השורה במשקל רגיל — כך היא בקובץ שאושר; ההדגשה שמורה לשתי שורות
+   התזרים, ושם היא חלה על השורה כולה. */
+.bkp-table-accent .bkp-rowlabel { text-align: right; font-weight: 400; }
+.bkp-table-accent tbody tr.bkp-total-row td { font-weight: 700; }
 /* אין עיצוב מיוחד לשורה האחרונה — ב-docx מוגדר tblLook lastRow="0" */
 
 /* ─── רצועת מדדים ─── */
