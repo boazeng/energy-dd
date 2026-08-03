@@ -252,6 +252,11 @@ def sync_projects_data(db: Session, projects_path: str) -> int:
     בלי מפתח שמור (חדש, או לפני הפעלת השדה) נופל להתאמה המטושטשת הקיימת
     (_match_project), ואם הצליחה — התוצאה ננעלת ב-external_project_key, כך
     שבריצות הבאות כבר לא תיבדק שוב fuzzy matching לאותו בניין.
+
+    פרויקט שכבר נעול לבניין אחר לא ניתן לתפיסה שנייה: `_match_project` מחזיר
+    את הפרויקט הראשון שמתאים ואינו יודע מי כבר משויך, ולכן בניין חדש שנופל
+    למסלול המטושטש היה יכול לרשת את המטענים של פרויקט תפוס — ולספור אותם
+    פעמיים בסה"כ התזרים.
     """
     path = Path(projects_path)
     if not path.is_file():
@@ -270,15 +275,22 @@ def sync_projects_data(db: Session, projects_path: str) -> int:
     by_key = {p.get("project"): p for p in projects if p.get("project")}
 
     models = list(db.scalars(select(BuildingModel)))
+    claimed = {bm.external_project_key for bm in models if bm.external_project_key}
     updated = 0
     for bm in models:
         proj = by_key.get(bm.external_project_key) if bm.external_project_key else None
         if proj is None:
             proj = _match_project(bm.building_name, projects)
-            if proj is not None:
-                key = proj.get("project", "")
-                if key:
-                    bm.external_project_key = key
+            key = proj.get("project", "") if proj is not None else ""
+            if key and key in claimed and key != bm.external_project_key:
+                logger.warning(
+                    "sync_projects_data: '%s' התאים לפרויקט '%s' שכבר משויך לבניין אחר — מדלג",
+                    bm.building_name, key,
+                )
+                proj = None
+            elif key:
+                bm.external_project_key = key
+                claimed.add(key)
         if proj is None:
             continue
         chargers_installed = proj.get("chargers_installed") or 0
