@@ -11,6 +11,7 @@ import Cashflow from './pages/Cashflow.jsx'
 import BuildingCashflow from './pages/BuildingCashflow.jsx'
 import RevenueCheck from './pages/RevenueCheck.jsx'
 import BusinessPlan from './pages/BusinessPlan.jsx'
+import BankPlan from './pages/BankPlan.jsx'
 import Users from './pages/Users.jsx'
 import { api } from './api/client.js'
 
@@ -24,6 +25,7 @@ const TABS = [
   { key: 'building-cashflow', label: 'תזרים בניינים', icon: 'bolt' },
   { key: 'revenue-check', label: 'בדיקת הכנסות', icon: 'reports' },
   { key: 'business-plan', label: 'תכנית עסקית', icon: 'document' },
+  { key: 'bank-plan', label: 'תכנית עסקית לבנק', icon: 'document' },
   { key: 'tasks', label: 'רשימת מטלות', icon: 'workflow' },
   { key: 'agreements', label: 'הסכמי דיירים', icon: 'document' },
 ]
@@ -159,6 +161,9 @@ export default function App() {
             onHorizonChange={(m) => { setHorizonMode(m); localStorage.setItem('energy-horizon-mode', m) }}
           />
         )}
+        {/* אופק קבוע של 5 שנים — כך הוגדרה התכנית שאושרה והוגשה לבנק, ולכן
+            היא אינה נגררת אחרי בורר האופק הגלובלי של שאר הלשוניות */}
+        {tab === 'bank-plan' && <BankPlan agreementVersion={agreementVersion} horizonMode="5" />}
         {tab === 'tasks' && (
           <Tasks
             tasks={tasks}

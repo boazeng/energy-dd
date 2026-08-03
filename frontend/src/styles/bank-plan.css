@@ -1,0 +1,325 @@
+/* ═══ תכנית עסקית לבנק — שכפול נאמן של הקובץ ═════════════════════════════════
+   "אנרגיה אורבנית - רכישת חברת מוביליטי.docx" מוצג כאן אחד לאחד: אותו גופן,
+   אותם גדלים, אותן תמונות ואותה פריסה. ההבדל היחיד הוא שהמספרים בטבלאות
+   נשלפים חיים מהאתר במקום להיות כתובים בקובץ.
+
+   כל הערכים כאן חולצו מה-docx עצמו (styles.xml + הייצוא של Word ל-HTML)
+   ולכן הם ב-pt, כמו ב-Word, ולא ב-px.
+
+   גיליון A4: 210×297mm · שוליים 18mm למעלה/למטה, 20mm בצדדים
+   מסגרת עמוד: double 1.5pt #1F3A5F במרחק 24pt (8.47mm) משפת הנייר
+   ═════════════════════════════════════════════════════════════════════════ */
+
+.bkp-page {
+  /* רוחב אזור התוכן — 210mm בניכוי שוליים של 20mm מכל צד */
+  --bkp-content: 170mm;
+  /* מרחק מסגרת העמוד פנימה מקצה הנייר */
+  --bkp-frame-x: 8.47mm;
+  --bkp-frame-y: 8.47mm;
+
+  --bkp-ink: #2A2A28;      /* גוף הטקסט */
+  --bkp-navy: #1F3A5F;     /* כותרות, כותרות טבלה */
+  --bkp-rust: #D64A2E;     /* מספרי סעיפים, ערכים שליליים */
+  --bkp-green: #2F8F5B;    /* ערכים חיוביים */
+  --bkp-taupe: #706A60;    /* טקסט משני */
+  --bkp-rule: #E7E2D6;     /* גבולות טבלה */
+  --bkp-head: #EFF1F4;     /* רקע כותרת טבלה ושורת סיכום */
+  --bkp-zebra: #FAF9F6;    /* רקע שורה זוגית */
+  --bkp-card: #FAF9F5;     /* רקע כרטיס מדד */
+  --bkp-frame: #104862;    /* מסגרת התצלומים (accent1 lumMod 75%) */
+}
+
+/* ─── סרגל כלים (מסך בלבד, אינו חלק מהמסמך) ─── */
+.bkp-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 12px 16px;
+  margin-bottom: 20px;
+  background: var(--color-bg-white);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  box-shadow: var(--shadow-md);
+}
+.bkp-toolbar-spacer { flex: 1; }
+.bkp-toolbar .bkp-meta { font-size: 12px; color: var(--color-text-light); }
+
+/* ─── הגיליון ─── */
+.bkp-sheet {
+  position: relative;
+  width: 210mm;
+  box-sizing: border-box;
+  padding: 18mm 20mm;
+  margin: 0 auto;
+  background: #fff;
+  box-shadow: var(--shadow-lg);
+
+  /* David הוא גופן Windows; David Libre הוא התחליף הפתוח */
+  font-family: 'David', 'David Libre', 'Times New Roman', serif;
+  font-size: 14pt;
+  line-height: 1.15;
+  color: var(--bkp-ink);
+  direction: rtl;
+  text-align: right;
+}
+
+/* מסגרת העמוד הכפולה. במסך היא עוטפת את כל הגיליון; בהדפסה (למטה) היא הופכת
+   ל-fixed שהדפדפן חוזר עליו בכל עמוד. */
+.bkp-frame {
+  position: absolute;
+  inset: var(--bkp-frame-y) var(--bkp-frame-x);
+  border: 3px double var(--bkp-navy);
+  pointer-events: none;
+}
+
+
+/* ─── שער ─── */
+.bkp-cover { text-align: center; padding-top: 6mm; }
+.bkp-cover-rule {
+  width: 54pt; height: 3pt;
+  background: var(--bkp-rust);
+  margin: 0 auto 25.5pt;
+}
+.bkp-cover-title {
+  font-family: 'Segoe UI', sans-serif;
+  font-size: 30pt; font-weight: 700;
+  color: var(--bkp-navy);
+  letter-spacing: -0.4pt;
+  margin-bottom: 7.5pt;
+}
+.bkp-cover-company {
+  font-family: 'Segoe UI', sans-serif;
+  font-size: 18pt; font-weight: 700;
+  margin-bottom: 22.5pt;
+}
+.bkp-cover-purpose {
+  font-family: 'Segoe UI', sans-serif;
+  font-size: 13pt; font-weight: 700;
+  color: var(--bkp-rust);
+  margin-bottom: 19.5pt;
+}
+.bkp-cover-to {
+  font-family: 'Segoe UI', sans-serif;
+  font-size: 14.5pt;
+  color: var(--bkp-taupe);
+  margin-bottom: 31.5pt;
+}
+.bkp-cover-facts {
+  font-size: 10.5pt;
+  color: var(--bkp-taupe);
+  border-block: 1px solid var(--bkp-rule);
+  padding: 11.25pt 0;
+  margin-bottom: 34.5pt;
+}
+.bkp-cover-foot { font-size: 10.5pt; color: var(--bkp-taupe); line-height: 2; }
+/* בקובץ יש פסקה ריקה בין כל שתי שורות שער — 14pt David */
+.bkp-cover-gap { height: 16pt; }
+.bkp-cover-pics {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 24pt;
+  margin-top: 66pt;
+}
+/* גדלי התצוגה זהים ל-wp:extent שב-docx */
+.bkp-cover-pics .bkp-pic-a { width: 256px; height: 190px; }
+.bkp-cover-pics .bkp-pic-b { width: 254px; height: 171px; border: 6pt solid var(--bkp-frame); }
+
+/* ─── תוכן עניינים ─── */
+.bkp-toc { margin-bottom: 25.5pt; }
+.bkp-toc-list { list-style: none; padding: 0; margin: 13.5pt 0 0; }
+.bkp-toc-list li { display: flex; gap: 10px; padding: 1pt 0; }
+.bkp-toc-l1 { font-weight: 700; margin-top: 6.75pt; }
+.bkp-toc-l2 { padding-inline-start: 19.5pt; font-size: 10.5pt; color: var(--bkp-taupe); }
+.bkp-toc-num { min-width: 34px; color: var(--bkp-navy); font-variant-numeric: tabular-nums; }
+
+/* ─── כותרות ─── */
+.bkp-h1 {
+  font-family: 'Segoe UI', sans-serif;
+  font-size: 16pt; font-weight: 700;
+  color: var(--bkp-navy);
+  margin: 0 0 12pt;
+  padding-bottom: 7pt;
+  border-bottom: 1.5pt solid var(--bkp-navy);
+  page-break-after: avoid; break-after: avoid;
+}
+.bkp-h2 {
+  font-family: 'Segoe UI', sans-serif;
+  font-size: 12.5pt; font-weight: 700;
+  color: var(--bkp-ink);
+  margin: 19.5pt 0 8.25pt;
+  page-break-after: avoid; break-after: avoid;
+}
+/* 2.3 בקובץ המקורי אינו מודגש — משוכפל כפי שהוא */
+.bkp-h2-plain { font-weight: 400; }
+/* מספר הסעיף. מחלקה נפרדת מ-.bkp-num של הטבלאות, שמיישרת לשמאל ובולעת
+   את הרווח שבין המספר לכותרת. */
+.bkp-secnum {
+  display: inline-block;
+  min-width: 42px;
+  color: var(--bkp-rust);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* חתימה — פסקה בסגנון כותרת, מוזחת, עם קו תחתון */
+.bkp-signoff {
+  margin-inline-end: 0;
+  margin-inline-start: 45%;
+  padding-bottom: 7pt;
+  border-bottom: 1.5pt solid var(--bkp-navy);
+  font-weight: 700;
+}
+.bkp-signoff p { text-indent: 36pt; margin: 0 0 12pt; }
+.bkp-signoff p:last-child { margin-bottom: 0; }
+
+/* ─── פסקאות ורשימות ─── */
+.bkp-p { margin: 0 0 9pt; text-align: justify; }
+.bkp-ul { margin: 0 0 9.75pt; padding-inline-start: 16.5pt; list-style: disc; }
+.bkp-ul li { margin-bottom: 4.5pt; }
+.bkp-section { margin-bottom: 16.5pt; }
+
+/* סימוני הדגשה שנותרו בקובץ המקורי */
+.bkp-hl { background: #ffff00; }
+.bkp-hl-aqua { background: #00ffff; }
+
+/* ─── טבלאות ותרשימים ─── */
+.bkp-figure { margin: 13.5pt 0 18pt; }
+.bkp-caption {
+  font-size: 10pt; font-weight: 700;
+  color: var(--bkp-taupe);
+  margin-bottom: 5.25pt;
+  page-break-after: avoid; break-after: avoid;
+}
+.bkp-note { font-size: 9.5pt; color: var(--bkp-taupe); margin: 5.25pt 0 0; }
+.bkp-sub { font-size: 9pt; color: var(--bkp-taupe); font-weight: 400; }
+
+.bkp-table { width: 100%; border-collapse: collapse; font-size: 14pt; }
+.bkp-table th, .bkp-table td {
+  border: 1pt solid var(--bkp-rule);
+  padding: 4.5pt 6pt;
+  text-align: right;
+  vertical-align: top;
+}
+.bkp-table thead th {
+  background: var(--bkp-head);
+  color: var(--bkp-navy);
+  font-weight: 700;
+  line-height: 1.35;
+}
+.bkp-table tbody tr:nth-child(even) td { background: var(--bkp-zebra); }
+.bkp-rowlabel { font-weight: 700; }
+.bkp-num { text-align: left; font-variant-numeric: tabular-nums; white-space: nowrap; }
+
+/* טבלאות רחבות (9–10 עמודות). ב-Word הן חורגות מרוחב העמוד והמספרים נשברים
+   באמצע ("1,095,23 / 8"); כאן הן מוקטנות כדי להיכנס לרוחב העמוד בשלמותן.
+   זה אותו גופן מוקטן שבו משתמשת לשונית "תכנית עסקית" לאותן טבלאות. */
+.bkp-table-tight { font-size: 9pt; }
+.bkp-table-tight th, .bkp-table-tight td { padding: 3pt 3.75pt; }
+.bkp-total td { background: var(--bkp-head) !important; font-weight: 700; }
+.bkp-group td {
+  background: var(--bkp-card) !important;
+  font-weight: 700;
+  color: var(--bkp-navy);
+}
+.bkp-pos { color: var(--bkp-green); }
+.bkp-neg { color: var(--bkp-rust); }
+.bkp-strong { font-weight: 700; }
+.bkp-muted { color: var(--bkp-taupe); }
+
+/* טבלה 1 — עליה הוחל ב-Word סגנון "Grid Table 4 Accent 1" */
+.bkp-table-accent { border-collapse: collapse; width: 100%; font-size: 14pt; }
+.bkp-table-accent th, .bkp-table-accent td {
+  border: 0.5pt solid #45B0E1;
+  padding: 0 3pt;
+  text-align: center;
+  vertical-align: top;
+}
+.bkp-table-accent thead th {
+  background: #156082;
+  color: #fff;
+  font-weight: 700;
+  border-color: #156082;
+}
+.bkp-table-accent tbody tr:nth-child(odd) td { background: #C1E4F5; }
+.bkp-table-accent .bkp-rowlabel { text-align: right; font-weight: 700; }
+/* אין עיצוב מיוחד לשורה האחרונה — ב-docx מוגדר tblLook lastRow="0" */
+
+/* ─── רצועת מדדים ─── */
+.bkp-kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; }
+.bkp-kpi {
+  border: 1pt solid var(--bkp-rule);
+  background: var(--bkp-card);
+  padding: 8.25pt 9.75pt;
+}
+.bkp-kpi-val { font-size: 14pt; font-weight: 700; color: var(--bkp-navy); }
+.bkp-kpi-lbl { font-size: 9.5pt; margin-top: 2.25pt; }
+.bkp-kpi-note { font-size: 8.5pt; color: var(--bkp-taupe); margin-top: 0.75pt; }
+
+/* ─── תמונות ─── */
+.bkp-diagram { display: block; width: 655px; height: 308px; margin: 18pt auto 0; }
+.bkp-products {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  gap: 30pt;
+  margin: 12pt 0 24pt;
+}
+.bkp-products img { border: 6pt solid var(--bkp-frame); }
+.bkp-products .bkp-prod-a { width: 296px; height: 216px; }
+.bkp-products .bkp-prod-b { width: 300px; height: 218px; }
+
+.bkp-doc-foot { margin-top: 25.5pt; }
+
+/* ═══ הדפסה ═══════════════════════════════════════════════════════════════ */
+
+@media print {
+  /* שולי @page נקבעים לפי *מסגרת העמוד*, לא לפי הטקסט: אלמנט position:fixed
+     נחתך לתיבת העמוד ולכן המסגרת יכולה לשבת רק בקצה שלה. 8.47mm = ה-24pt
+     של pgBorders ב-docx. ההזחה של הטקסט עד לשוליים של Word (18/20mm)
+     מושלמת ב-.bkp-pagegrid למטה. */
+  @page { size: A4 portrait; margin: 8.47mm; }
+
+  * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+  html, body { background: #fff !important; }
+
+  .tact-bar, .tact-footer, .no-print, .q-float-btn, .q-overlay { display: none !important; }
+  .app-main { padding: 0 !important; min-height: 0 !important; }
+  .container { max-width: none !important; width: 100% !important; padding: 0 !important; }
+  .tact-aurora { background: #fff !important; }
+
+  .bkp-sheet {
+    width: 100% !important;
+    /* משלים את 8.47mm של @page לשוליים של Word: 20mm בצדדים (חל בכל עמוד)
+       ו-18mm למעלה/למטה (חל בעמוד הראשון והאחרון — ריפוד אנכי של בלוק
+       שנשבר בין עמודים מצויר רק בקצותיו). פרקים ראשיים, שכל אחד מהם פותח
+       עמוד, מקבלים את הריווח העליון בעצמם — ראה .bkp-level-1 למטה. */
+    padding: 9.53mm 11.53mm !important;
+    margin: 0 !important;
+    box-shadow: none !important;
+  }
+
+  /* position:fixed חוזר על עצמו בכל עמוד מודפס, ולכן מסגרת העמוד הכפולה
+     מופיעה בכל עמוד כמו ב-Word. inset:0 = קצה תיבת העמוד = 8.47mm משפת הנייר. */
+  .bkp-frame {
+    position: fixed;
+    inset: 0;
+    border: 3px double var(--bkp-navy);
+  }
+
+  .bkp-cover { height: 235mm; page-break-after: always; break-after: page; }
+  .bkp-toc { page-break-after: always; break-after: page; }
+  /* כל פרק ראשי פותח עמוד, ולכן הוא זה שמרחיק את הטקסט ממסגרת העמוד */
+  .bkp-level-1 { page-break-before: always; break-before: page; padding-top: 9.53mm; }
+
+  /* טבלאות ארוכות (הנחות העבודה, מרשם ההסכמים) נשברות בין עמודים עם כותרת
+     חוזרת, כמו ב-Word. אין break-inside:avoid על .bkp-figure — טבלה שאינה
+     נכנסת לעמוד שלם הייתה קופצת קדימה ומשאירה עמוד ריק. */
+  .bkp-kpis, .bkp-kpi, .recharts-wrapper {
+    page-break-inside: avoid; break-inside: avoid;
+  }
+  .bkp-table tr, .bkp-table-accent tr { page-break-inside: avoid; break-inside: avoid; }
+  .bkp-table thead, .bkp-table-accent thead { display: table-header-group; }
+  .bkp-p, .bkp-ul li { orphans: 3; widows: 3; }
+}
