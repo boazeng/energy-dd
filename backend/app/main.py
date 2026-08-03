@@ -70,9 +70,15 @@ app.include_router(revenue_check.router)
 app.include_router(business_plan.router)
 
 
+# מזהה גרסה — מאפשר לוודא מהדפדפן איזה קוד באמת רץ על השרת. auto-deploy שנכשל
+# בשקט נראה בדיוק כמו קוד שלא השתנה, וזה הוביל לכמה סבבי אבחון מיותרים.
+# לעדכן בכל שינוי שצריך לאמת בפרודקשן.
+APP_VERSION = "2026-08-03-charger-fix"
+
+
 @app.get("/health")
 def health():
-    return {"status": "ok", "app": settings.app_name}
+    return {"status": "ok", "app": settings.app_name, "version": APP_VERSION}
 
 
 # ===================== אימות Google (shared-auth) =====================
