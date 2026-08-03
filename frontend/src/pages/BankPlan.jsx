@@ -16,6 +16,7 @@ import {
 } from 'recharts'
 import TactIcon from '../components/TactIcon.jsx'
 import { api } from '../api/client.js'
+import { BANK_PLAN, exportBusinessPlanWord } from './exportWord.js'
 
 // גודל התרשימים בקובץ המקורי: wp:extent = 600×260px
 const DOC_W = 600
@@ -702,6 +703,19 @@ export default function BankPlan({ agreementVersion, horizonMode = '5' }) {
   const [d, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
+  const [exporting, setExporting] = useState(false)
+
+  // ייצוא Word — נגזר מה-DOM המוצג, ולכן זהה למה שיוצא ב"ייצוא PDF"
+  async function exportWord() {
+    setExporting(true)
+    try {
+      await exportBusinessPlanWord('תכנית עסקית לבנק — אנרגיה ירוקה מקבוצה אורבנית.doc', BANK_PLAN)
+    } catch (e) {
+      setError(`ייצוא ל-Word נכשל: ${e.message}`)
+    } finally {
+      setExporting(false)
+    }
+  }
 
   async function load() {
     setLoading(true)
@@ -737,6 +751,10 @@ export default function BankPlan({ agreementVersion, horizonMode = '5' }) {
           {new Date(d.generated_at).toLocaleString('he-IL')}
         </span>
         <span className="bkp-toolbar-spacer" />
+        <button className="tact-btn" onClick={exportWord} disabled={exporting}>
+          <TactIcon name="document" size={15} />
+          <span style={{ marginInlineStart: 6 }}>{exporting ? 'מייצא…' : 'הורדה כקובץ Word'}</span>
+        </button>
         <button className="tact-btn tact-btn-primary" onClick={() => window.print()}>
           <TactIcon name="reports" size={15} />
           <span style={{ marginInlineStart: 6 }}>ייצוא PDF</span>
@@ -775,7 +793,7 @@ export default function BankPlan({ agreementVersion, horizonMode = '5' }) {
             {TOC.map(([n, title, lvl]) => (
               <li key={n} className={`bkp-toc-l${lvl}`}>
                 <span className="bkp-toc-num">{n}</span>
-                <span>{title}</span>
+                <span className="bkp-toc-title">{title}</span>
               </li>
             ))}
           </ol>

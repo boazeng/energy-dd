@@ -84,9 +84,11 @@ function colorsToHex(css) {
 }
 
 // אוספים מגיליונות הסגנון של האתר רק את הכללים של המסמך. כך העיצוב בוורד ממשיך
-// להיגזר מ-business-plan.css ולא מעותק שיסטה ממנו עם הזמן.
-function collectCss() {
-  const relevant = (sel) => sel.includes('bp-') || sel.includes('recharts')
+// להיגזר מגיליון המקור ולא מעותק שיסטה ממנו עם הזמן.
+function collectCss(prefix) {
+  // התחיליות זרות זו לזו ("bkp-" אינו מכיל "bp-"), ולכן כל מסמך אוסף רק את
+  // הכללים שלו ואין דליפה בין השניים.
+  const relevant = (sel) => sel.includes(prefix) || sel.includes('recharts')
   const screen = []
   const print = []
 
@@ -124,8 +126,9 @@ const PROSE_LEADING = '115%'
 // מסגרת העמוד — הכחול של TACT, שהוא גם הכחול של המסגרת בתכנית הייחוס
 const FRAME_COLOR = '#1F3A5F'
 
-// התאמות שקיימות רק בייצוא: מה שוורד אינו יודע לקרוא מ-business-plan.css
-const WORD_CSS = `
+// התאמות שקיימות רק בייצוא: מה שוורד אינו יודע לקרוא מגיליון המקור.
+// פונקציה של התחילית, כדי לשרת את שני המסמכים (bp- ו-bkp-).
+const wordCss = (p) => `
 /* מסגרת העמוד. בוורד היא נגזרת מ-border ומ-padding שבתוך @page עצמו, לא
    מאלמנט בגוף המסמך — padding הוא המרחק בין המסגרת לשולי הטקסט. */
 @page WordSection1 {
@@ -149,28 +152,28 @@ body {
   line-height: 1.6;
   color: #2A2A28;
 }
-/* ‎.bp-doc קובע 10.5pt בכללי ההדפסה, ולכן הגדרת ה-body לבדה לא הייתה מגיעה
+/* ‎.${p}doc קובע 10.5pt בכללי ההדפסה, ולכן הגדרת ה-body לבדה לא הייתה מגיעה
    לפסקאות */
-.bp-doc {
+.${p}doc {
   width: auto; border: 0; padding: 0; box-shadow: none;
   font-family: ${BODY_FONT};
   font-size: ${BODY_SIZE};
 }
 /* הכותרות נשארות בגופן ובגדלים של העיצוב. אלמנטים בעלי גודל מפורש משלהם —
    טבלאות, כיתובים והערות — שומרים על גודלם ומקבלים רק את הגופן החדש. */
-.bp-h1, .bp-h2, .bp-cover-title, .bp-cover-company,
-.bp-cover-purpose, .bp-cover-to { font-family: ${HEADING_FONT}; }
-.bp-p, .bp-ul li { line-height: ${PROSE_LEADING}; }
+.${p}h1, .${p}h2, .${p}cover-title, .${p}cover-company,
+.${p}cover-purpose, .${p}cover-to { font-family: ${HEADING_FONT}; }
+.${p}p, .${p}ul li { line-height: ${PROSE_LEADING}; }
 /* גודל הגופן בטבלאות נקבע לכל טבלה בנפרד וניצרב על התאים (ראה fitTableSizes),
    כי כלל בגיליון אינו יכול להבחין בין טבלה צרה לרחבה. */
-.bp-table th, .bp-table td { line-height: ${PROSE_LEADING}; }
+.${p}table th, .${p}table td { line-height: ${PROSE_LEADING}; }
 table { mso-table-lspace: 0; mso-table-rspace: 0; }
-.bp-table { direction: rtl; }
+.${p}table { direction: rtl; }
 /* וורד מתעלם מ-padding-inline / border-block הלוגיים */
-.bp-ul { margin-right: 22px; padding-right: 0; }
-.bp-toc-l2 { margin-right: 26px; padding-right: 0 !important; }
-.bp-toc-num { display: inline-block; width: 34px; }
-.bp-cover-facts {
+.${p}ul { margin-right: 22px; padding-right: 0; }
+.${p}toc-l2 { margin-right: 26px; padding-right: 0 !important; }
+.${p}toc-num { display: inline-block; width: 34px; }
+.${p}cover-facts {
   display: block; text-align: center;
   border-top: 1px solid #E7E2D6; border-bottom: 1px solid #E7E2D6;
 }
@@ -182,10 +185,10 @@ table { mso-table-lspace: 0; mso-table-rspace: 0; }
 /* וורד אינו מייצר עמוד חדש מ-page-break-* שמגיע מגיליון סגנונות — רק מסגנון
    שכתוב ישירות על האלמנט. השבירות עצמן מוזרקות ל-DOM (ראה pageBreak); כאן רק
    הכללים שמונעים שבירה, שאותם וורד כן מכבד מגיליון. */
-.bp-h1, .bp-h2, .bp-caption { page-break-after: avoid; }
-.bp-figure, .bp-kpi, .bp-grid-shim, .bp-table tr { page-break-inside: avoid; }
+.${p}h1, .${p}h2, .${p}caption { page-break-after: avoid; }
+.${p}figure, .${p}kpi, .bp-grid-shim, .${p}table tr { page-break-inside: avoid; }
 /* גובה השער נועד לדחוף את מה שאחריו לעמוד הבא; בוורד השבירה מפורשת */
-.bp-cover { height: auto !important; min-height: 0 !important; padding-top: 60px; }
+.${p}cover { height: auto !important; min-height: 0 !important; padding-top: 60px; }
 `
 
 // ‎.bp-table tbody tr:nth-child(even) td — וורד אינו מכיר :nth-child, ולכן
@@ -251,9 +254,9 @@ const MIN_TABLE_PT = 8
  * ‎"(4,271,651)"‎ עם white-space: nowrap רחבה פי כמה).
  * הגודל ניצרב על התאים ולא על הטבלה: וורד אינו מוריש font-size לתוך טבלה.
  */
-function fitTableSizes(doc) {
+function fitTableSizes(doc, p) {
   const host = document.createElement('div')
-  host.className = 'bp-doc'
+  host.className = `${p}doc`
   host.dir = 'rtl'
   host.style.cssText = 'position:absolute;left:-20000px;top:0;width:auto;visibility:hidden'
   const style = document.createElement('style')
@@ -268,7 +271,7 @@ function fitTableSizes(doc) {
   document.body.append(style, host)
 
   try {
-    for (const table of doc.querySelectorAll('.bp-table')) {
+    for (const table of doc.querySelectorAll(`.${p}table`)) {
       const probe = table.cloneNode(true)
       probe.classList.add('bp-word-probe')
       probe.style.fontFamily = BODY_FONT
@@ -301,12 +304,12 @@ function pageBreak() {
 // תוכן העניינים בנוי מ-flex עם gap, ומספר הפרק מקבל את רוחבו מ-min-width על
 // span — וורד מתעלם משניהם, והתוצאה היא "1.1רקע כללי" צמוד. טבלה היא המבנה
 // היחיד שבו וורד שומר על טור מספרים מיושר.
-function tocToTable(list) {
+function tocToTable(list, p) {
   const table = document.createElement('table')
   table.style.cssText = 'width:100%;border-collapse:collapse;margin:18px 0 0'
   const tbody = document.createElement('tbody')
   for (const item of list.children) {
-    const l2 = item.classList.contains('bp-toc-l2')
+    const l2 = item.classList.contains(`${p}toc-l2`)
     // ‎.bp-toc-l1 { margin-top: 9px } — על tr הוא לא יעבוד, ולכן על התאים
     const lead = !l2 && item !== list.firstElementChild ? 'padding-top:9px;' : ''
     // הטקסט נעטף בפסקה מפורשת עם margin אפס. בלעדיה וורד מייצר פסקת MsoNormal
@@ -324,9 +327,9 @@ function tocToTable(list) {
     }
     const tr = document.createElement('tr')
     tr.append(
-      td(item.querySelector('.bp-toc-num')?.textContent,
+      td(item.querySelector(`.${p}toc-num`)?.textContent,
         `width:62px;color:#1F3A5F;${l2 ? 'padding-right:26px;' : ''}`),
-      td(item.querySelector('.bp-toc-title')?.textContent, ''),
+      td(item.querySelector(`.${p}toc-title`)?.textContent, ''),
     )
     tbody.appendChild(tr)
   }
@@ -334,24 +337,26 @@ function tocToTable(list) {
   list.replaceWith(table)
 }
 
-function transformForWord(doc) {
+function transformForWord(doc, cfg) {
+  const p = cfg.prefix
   // מה שאינו חלק מהמסמך המודפס
-  doc.querySelectorAll('.no-print, .bp-hidden-list').forEach((n) => n.remove())
+  doc.querySelectorAll(['.no-print', `.${p}hidden-list`, ...cfg.remove].join(', '))
+    .forEach((n) => n.remove())
 
   // לפני כל המרה אחרת — נמדד על מבנה הטבלה כפי שהוא באתר
-  fitTableSizes(doc)
+  fitTableSizes(doc, p)
 
   doc.querySelectorAll(LEGACY).forEach(toDiv)
-  doc.querySelectorAll('.bp-toc-list').forEach(tocToTable)
+  doc.querySelectorAll(`.${p}toc-list`).forEach((el) => tocToTable(el, p))
 
   // שער → תוכן עניינים → פרק לכל עמוד
-  const toc = doc.querySelector('.bp-toc')
+  const toc = doc.querySelector(`.${p}toc`)
   if (toc) toc.before(pageBreak())
-  doc.querySelectorAll('.bp-level-1').forEach((s) => s.before(pageBreak()))
+  doc.querySelectorAll(`.${p}level-1`).forEach((s) => s.before(pageBreak()))
 
   // הרווח בין מספר הפרק לכותרת — min-width על span אינו קיים בוורד.
   // רווחים קשיחים, כי רווח רגיל בקצה תגית נבלע בקיפול הרווחים של HTML.
-  doc.querySelectorAll('.bp-h1 .bp-num, .bp-h2 .bp-num').forEach((n) => {
+  doc.querySelectorAll(cfg.secNum).forEach((n) => {
     n.after(document.createTextNode('  '))
   })
 
@@ -359,7 +364,7 @@ function transformForWord(doc) {
   // יחיד היא הדרך היחידה שוורד מרנדר בעקביות.
   const accent = getComputedStyle(document.documentElement)
     .getPropertyValue('--color-accent').trim() || '#D64A2E'
-  doc.querySelectorAll('.bp-cover-rule').forEach((el) => {
+  doc.querySelectorAll(`.${p}cover-rule`).forEach((el) => {
     const table = document.createElement('table')
     table.setAttribute('align', 'center')
     table.style.cssText = 'border-collapse:collapse;margin:0 auto 34px'
@@ -369,7 +374,7 @@ function transformForWord(doc) {
   })
 
   // מסגרת ורקע על div מרונדרים בוורד בצורה לא עקבית; תא טבלה תמיד נכון
-  doc.querySelectorAll('.bp-kpi').forEach((el) => {
+  doc.querySelectorAll(`.${p}kpi`).forEach((el) => {
     const table = document.createElement('table')
     table.style.cssText = 'width:100%;border-collapse:collapse'
     const td = document.createElement('td')
@@ -383,28 +388,57 @@ function transformForWord(doc) {
     el.replaceWith(table)
   })
 
-  doc.querySelectorAll('.bp-kpis').forEach((el) => gridToTable(el, columnsOf(el, 3)))
-  doc.querySelectorAll('.bp-su').forEach((el) => gridToTable(el, 2))
+  doc.querySelectorAll(`.${p}kpis`).forEach((el) => gridToTable(el, columnsOf(el, 3)))
+  doc.querySelectorAll(`.${p}su`).forEach((el) => gridToTable(el, 2))
 
   // רצועת העובדות בשער — flex עם gap; בוורד מחברים למשפט אחד
-  doc.querySelectorAll('.bp-cover-facts').forEach((el) => {
+  doc.querySelectorAll(`.${p}cover-facts`).forEach((el) => {
     const parts = Array.from(el.children).map((c) => c.textContent.trim()).filter(Boolean)
     el.textContent = parts.join('  ·  ')
   })
 
   // גלילה אופקית אינה קיימת בנייר
-  doc.querySelectorAll('.bp-scroll').forEach((el) => { el.style.overflow = 'visible' })
+  doc.querySelectorAll(`.${p}scroll`).forEach((el) => { el.style.overflow = 'visible' })
 
   // הצללה לסירוגין. שורות סיכום וכותרות-קבוצה שומרות על הרקע שלהן.
-  doc.querySelectorAll('.bp-table tbody').forEach((tbody) => {
+  doc.querySelectorAll(cfg.zebra).forEach((tbody) => {
     Array.from(tbody.rows).forEach((tr, i) => {
-      if (i % 2 === 0 || tr.classList.contains('bp-total') || tr.classList.contains('bp-group')) return
+      if (i % 2 === 0 || tr.classList.contains(`${p}total`) || tr.classList.contains(`${p}group`)) return
       Array.from(tr.cells).forEach((td) => { td.style.background = ZEBRA_BG })
     })
   })
+
+  // שורות תמונה שמסודרות ב-flex — וורד מרנדר flex כרצף בלוקים, והתמונות היו
+  // נערמות זו מתחת לזו במקום זו לצד זו.
+  for (const sel of cfg.flexRows) {
+    doc.querySelectorAll(sel).forEach((el) => gridToTable(el, el.children.length || 1))
+  }
 }
 
 // ─── הרכבת הקובץ ─────────────────────────────────────────────────────────────
+
+/**
+ * מטמיע את תמונות המסמך בקובץ עצמו. באתר הן מוגשות בנתיב יחסי (‎/bank-plan/…),
+ * ובקובץ שיורד למחשב הנתיב הזה כבר לא מוביל לשום מקום — וורד היה מציג ריבועים
+ * ריקים. אותו פתרון שבו כבר משתמשים התרשימים.
+ */
+async function inlineImages(doc) {
+  const imgs = Array.from(doc.querySelectorAll('img'))
+    .filter((img) => img.src && !img.src.startsWith('data:'))
+  await Promise.all(imgs.map(async (img) => {
+    try {
+      const blob = await (await fetch(img.src)).blob()
+      img.src = await new Promise((resolve, reject) => {
+        const fr = new FileReader()
+        fr.onload = () => resolve(fr.result)
+        fr.onerror = () => reject(new Error(img.src))
+        fr.readAsDataURL(blob)
+      })
+    } catch {
+      // תמונה שלא נטענה נשארת כקישור; עדיף מקובץ שנכשל כולו
+    }
+  }))
+}
 
 function download(html, filename) {
   // BOM — בלעדיו וורד מנחש קידוד ומקבל עברית משובשת
@@ -424,8 +458,45 @@ function download(html, filename) {
  * מייצא את המסמך המוצג כקובץ Word.
  * @param {string} filename שם הקובץ, כולל סיומת
  */
-export async function exportBusinessPlanWord(filename = 'תכנית עסקית.doc') {
-  const source = document.querySelector('.bp-doc')
+/**
+ * הגדרות המסמך המיוצא. ברירת המחדל היא לשונית "תכנית עסקית".
+ * @typedef {object} ExportTarget
+ * @property {string} root      סלקטור שורש המסמך ב-DOM
+ * @property {string} prefix    תחילית מחלקות ה-CSS, כולל המקף
+ * @property {string} secNum    סלקטור מספרי הסעיפים שבכותרות
+ * @property {string[]} remove  אלמנטים שיורדים בייצוא
+ * @property {string[]} flexRows מכלי flex שיומרו לטבלה בת שורה אחת
+ * @property {string} zebra     סלקטור ה-tbody שבהם נצרבת ההצללה לסירוגין
+ */
+const BUSINESS_PLAN = {
+  root: '.bp-doc',
+  prefix: 'bp-',
+  secNum: '.bp-h1 .bp-num, .bp-h2 .bp-num',
+  remove: [],
+  flexRows: [],
+  zebra: '.bp-table tbody',
+}
+
+// לשונית "תכנית עסקית לבנק". השינויים מול המסמך האחר: שורש אחר, מחלקה נפרדת
+// למספר הסעיף, מסגרת עמוד שמצוירת כאלמנט (בוורד היא מגיעה מ-@page), שתי שורות
+// תמונות ב-flex, וטבלה נוספת בסגנון Word שגם בה יש הצללה לסירוגין.
+export const BANK_PLAN = {
+  root: '.bkp-sheet',
+  prefix: 'bkp-',
+  secNum: '.bkp-secnum',
+  remove: ['.bkp-frame'],
+  flexRows: ['.bkp-cover-pics', '.bkp-products'],
+  zebra: '.bkp-table tbody, .bkp-table-accent tbody',
+}
+
+/**
+ * מייצא את המסמך המוצג כקובץ Word.
+ * @param {string} filename שם הקובץ, כולל סיומת
+ * @param {ExportTarget} [target] המסמך לייצוא; ברירת המחדל היא התכנית העסקית
+ */
+export async function exportBusinessPlanWord(filename = 'תכנית עסקית.doc', target = BUSINESS_PLAN) {
+  const cfg = { ...BUSINESS_PLAN, ...target }
+  const source = document.querySelector(cfg.root)
   if (!source) throw new Error('המסמך אינו מוצג')
 
   // ההמרה ל-PNG חייבת לקרוא מה-SVG החי: לשיבוט אין פריסה מחושבת
@@ -433,7 +504,20 @@ export async function exportBusinessPlanWord(filename = 'תכנית עסקית.d
     Array.from(source.querySelectorAll('.recharts-wrapper svg')).map(svgToPng),
   )
 
+  // מידות התמונות נמדדות מהמסמך החי ונצרבות כתכונות width/height. הגודל מגיע
+  // בעיצוב מכללי-צאצא (‎.bkp-products .bkp-prod-a), ואלה מפסיקים להתאים ברגע
+  // שמכל ה-flex מוחלף בטבלה — בלי הצריבה התמונות היו יוצאות בגודלן המקורי.
+  const sizes = Array.from(source.querySelectorAll('img'))
+    .map((img) => img.getBoundingClientRect())
+
   const doc = source.cloneNode(true)
+  doc.querySelectorAll('img').forEach((img, i) => {
+    const r = sizes[i]
+    if (!r?.width) return
+    img.setAttribute('width', Math.round(r.width))
+    img.setAttribute('height', Math.round(r.height))
+  })
+
   doc.querySelectorAll('.recharts-wrapper').forEach((wrapper, i) => {
     const png = charts[i]
     if (!png) { wrapper.remove(); return }
@@ -444,7 +528,8 @@ export async function exportBusinessPlanWord(filename = 'תכנית עסקית.d
     img.height = png.h
     wrapper.replaceWith(img)
   })
-  transformForWord(doc)
+  transformForWord(doc, cfg)
+  await inlineImages(doc)
 
   const title = document.title || 'תכנית עסקית'
   const html = `<html xmlns:o="urn:schemas-microsoft-com:office:office" `
@@ -454,10 +539,10 @@ export async function exportBusinessPlanWord(filename = 'תכנית עסקית.d
     + `<!--[if gte mso 9]><xml><w:WordDocument>`
     + `<w:View>Print</w:View><w:Zoom>100</w:Zoom><w:DoNotOptimizeForBrowser/>`
     + `</w:WordDocument></xml><![endif]-->`
-    + `<style>${collectCss()}\n${WORD_CSS}</style></head>`
-    // ‎.bp-doc הוא article — שורש השיבוט עצמו, ולכן אינו נתפס ע"י ההמרה ל-div
+    + `<style>${collectCss(cfg.prefix)}\n${wordCss(cfg.prefix)}</style></head>`
+    // שורש המסמך הוא article — שורש השיבוט עצמו, ולכן אינו נתפס ע"י ההמרה ל-div
     + `<body dir="rtl"><div class="WordSection1">`
-    + `<div class="bp-doc" dir="rtl">${doc.innerHTML}</div>`
+    + `<div class="${cfg.prefix}doc" dir="rtl">${doc.innerHTML}</div>`
     + `</div></body></html>`
 
   download(html, filename)
