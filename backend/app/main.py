@@ -8,7 +8,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from app.api import building_models, business_plan, cashflow, financials, projects, questions, revenue_check, supplier_balances, supplier_ledger, tasks, tenant_agreements
+from app.api import bank_plan, building_models, business_plan, cashflow, financials, projects, questions, revenue_check, supplier_balances, supplier_ledger, tasks, tenant_agreements
 from app.core.config import settings
 from app.core.db import SessionLocal, init_db
 from app.seed import seed_tasks
@@ -68,12 +68,13 @@ app.include_router(supplier_ledger.router)
 app.include_router(building_models.router)
 app.include_router(revenue_check.router)
 app.include_router(business_plan.router)
+app.include_router(bank_plan.router)
 
 
 # מזהה גרסה — מאפשר לוודא מהדפדפן איזה קוד באמת רץ על השרת. auto-deploy שנכשל
 # בשקט נראה בדיוק כמו קוד שלא השתנה, וזה הוביל לכמה סבבי אבחון מיותרים.
 # לעדכן בכל שינוי שצריך לאמת בפרודקשן.
-APP_VERSION = "2026-08-03-higroup-26"
+APP_VERSION = "2026-08-03-nahshol-match"
 
 
 @app.get("/health")

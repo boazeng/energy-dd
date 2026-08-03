@@ -174,6 +174,19 @@ def _normalize_keep_digits(s: str) -> str:
     return re.sub(r"\s+", " ", s).strip()
 
 
+def _drop_definite_article(s: str) -> str:
+    """מסיר ה' הידיעה מתחילת כל מילה — "הנחשול 12" ו"נחשול 12" הן אותה כתובת.
+
+    קובץ החברה כותב חלק מהרחובות עם ה' הידיעה ואת אותם רחובות בחוזי הבניינים
+    בלעדיה, וההשוואה המילולית מפספסת אותם לגמרי: הבניין נשאר בלי פרויקט משויך
+    ועם current_chargers ישן. מוחל על שני הצדדים, ולכן שמות שמתחילים ב-ה' בשני
+    המקורות (הרצל, הבוסתן, היובל) ממשיכים להתאים זה לזה כרגיל.
+
+    תנאי האורך מונע פגיעה במילים קצרות שה-ה' בהן היא חלק מהשם ולא תחילית.
+    """
+    return " ".join(w[1:] if len(w) > 2 and w.startswith("ה") else w for w in s.split())
+
+
 def _word_match(norm_a: str, norm_b: str) -> bool:
     """התאמת מילים שלמות בין שני מחרוזות מנורמלות.
 
@@ -182,7 +195,8 @@ def _word_match(norm_a: str, norm_b: str) -> bool:
     קשורה (למשל "גבעתיים"). לכן במקום בדיקת substring גולמית, מפרקים
     למילים ובודקים שכל מילות הצד הקצר מופיעות כמילים שלמות בצד הארוך.
     """
-    tokens_a, tokens_b = set(norm_a.split()), set(norm_b.split())
+    tokens_a = {_drop_definite_article(t) for t in norm_a.split()}
+    tokens_b = {_drop_definite_article(t) for t in norm_b.split()}
     if not tokens_a or not tokens_b:
         return False
     return tokens_a <= tokens_b or tokens_b <= tokens_a
@@ -213,6 +227,18 @@ def _match_project(building_name: str, projects: list[dict]) -> dict | None:
 
     for p in projects:
         if exact_street and _normalize_keep_digits(p.get("project", "")) == exact_street:
+            return p
+
+    # אותה כתובת בדיוק, בהבדל של ה' הידיעה בלבד (הנחשול 12 בקובץ / נחשול 12 בחוזה)
+    bare_street = _drop_definite_article(exact_street)
+    if bare_street and exact_city:
+        for p in projects:
+            if (_drop_definite_article(_normalize_keep_digits(p.get("project", ""))) == bare_street
+                    and _normalize_keep_digits(p.get("city", "")) == exact_city):
+                return p
+
+    for p in projects:
+        if bare_street and _drop_definite_article(_normalize_keep_digits(p.get("project", ""))) == bare_street:
             return p
 
     norm_street = _normalize(street_part)
