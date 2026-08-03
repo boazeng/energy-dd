@@ -74,7 +74,7 @@ app.include_router(bank_plan.router)
 # מזהה גרסה — מאפשר לוודא מהדפדפן איזה קוד באמת רץ על השרת. auto-deploy שנכשל
 # בשקט נראה בדיוק כמו קוד שלא השתנה, וזה הוביל לכמה סבבי אבחון מיותרים.
 # לעדכן בכל שינוי שצריך לאמת בפרודקשן.
-APP_VERSION = "2026-08-03-nahshol-match"
+APP_VERSION = "2026-08-03-zero-is-a-value"
 
 
 @app.get("/health")

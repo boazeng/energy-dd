@@ -348,10 +348,17 @@ def sync_projects_data(db: Session, projects_path: str) -> int:
                 claimed.add(key)
         if proj is None:
             continue
-        chargers_installed = proj.get("chargers_installed") or 0
+        chargers_installed = proj.get("chargers_installed")
         park_total = proj.get("park_total") or 0
         no_rcd = _count_no_rcd(all_chargers, proj.get("project", ""))
-        bm.current_chargers = int(chargers_installed) if chargers_installed else bm.current_chargers
+        # 0 הוא ערך אמיתי ("אין מטענים מותקנים") ולא "אין מידע". בדיקת truthiness
+        # השאירה במקרה הזה את הערך הישן ב-DB במקום לאפס — כך הרצל 46+48 נשאר 1
+        # בעוד שבקובץ החברה הוא 0. `is not None` מבדיל בין 0 לבין שדה חסר, וכך
+        # גם שורות שבהן התא באקסל ריק (התא הממוזג של HI GROUP) עדיין מדולגות.
+        if chargers_installed is not None:
+            bm.current_chargers = int(chargers_installed)
+        # potential_spots נשאר בבדיקת truthiness במכוון: park_total=0 בקובץ מציין
+        # לרוב "לא נמדד" ולא "אין חניות", ואיפוסו היה מבטל את הגידול בתחזית.
         bm.potential_spots = int(park_total) if park_total else bm.potential_spots
         bm.chargers_no_rcd = no_rcd
         updated += 1
