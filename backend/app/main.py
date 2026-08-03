@@ -73,7 +73,7 @@ app.include_router(business_plan.router)
 # מזהה גרסה — מאפשר לוודא מהדפדפן איזה קוד באמת רץ על השרת. auto-deploy שנכשל
 # בשקט נראה בדיוק כמו קוד שלא השתנה, וזה הוביל לכמה סבבי אבחון מיותרים.
 # לעדכן בכל שינוי שצריך לאמת בפרודקשן.
-APP_VERSION = "2026-08-03-project-claim-guard"
+APP_VERSION = "2026-08-03-higroup-26"
 
 
 @app.get("/health")

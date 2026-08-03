@@ -321,20 +321,23 @@ def apply_manual_building_corrections(engine: Engine) -> None:
     (טעות אמיתית במקור), במקום 77 הנכון מ-tenants_data.json.
     """
     with engine.connect() as conn:
-        # עדכן current_chargers לבניינים שנוצרו מהפיצול ונשארו עם 0 (מ-tenants_data.json).
+        # קבוצת HI GROUP (אשקלון) — 26 מטענים מותקנים **לכל הקבוצה יחד**, וכולם
+        # רשומים על גבע 2. projects.json מפצל אותם בטעות בין כתובות הקבוצה
+        # (13 לבן גוריון 7 וכו'), ולכן סנכרון ישיר ממנו סופר את אותם 26 מטענים
+        # פעמיים ומנפח את סה"כ התזרים.
         #
-        # בן גוריון 7: תיקון ידני קודם אפס אותו ל-0 וכתב את זה ל-DB לצמיתות.
-        # `sync_projects_data` דורס רק ערכים שאינם אפס (`if chargers_installed else ...`),
-        # ולכן הסרת בלוק האיפוס לבדה לא מחזירה את הערך — צריך השמה חיובית מפורשת.
-        # 13 הוא הערך שממנו נגזר סה"כ 257 המטענים בדף סטטוס פרויקטים.
-        # התנאי `current_chargers = 0` שומר על אי-דריסה: ברגע ש-projects.json ידווח
-        # ערך אמיתי (למשל אחרי התקנה בפועל), הסנכרון יקבע אותו והתיקון כאן לא יפעל.
+        # ההשמה כאן מכוונת (בלי `AND current_chargers = 0`) ולא מותנית: `sync_projects_data`
+        # רץ לפני הפונקציה הזו ומחזיר את הפיצול השגוי בכל עליית שרת, אז תנאי
+        # "רק אם ריק" לא היה תופס. אם יותקנו בעתיד מטענים אמיתיים בכתובות
+        # האחרות — צריך לעדכן את המספרים כאן, לא לסמוך על הסנכרון.
         for _bname, _cur in [
             ("גבע 2, אשקלון",        26),
-            ("בן גוריון 7, אשקלון",  13),
+            ("בן גוריון 7, אשקלון",   0),
+            ("בן גוריון 9, אשקלון",   0),
+            ("אשתאול 1, אשקלון",      0),
         ]:
             conn.execute(
-                text("UPDATE building_models SET current_chargers = :c WHERE building_name = :n AND current_chargers = 0"),
+                text("UPDATE building_models SET current_chargers = :c WHERE building_name = :n"),
                 {"c": _cur, "n": _bname},
             )
         # עדכן potential_spots לבניינים אשקלון (מ-tenants_data.json — כמות דיירים)

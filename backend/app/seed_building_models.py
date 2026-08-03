@@ -275,6 +275,35 @@ def sync_projects_data(db: Session, projects_path: str) -> int:
     by_key = {p.get("project"): p for p in projects if p.get("project")}
 
     models = list(db.scalars(select(BuildingModel)))
+
+    # ניקוי שיוך כפול: שני בניינים נעולים לאותו external_project_key = אותם
+    # מטענים נספרים פעמיים בסה"כ התזרים. זה קורה כשבניין נוצר מחדש ורץ בהתאמה
+    # מטושטשת לפני שהוגדרה בדיקת התפיסה — הנעילה שנוצרה אז עוקפת את הבדיקה
+    # בריצות הבאות, ולכן חייבים לנקות אותה כאן ולא רק למנוע תפיסה חדשה.
+    # מי נשאר: הבניין ששם הרחוב שלו זהה למפתח הפרויקט; אם אין כזה — הראשון.
+    by_project_key: dict[str, list[BuildingModel]] = {}
+    for bm in models:
+        if bm.external_project_key:
+            by_project_key.setdefault(bm.external_project_key, []).append(bm)
+    for _key, owners in by_project_key.items():
+        if len(owners) < 2:
+            continue
+        norm_key = _normalize_keep_digits(_key)
+        best = next(
+            (b for b in owners
+             if _normalize_keep_digits(b.building_name.split(",")[0]) == norm_key),
+            owners[0],
+        )
+        for bm in owners:
+            if bm is best:
+                continue
+            logger.warning(
+                "sync_projects_data: הפרויקט '%s' היה משויך גם ל-'%s' — מנותק לטובת '%s'",
+                _key, bm.building_name, best.building_name,
+            )
+            bm.external_project_key = None
+            bm.current_chargers = 0
+
     claimed = {bm.external_project_key for bm in models if bm.external_project_key}
     updated = 0
     for bm in models:
