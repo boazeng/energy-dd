@@ -1,4 +1,5 @@
 """רישום כל המודלים תחת Base."""
+from app.models.bank_plan import BankPlanText
 from app.models.building_model import BuildingModel
 from app.models.business_plan import BusinessPlanSection, BusinessPlanSetting
 from app.models.cashflow import CashflowItem, CashflowLoan, CashflowSetting
@@ -14,4 +15,5 @@ __all__ = [
     "SupplierBalance", "SupplierLedgerRow", "BuildingModel",
     "Question",
     "BusinessPlanSection", "BusinessPlanSetting",
+    "BankPlanText",
 ]

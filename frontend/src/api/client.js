@@ -111,6 +111,13 @@ export const api = {
   },
   updateBusinessPlanSettings: (data) =>
     request('/api/business-plan/settings', { method: 'PUT', body: JSON.stringify(data) }),
+
+  // תכנית עסקית לבנק — רק הבלוקים שנערכו; גוף ריק מחזיר לנוסח שבקובץ
+  getBankPlanTexts: () => request('/api/bank-plan/texts'),
+  saveBankPlanText: (key, body) =>
+    request(`/api/bank-plan/texts/${encodeURIComponent(key)}`, {
+      method: 'PUT', body: JSON.stringify({ body }),
+    }),
   // אימות והרשאות (shared-auth) — לא תחת /api/
   getAuthMe: () => request('/auth/me'),
   listUsers: () => request('/auth/users'),

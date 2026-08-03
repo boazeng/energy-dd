@@ -272,6 +272,43 @@
 
 .bkp-doc-foot { margin-top: 25.5pt; }
 
+/* ─── עריכת מלל (מסך בלבד) ─── */
+.bkp-edit {
+  border: 1px dashed var(--bkp-navy);
+  border-radius: 8px;
+  padding: 10px 12px;
+  margin: 10px 0 16px;
+  background: rgba(31, 58, 95, 0.04);
+}
+.bkp-edit-head { display: flex; align-items: center; gap: 9px; margin-bottom: 7px; }
+.bkp-edit-id {
+  font: 600 11px/1 ui-monospace, monospace;
+  color: var(--bkp-navy);
+  background: #fff;
+  border: 1px solid var(--bkp-rule);
+  border-radius: 4px;
+  padding: 3px 6px;
+}
+.bkp-edit-flag {
+  font-size: 11px; font-weight: 700; color: #fff;
+  background: var(--bkp-rust); border-radius: 4px; padding: 3px 7px;
+}
+.bkp-edit-hint { font-size: 11px; color: var(--bkp-taupe); }
+.bkp-edit-body {
+  width: 100%;
+  font-family: 'David', 'David Libre', 'Times New Roman', serif;
+  font-size: 13pt;
+  line-height: 1.45;
+  direction: rtl;
+  padding: 8px 10px;
+  border: 1px solid var(--bkp-rule);
+  border-radius: 6px;
+  background: #fff;
+  resize: vertical;
+}
+.bkp-edit-actions { display: flex; align-items: center; gap: 10px; margin-top: 8px; }
+.bkp-edit-actions .tact-btn:disabled { opacity: .45; cursor: default; }
+
 /* ═══ הדפסה ═══════════════════════════════════════════════════════════════ */
 
 @media print {
