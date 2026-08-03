@@ -1,4 +1,5 @@
-"""Seed building models from the 19 signed contracts — runs once if table is empty.
+"""Seed building models from the signed contracts — any seed missing from the table is
+   (re)created on startup, so a building deleted by hand or by a migration comes back.
    sync_projects_data runs on every startup to refresh current_chargers + potential_spots.
 """
 import json
@@ -610,7 +611,7 @@ def sync_missing_agreement_buildings(db: Session, projects_path: str) -> int:
             cost_elec_panel=6000,
             cost_comm_panel=1000,
             chargers_per_panel=10,
-            start_year=2026,
+            start_year=2027,
             forecast_years=5,
             contract_duration_years=5,
             charger_install_income=2000.0,
@@ -714,7 +715,7 @@ def sync_tenants_data_sites(db: Session) -> int:
             cost_elec_panel=6000,
             cost_comm_panel=1000,
             chargers_per_panel=10,
-            start_year=2026,
+            start_year=2027,
             forecast_years=5,
             contract_duration_years=5,
             charger_install_income=2000.0,
@@ -768,7 +769,7 @@ def seed_building_models(db: Session) -> int:
             cost_elec_panel=6000,
             cost_comm_panel=1000,
             chargers_per_panel=10,
-            start_year=2026,
+            start_year=2027,
             forecast_years=5,
         ))
     if seeded_names:
