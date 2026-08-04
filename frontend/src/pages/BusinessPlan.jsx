@@ -1190,7 +1190,13 @@ function PlanSettingsEditor({ settings, onSaved }) {
       rest.acquisition_cost = parseFloat(rest.acquisition_cost) || 0
       rest.one_time_costs = costs
         .filter((c) => (c.name || '').trim() || Number(c.amount) > 0)
-        .map((c) => ({ name: (c.name || '').trim(), amount: Number(c.amount) || 0 }))
+        // note אינו נערך כאן אבל חייב לשרוד שמירה — הוא ההסבר שמוצג בטבלת
+        // הנחות העבודה, ובנייה מחדש של האובייקט הייתה מוחקת אותו.
+        .map((c) => ({
+          name: (c.name || '').trim(),
+          amount: Number(c.amount) || 0,
+          ...(c.note ? { note: c.note } : {}),
+        }))
       await api.updateBusinessPlanSettings(rest)
       onSaved()
     } finally {

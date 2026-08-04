@@ -372,3 +372,31 @@ def shift_forecast_start_to_2027(engine: Engine) -> None:
             text("UPDATE cashflow_loan SET start_month = '2027-01' WHERE start_month LIKE '2026-%'")
         )
         conn.commit()
+
+
+# העברת סעיפים בתכנית הבנק משנה את מספרם, והמספר הוא מפתח הטקסט הערוך
+# (`bank_plan_texts.key`, נקבע ב-BankPlan.jsx). בלי מיפוי, נוסח שנערך באתר היה
+# נשאר תלוי במספר הישן והסעיף במיקומו החדש היה חוזר לנוסח שבקוד.
+_BANK_PLAN_KEY_MOVES = [
+    ("1.4", "1.6"),   # יתרונות הרכישה — נדחק אחרי הרווחיות והרגישות
+    ("7.7", "1.5"),   # ניתוח רגישות — הועבר לפרק התמצית
+    ("7.6", "7.5"),   # יכולת החזר — עלה למקום שהתפנה בפרק התחזית
+]
+
+
+def migrate_bank_plan_text_keys(engine: Engine) -> None:
+    """ממפה מפתחות טקסט של תכנית הבנק אחרי שינוי מספור הסעיפים.
+
+    מריצים רק כשהמקור קיים והיעד פנוי, ולכן ההרצה אידמפוטנטית: אחרי המעבר
+    הראשון המקור כבר אינו קיים והפעולה הופכת ל-no-op. סעיף שלא נערך באתר כלל
+    אינו קיים בטבלה, ואז אין מה למפות.
+    """
+    with engine.connect() as conn:
+        if not list(conn.execute(text("PRAGMA table_info(bank_plan_texts)"))):
+            return  # הטבלה טרם נוצרה — create_all יטפל בה
+        for old, new in _BANK_PLAN_KEY_MOVES:
+            conn.execute(text(
+                "UPDATE bank_plan_texts SET key = :new WHERE key = :old"
+                " AND NOT EXISTS (SELECT 1 FROM bank_plan_texts b WHERE b.key = :new)"
+            ), {"old": old, "new": new})
+        conn.commit()

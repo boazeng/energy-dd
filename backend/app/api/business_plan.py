@@ -527,8 +527,10 @@ def get_plan_data(
         AssumptionRow(group=G6, label="עלות הרכישה", value=_money(acquisition.cost),
                       note=f"{acquisition.buildings} אתרים · {_money(acquisition.cost_per_building)} לאתר"),
     ] + [
+        # הסבר ייעודי לפריט גובר על הנוסח הגנרי — הפיצול של עלויות ההתאמה
+        # נושא הסבר משלו לכל מרכיב.
         AssumptionRow(group=G6, label=c["name"] or "עלות חד-פעמית", value=_money(c["amount"]),
-                      note=f"חד-פעמי, נזקף בשנת {first_year}")
+                      note=c.get("note") or f"חד-פעמי, נזקף בשנת {first_year}")
         for c in acquisition.one_time_costs
     ] + [
         AssumptionRow(group=G6, label="אשראי מבוקש", value=_money(loan.amount),

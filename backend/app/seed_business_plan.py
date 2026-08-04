@@ -21,8 +21,20 @@ TARGET = 'ש.א.ר מוביליטי בע"מ'                   # חברת המט
 _PREVIOUS_APPLICANTS = ("", 'ש.א.ר מוביליטי בע"מ', "אנרגיה ירוקה")
 
 # שימושים חד-פעמיים מעבר לעלות הרכישה, הנזקפים בשנה הראשונה של התחזית.
-# האשראי המבוקש (3M) = רכישה (2.2M) + התאמת המטענים הקיימים (800K).
+# האשראי המבוקש (3M) = רכישה (2.2M) + עלויות ההתאמה (800K).
 DEFAULT_ONE_TIME_COSTS = [
+    {"name": "התאמת תשתיות קיימות", "amount": 250_000,
+     "note": "התשתיות הקיימות אינן עומדות בסטנדרטים הנדרשים ולכן נדרשות התאמות"},
+    {"name": "שילוב המטענים במערכת ניהול שלנו", "amount": 200_000,
+     "note": "העברת כלל הלקוחות למערכת הניהול שלנו "
+             "(במקביל יש הפחתה של דמי שימוש של החברה הנרכשת)"},
+    {"name": "רכש מטעני DC", "amount": 350_000,
+     "note": "פיתוח מרכז מסחרי באשדוד במטעני DC מהירים"},
+]
+
+# הנוסח הקודם — פריט אחד מרוכז. משמש לזיהוי הגדרה שלא נערכה באתר, כדי להחליפה
+# בפיצול המפורט בלי לדרוס רשימה שהמשתמשת בנתה בעצמה.
+_UNSPLIT_ONE_TIME_COSTS = [
     {"name": "התאמת מטענים קיימים", "amount": 800_000},
 ]
 
@@ -415,6 +427,20 @@ def _refresh_unedited(db: Session) -> int:
     return changed
 
 
+def _same_costs(stored: list[dict] | None, expected: list[dict]) -> bool:
+    """משווה רשימת עלויות חד-פעמיות לפי שם וסכום בלבד.
+
+    השוואה ישירה של הדיקטים הייתה נכשלת על מפתחות נוספים (`note`) ועל 800000
+    מול 800000.0 אחרי מסע הלוך-ושוב ב-JSON.
+    """
+    if not stored or len(stored) != len(expected):
+        return False
+    return all(
+        (a.get("name"), float(a.get("amount") or 0)) == (b["name"], float(b["amount"]))
+        for a, b in zip(stored, expected)
+    )
+
+
 def _fix_parties(db: Session) -> int:
     """מתקן זהות הצדדים בעסקה — רק אם טרם נערכה ידנית.
 
@@ -427,6 +453,11 @@ def _fix_parties(db: Session) -> int:
     changed = 0
     # NULL = טרם הוגדר. רשימה ריקה היא בחירה מפורשת ואינה נדרסת.
     if s.one_time_costs is None:
+        s.one_time_costs = list(DEFAULT_ONE_TIME_COSTS)
+        changed = 1
+    # פיצול פריט ההתאמה המרוכז (800K) לשלושת מרכיביו — רק אם הרשימה עדיין זהה
+    # לנוסח שנזרע. רשימה שנערכה באתר מזוהה לפי אי-התאמה ואינה נדרסת.
+    elif _same_costs(s.one_time_costs, _UNSPLIT_ONE_TIME_COSTS):
         s.one_time_costs = list(DEFAULT_ONE_TIME_COSTS)
         changed = 1
     # שם המגיש מתעדכן כל עוד הוא אחד הערכים שנזרעו בעבר; שם שהוקלד באתר

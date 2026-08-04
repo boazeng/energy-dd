@@ -193,7 +193,7 @@ function BuildingsTable({ d }) {
   const rows = d.overview.buildings
   return (
     <figure className="bkp-figure">
-      <Caption kind="table" n={2}>פריסת האתרים של החברה הנרכשת</Caption>
+      <Caption kind="table" n={3}>פריסת האתרים של החברה הנרכשת</Caption>
       <table className="bkp-table">
         <thead>
           <tr>
@@ -246,7 +246,7 @@ function AgreementsProfile({ d }) {
   const thisYear = new Date().getFullYear()
   return (
     <figure className="bkp-figure">
-      <Caption kind="table" n={3}>פרופיל ההתקשרויות</Caption>
+      <Caption kind="table" n={4}>פרופיל ההתקשרויות</Caption>
       <div className="bkp-kpis" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
         {[
           [nf.format(d.overview.agreements_count), 'הסכמים חתומים'],
@@ -293,7 +293,7 @@ function AgreementsProfile({ d }) {
 function AgreementsTable({ d }) {
   return (
     <figure className="bkp-figure">
-      <Caption kind="table" n={4}>מכלול ההסכמים החתומים</Caption>
+      <Caption kind="table" n={5}>מכלול ההסכמים החתומים</Caption>
       <table className="bkp-table">
         <thead>
           <tr>
@@ -329,7 +329,7 @@ function SiteEconomicsTable({ d }) {
   const sum = (k) => rows.reduce((s, r) => s + r[k], 0)
   return (
     <figure className="bkp-figure">
-      <Caption kind="table" n={5}>תנאים כלכליים ופוטנציאל לפי אתר</Caption>
+      <Caption kind="table" n={6}>תנאים כלכליים ופוטנציאל לפי אתר</Caption>
       <table className="bkp-table bkp-table-tight">
         <thead>
           <tr>
@@ -383,7 +383,7 @@ function TodayKpis({ d }) {
   const t = d.today
   return (
     <figure className="bkp-figure">
-      <Caption kind="table" n={6}>תמונת מצב נוכחית</Caption>
+      <Caption kind="table" n={7}>תמונת מצב נוכחית</Caption>
       <Kpis items={[
         { label: 'מטענים מותקנים', value: nf.format(o.current_chargers), note: `ב-${o.buildings_count} אתרים` },
         { label: 'חניות פוטנציאליות', value: nf.format(o.potential_spots), note: `מומשו ${o.penetration_pct}%` },
@@ -406,7 +406,7 @@ function AssumptionsTable({ d }) {
   }
   return (
     <figure className="bkp-figure">
-      <Caption kind="table" n={7}>הנחות העבודה</Caption>
+      <Caption kind="table" n={8}>הנחות העבודה</Caption>
       <table className="bkp-table">
         <thead>
           <tr><th className="bkp-rowlabel">פרמטר</th><th>ערך</th><th>הערה</th></tr>
@@ -447,7 +447,7 @@ function SummaryFinancials({ d }) {
   ]
   return (
     <figure className="bkp-figure">
-      <Caption kind="table" n={8}>תמצית נתונים פיננסיים</Caption>
+      <Caption kind="table" n={9}>תמצית נתונים פיננסיים</Caption>
       <table className="bkp-table">
         <thead>
           <tr><th className="bkp-rowlabel">סעיף</th>{f.map((r) => <th key={r.year}>{r.year}</th>)}</tr>
@@ -472,7 +472,7 @@ function CumulativeCashflow({ d }) {
   return (
     <>
       <figure className="bkp-figure">
-        <Caption kind="table" n={9}>יתרת מזומנים מצטברת</Caption>
+        <Caption kind="table" n={10}>יתרת מזומנים מצטברת</Caption>
         <table className="bkp-table">
           <thead>
             <tr><th className="bkp-rowlabel">סעיף</th>{d.forecast.map((r) => <th key={r.year}>{r.year}</th>)}</tr>
@@ -495,7 +495,7 @@ function CumulativeCashflow({ d }) {
       </figure>
 
       <figure className="bkp-figure">
-        <Caption kind="chart" n={1}>התפתחות יתרת המזומנים המצטברת</Caption>
+        <Caption kind="chart" n={2}>התפתחות יתרת המזומנים המצטברת</Caption>
         <LineChart width={DOC_W} height={CHART_H} data={data} margin={{ top: 12, right: 8, left: 30, bottom: 4 }}>
           <CartesianGrid stroke={GRID} vertical={false} />
           <XAxis dataKey="year" tick={{ fill: AXIS, fontSize: 12 }} axisLine={{ stroke: GRID }} tickLine={false} />
@@ -518,7 +518,7 @@ function ForecastTable({ d }) {
   const T = d.totals
   return (
     <figure className="bkp-figure">
-      <Caption kind="table" n={10}>תחזית שנתית מפורטת (בש&quot;ח)</Caption>
+      <Caption kind="table" n={11}>תחזית שנתית מפורטת (בש&quot;ח)</Caption>
       <table className="bkp-table bkp-table-tight">
         <thead>
           <tr>
@@ -575,7 +575,7 @@ function ProfitChart({ d }) {
   if (!data.length) return null
   return (
     <figure className="bkp-figure">
-      <Caption kind="chart" n={2}>תזרים נטו על פני השנים</Caption>
+      <Caption kind="chart" n={1}>תזרים נטו על פני השנים</Caption>
       <BarChart width={DOC_W} height={CHART_H} data={data} margin={{ top: 24, right: 8, left: 30, bottom: 4 }}>
         <CartesianGrid stroke={GRID} vertical={false} />
         <XAxis dataKey="year" tick={{ fill: AXIS, fontSize: 12 }} axisLine={{ stroke: GRID }} tickLine={false} />
@@ -598,7 +598,7 @@ function DscrTable({ d }) {
   const L = d.loan
   return (
     <figure className="bkp-figure">
-      <Caption kind="table" n={11}>יחסי כיסוי חוב</Caption>
+      <Caption kind="table" n={12}>יחסי כיסוי חוב</Caption>
       <div className="bkp-kpis" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
         {[
           [ils(L.amount), 'סכום ההלוואה', `${L.years} שנים`],
@@ -643,7 +643,7 @@ function DscrTable({ d }) {
 function SensitivityTable({ d }) {
   return (
     <figure className="bkp-figure">
-      <Caption kind="table" n={12}>רגישות התוצאות לקצב החדירה</Caption>
+      <Caption kind="table" n={2}>רגישות התוצאות לקצב החדירה</Caption>
       <table className="bkp-table">
         <thead>
           <tr>
@@ -703,7 +703,10 @@ const TEXTS = {
 
   '1.3': `להלן תמצית התחזית לתקופת ההלוואה. הנתונים נגזרים מהתנאים החוזיים של האתרים הנרכשים ומהנחות העבודה המפורטות בפרק תחזית הגידול (הנתונים הכספיים אינם כוללים את הפעילות הכוללת אשך חברת האנרגיה אלא רק את הבניינים הרלוונטיים לחברה הנרכשת):`,
 
-  '1.4': `- הפעילות הנרכשת מייצרת הכנסה חוזרת כבר במועד ההשלמה, ואינה תלויה בתקופת הרצה;
+  // 1.4 (רווחיות לאורך התקופה) הוא תרשים ללא פסקה מלווה.
+  '1.5': `להלן בחינת השפעתו של קצב חדירה איטי או מהיר מהמתוכנן על תוצאות התקופה. מבנה ההוצאות הגמיש והיכולת לדחות השקעות תשתית מאפשרים לחברה להתאים את קצב ההתרחבות לתזרים בפועל:`,
+
+  '1.6': `- הפעילות הנרכשת מייצרת הכנסה חוזרת כבר במועד ההשלמה, ואינה תלויה בתקופת הרצה;
 - ההכנסה מעוגנת בהסכמים ארוכי טווח מול ועדי בתים, ומפוזרת בין אתרים וערים רבים;
 - מקור ההשבחה אינו הרחבה לאתרים חדשים אלא מימוש הפוטנציאל החוזי הקיים באותם אתרים;
 - הפעילות נקלטת לתוך חברה פעילה ואינה מוסיפה עלויות תקורה — מלוא ההכנסה מצטרפת לתזרים;
@@ -799,9 +802,8 @@ const TEXTS = {
 
   '7.4': `קצב הגידול נגזר משיעור חדירה שנתי מתוך החניות הפוטנציאליות בכל אתר, ומוגבל לפוטנציאל שנותר בו. השנה הראשונה משקפת את המצב הקיים ואינה כוללת השקעה בעמדות חדשות. כל הסכומים מנוטרלי מע"מ:`,
 
-  '7.6': `יחס כיסוי החוב (DSCR) מחושב כתזרים הפנוי לשירות החוב — הכנסות בניכוי הוצאות תפעול, תחזוקה והשקעה — חלקי ההחזר השנתי. יחס העולה על 1 מעיד על יכולת החזר מהפעילות השוטפת:`,
-
-  '7.7': `להלן בחינת השפעתו של קצב חדירה איטי או מהיר מהמתוכנן על תוצאות התקופה. מבנה ההוצאות הגמיש והיכולת לדחות השקעות תשתית מאפשרים לחברה להתאים את קצב ההתרחבות לתזרים בפועל:`,
+  // ניתוח הרגישות עבר לסעיף 1.5; מה שנשאר כאן הוא יחסי כיסוי החוב, שעלו ל-7.5.
+  '7.5': `יחס כיסוי החוב (DSCR) מחושב כתזרים הפנוי לשירות החוב — הכנסות בניכוי הוצאות תפעול, תחזוקה והשקעה — חלקי ההחזר השנתי. יחס העולה על 1 מעיד על יכולת החזר מהפעילות השוטפת:`,
 
   '8': `העסקה היא רכישת פעילות מניבה בשוק בצמיחה, המאופיין בביקוש מבני ברור לפתרונות טעינה בבנייני מגורים. הפעילות הנרכשת מגובה בהסכמים ארוכי טווח, מפוזרת על פני אתרים וערים רבים, ומייצרת הכנסה חוזרת כבר במועד ההשלמה.
 
@@ -911,7 +913,9 @@ const TOC = [
   ['1.1', 'רקע כללי ותיאור החברה', 2],
   ['1.2', 'בקשת האשראי', 2],
   ['1.3', 'תמצית התחזית הכספית', 2],
-  ['1.4', 'יתרונות הרכישה', 2],
+  ['1.4', 'רווחיות לאורך התקופה', 2],
+  ['1.5', 'ניתוח רגישות', 2],
+  ['1.6', 'יתרונות הרכישה', 2],
   ['2.', 'החברה הנרכשת — פעילות ונכסים', 1],
   ['2.1', 'תחום הפעילות והערך המוסף', 2],
   ['2.2', 'המוצרים והשירותים', 2],
@@ -933,9 +937,7 @@ const TOC = [
   ['7.2', 'תמצית נתונים פיננסיים', 2],
   ['7.3', 'תזרים מזומנים מצטבר', 2],
   ['7.4', 'תחזית שנתית', 2],
-  ['7.5', 'רווחיות לאורך התקופה', 2],
-  ['7.6', 'יכולת החזר ויחסי כיסוי חוב', 2],
-  ['7.7', 'ניתוח רגישות', 2],
+  ['7.5', 'יכולת החזר ויחסי כיסוי חוב', 2],
   ['8.', 'סיכום ומסקנות', 1],
   ['8.1', 'הבהרות', 2],
 ]
@@ -1119,8 +1121,17 @@ export default function BankPlan({ agreementVersion, horizonMode = '5' }) {
           <P id="1.3" />
           <SummaryCompact d={d} />
 
-          <H2 n="1.4">יתרונות הרכישה</H2>
-          <P id="1.4" />
+          {/* הרווחיות והרגישות הועברו לכאן מפרק התחזית — הבנק מבקש לראות את
+              התוצאה ואת עמידותה לשינוי בקצב כבר בתמצית, לפני הפירוט. */}
+          <H2 n="1.4">רווחיות לאורך התקופה</H2>
+          <ProfitChart d={d} />
+
+          <H2 n="1.5">ניתוח רגישות</H2>
+          <P id="1.5" />
+          <SensitivityTable d={d} />
+
+          <H2 n="1.6">יתרונות הרכישה</H2>
+          <P id="1.6" />
 
           <P id="signoff" className="bkp-signoff" />
         </section>
@@ -1215,16 +1226,9 @@ export default function BankPlan({ agreementVersion, horizonMode = '5' }) {
           <P id="7.4" />
           <ForecastTable d={d} />
 
-          <H2 n="7.5">רווחיות לאורך התקופה</H2>
-          <ProfitChart d={d} />
-
-          <H2 n="7.6">יכולת החזר ויחסי כיסוי חוב</H2>
-          <P id="7.6" />
+          <H2 n="7.5">יכולת החזר ויחסי כיסוי חוב</H2>
+          <P id="7.5" />
           <DscrTable d={d} />
-
-          <H2 n="7.7">ניתוח רגישות</H2>
-          <P id="7.7" />
-          <SensitivityTable d={d} />
         </section>
 
         {/* ═══ 8 סיכום ומסקנות ═══ */}

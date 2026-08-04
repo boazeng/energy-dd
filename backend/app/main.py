@@ -16,7 +16,7 @@ from app.seed_business_plan import seed_business_plan
 from app.seed_cashflow import seed_cashflow
 from app.seed_contracts import seed_contracts
 from app.seed_supplier_balances import seed_supplier_balances
-from app.migrations import apply_manual_building_corrections, migrate_building_models, migrate_business_plan, shift_forecast_start_to_2027
+from app.migrations import apply_manual_building_corrections, migrate_bank_plan_text_keys, migrate_building_models, migrate_business_plan, shift_forecast_start_to_2027
 from app.seed_building_models import backfill_building_links, seed_building_models, sync_contract_dates, sync_install_income, sync_projects_data
 from app.seed_supplier_ledger import seed_supplier_ledger
 
@@ -32,6 +32,7 @@ async def lifespan(_: FastAPI):
     from app.core.db import engine
     migrate_building_models(engine)
     migrate_business_plan(engine)
+    migrate_bank_plan_text_keys(engine)
     with SessionLocal() as db:
         seed_tasks(db)
         seed_business_plan(db)
@@ -77,7 +78,7 @@ app.include_router(bank_plan.router)
 # מזהה גרסה — מאפשר לוודא מהדפדפן איזה קוד באמת רץ על השרת. auto-deploy שנכשל
 # בשקט נראה בדיוק כמו קוד שלא השתנה, וזה הוביל לכמה סבבי אבחון מיותרים.
 # לעדכן בכל שינוי שצריך לאמת בפרודקשן.
-APP_VERSION = "2026-08-04-sensitivity-15-25"
+APP_VERSION = "2026-08-04-bank-plan-restructure"
 
 
 @app.get("/health")
