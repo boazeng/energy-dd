@@ -543,11 +543,11 @@ def get_plan_data(
     # ── רגישות — קצב חדירה איטי/מהיר מהמתוכנן ─────────────────────────────
     sensitivity: list[SensitivityRow] = []
     for label, factor in [
-        ("איטי ב-50%", 0.5),
         ("איטי ב-25%", 0.75),
+        ("איטי ב-15%", 0.85),
         ("תרחיש הבסיס", 1.0),
+        ("מהיר ב-15%", 1.15),
         ("מהיר ב-25%", 1.25),
-        ("מהיר ב-50%", 1.5),
     ]:
         scen = _aggregate(buildings, override, growth_factor=factor)
         cum = today.opening_balance
