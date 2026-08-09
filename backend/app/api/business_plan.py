@@ -43,6 +43,9 @@ from app.schemas.business_plan import (
 
 router = APIRouter(prefix="/api/business-plan", tags=["business-plan"])
 
+# מס חברות בישראל. מחושב על התזרים הנטו ורק בשנים שבהן הוא חיובי.
+CORPORATE_TAX_RATE = 0.23
+
 
 # ─── תוכן ערוך ────────────────────────────────────────────────────────────────
 
@@ -355,6 +358,10 @@ def get_plan_data(
         )
         repayment = round(annual_payment, 2) if loan_start <= year <= loan_end else 0.0
         net = profit_before_loan - repayment
+        # מס חברות רק בשנים שבהן התזרים הנטו חיובי. בשנת הפסד אין חבות מס,
+        # וההפסד אינו מקוזז קדימה — הצגה שמרנית שאינה מקטינה את המס בהמשך.
+        tax = round(net * CORPORATE_TAX_RATE, 2) if net > 0 else 0.0
+        # היתרה המצטברת נשארת לפני מס, כמו התרשימים וניתוח הרגישות שנגזרים ממנה.
         cumulative += net
         forecast.append(ForecastYearRow(
             year=year,
@@ -369,6 +376,8 @@ def get_plan_data(
             profit_before_loan=round(profit_before_loan, 2),
             loan_repayment=repayment,
             net_profit=round(net, 2),
+            corporate_tax=tax,
+            net_after_tax=round(net - tax, 2),
             cumulative=round(cumulative, 2),
             dscr=round(profit_before_loan / repayment, 2) if repayment > 0 else None,
         ))
@@ -382,6 +391,8 @@ def get_plan_data(
         "profit_before_loan": round(sum(f.profit_before_loan for f in forecast), 2),
         "loan_repayment": round(sum(f.loan_repayment for f in forecast), 2),
         "net_profit": round(sum(f.net_profit for f in forecast), 2),
+        "corporate_tax": round(sum(f.corporate_tax for f in forecast), 2),
+        "net_after_tax": round(sum(f.net_after_tax for f in forecast), 2),
         "chargers_added": sum(f.chargers_added for f in forecast),
         "chargers_end": forecast[-1].total_chargers if forecast else total_current,
         "final_cumulative": forecast[-1].cumulative if forecast else today.opening_balance,
@@ -538,6 +549,10 @@ def get_plan_data(
         AssumptionRow(group=G6, label="יתרת מזומנים לתחילת התקופה", value=_money(today.opening_balance),
                       note=today.opening_balance_date or "לפי לשונית תזרים"),
         AssumptionRow(group=G6, label='מע"מ', value="מנוטרל", note="כל הסכומים בתכנית אינם כוללים מע\"מ"),
+        AssumptionRow(
+            group=G6, label="מס חברות", value=f"{CORPORATE_TAX_RATE * 100:.0f}%",
+            note="מחושב על התזרים הנטו, רק בשנים שבהן הוא חיובי; בשנת הפסד אין חבות מס",
+        ),
     ]
 
     # ── רגישות — קצב חדירה איטי/מהיר מהמתוכנן ─────────────────────────────

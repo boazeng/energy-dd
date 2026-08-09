@@ -115,7 +115,9 @@ class ForecastYearRow(BaseModel):
     profit_before_loan: float = 0
     loan_repayment: float = 0
     net_profit: float = 0
-    cumulative: float = 0
+    corporate_tax: float = 0            # 23% מהתזרים הנטו, ורק כשהוא חיובי
+    net_after_tax: float = 0            # net_profit פחות המס
+    cumulative: float = 0               # לפני מס, כמו התרשימים וניתוח הרגישות
     dscr: float | None = None           # יחס כיסוי חוב; None כשאין החזר באותה שנה
 
 
