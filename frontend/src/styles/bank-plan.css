@@ -189,17 +189,6 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* חתימה — פסקה בסגנון כותרת, מוזחת, עם קו תחתון */
-.bkp-signoff {
-  margin-inline-end: 0;
-  margin-inline-start: 45%;
-  padding-bottom: 7pt;
-  border-bottom: 1.5pt solid var(--bkp-navy);
-  font-weight: 700;
-}
-.bkp-signoff p { text-indent: 36pt; margin: 0 0 12pt; }
-.bkp-signoff p:last-child { margin-bottom: 0; }
-
 /* ─── פסקאות ורשימות ─── */
 .bkp-p { margin: 0 0 9pt; text-align: justify; }
 .bkp-ul { margin: 0 0 9.75pt; padding-inline-start: 16.5pt; list-style: disc; }
