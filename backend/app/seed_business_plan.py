@@ -38,6 +38,12 @@ _UNSPLIT_ONE_TIME_COSTS = [
     {"name": "התאמת מטענים קיימים", "amount": 800_000},
 ]
 
+# שנת הרצה של מטעני ה-DC: 2027 היא שנת הפעלה חלקית, ולכן ההכנסה בה נמוכה
+# מהסכום השנתי הקבוע שמתחיל ב-2028.
+DEFAULT_DC_INCOME_BY_YEAR = [
+    {"year": 2027, "amount": 150_000},
+]
+
 
 # ─── טקסטים שהוחלפו לאחר שהתבררה מטרת האשראי ────────────────────────────────
 # הניסוח הראשון תיאר אשראי לגישור פער תזרימי; בפועל מדובר במימון רכישת פעילות.
@@ -460,6 +466,10 @@ def _fix_parties(db: Session) -> int:
     elif _same_costs(s.one_time_costs, _UNSPLIT_ONE_TIME_COSTS):
         s.one_time_costs = list(DEFAULT_ONE_TIME_COSTS)
         changed = 1
+    # כמו העלויות החד-פעמיות: NULL = טרם הוגדר, רשימה ריקה היא בחירה מפורשת.
+    if s.dc_income_by_year is None:
+        s.dc_income_by_year = list(DEFAULT_DC_INCOME_BY_YEAR)
+        changed = 1
     # שם המגיש מתעדכן כל עוד הוא אחד הערכים שנזרעו בעבר; שם שהוקלד באתר
     # אינו ברשימה ולכן לא נדרס.
     if s.company_name in _PREVIOUS_APPLICANTS:
@@ -502,6 +512,7 @@ def seed_business_plan(db: Session) -> None:
             id=1, acquisition_cost=2_200_000,
             company_name=APPLICANT, target_company=TARGET,
             one_time_costs=list(DEFAULT_ONE_TIME_COSTS),
+            dc_income_by_year=list(DEFAULT_DC_INCOME_BY_YEAR),
         ))
         db.flush()
     _fix_parties(db)

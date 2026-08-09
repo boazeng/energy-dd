@@ -367,6 +367,18 @@ def get_plan_data(
     # בבניינים ואינה גדלה עם קצב החדירה, ולכן היא נזקפת כאן ולא ב-_aggregate.
     dc_annual_income = float(plan_settings.dc_annual_income or 0)
     dc_start_year = int(plan_settings.dc_income_start_year or 0)
+    # שנות הרצה שבהן ההכנסה שונה מהסכום הקבוע (למשל שנת הפעלה חלקית). שנה
+    # שמופיעה כאן גוברת על הסכום הקבוע — גם לפניו וגם אחריו.
+    dc_by_year = {
+        int(x["year"]): float(x.get("amount") or 0)
+        for x in (plan_settings.dc_income_by_year or [])
+        if str(x.get("year") or "").strip()
+    }
+
+    def _dc_for(year: int) -> float:
+        if year in dc_by_year:
+            return dc_by_year[year]
+        return dc_annual_income if year >= dc_start_year else 0.0
 
     annual_payment = _shpitzer_annual(loan_row)
     loan_start = int(loan_row.start_month[:4]) if loan_row.start_month else start_year
@@ -387,7 +399,7 @@ def get_plan_data(
         # הכנסה ממטעני DC — נזקפת ברמת התכנית ולא בתחזית פר-אתר, ולכן היא
         # מתווספת כאן ל-income. כך היא זורמת אחת לתזרים (דרך profit_before_loan)
         # ואחת לרווח והפסד (דרך pretax_profit), בלי ספירה כפולה.
-        dc_income = dc_annual_income if year >= dc_start_year else 0.0
+        dc_income = _dc_for(year)
         income = r["income"] + dc_income
         profit_before_loan = (
             income - r["capex"] - r["opex"] - r["maint"] - overhead
@@ -563,6 +575,14 @@ def get_plan_data(
                  "העמדות בבניינים ואינו משתנה עם קצב החדירה",
         ),
     ] if dc_annual_income > 0 else []) + [
+        # שנות ההרצה מוצגות כשורה לכל שנה — כך רואים בתכנית מדוע ההכנסה באותה
+        # שנה שונה מהסכום הקבוע, בלי לחפש את ההפרש בטבלת התחזית.
+        AssumptionRow(
+            group=G1, label=f"מזה — הכנסה ממטעני DC בשנת {y}", value=_money(amt),
+            note="שנת הפעלה חלקית; גוברת על הסכום השנתי הקבוע",
+        )
+        for y, amt in sorted(dc_by_year.items())
+    ] + [
 
         # רכיבי ההכנסה נקבעים בהסכם ואינם הנחה — מוצגים כטווח, לא כממוצע.
         # "דמי מנוי" אינם שורה נפרדת: זהו אותו רכיב כמו דמי הניהול.
@@ -645,7 +665,7 @@ def get_plan_data(
         for year in sorted(scen):
             r = scen[year]
             # הכנסת ה-DC זהה בכל התרחישים: היא אינה תלויה בקצב החדירה בבניינים
-            dc = dc_annual_income if year >= dc_start_year else 0.0
+            dc = _dc_for(year)
             # ללא השימושים החד-פעמיים — מאותה סיבה שבתחזית עצמה
             pbl = r["income"] + dc - r["capex"] - r["opex"] - r["maint"] - overhead
             sched_y = amortization.get(year, {})

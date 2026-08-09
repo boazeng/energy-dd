@@ -66,6 +66,12 @@ class BusinessPlanSetting(Base):
     dc_annual_income: Mapped[float] = mapped_column(Float, default=300_000)
     dc_income_start_year: Mapped[int] = mapped_column(Integer, default=2028)
 
+    # שנות הרצה שבהן ההכנסה שונה מהסכום הקבוע — למשל שנת הפעלה חלקית:
+    # [{"year": 2027, "amount": 150000}, ...]. שנה שמופיעה כאן גוברת על
+    # הסכום הקבוע, גם לפני שנת ההפעלה וגם אחריה.
+    # NULL = טרם הוגדר (הזריעה תמלא ברירת מחדל); [] = הוגדר במפורש כריק.
+    dc_income_by_year: Mapped[list | None] = mapped_column(JSON, nullable=True, default=None)
+
     contact_name: Mapped[str] = mapped_column(String(120), default="")
     contact_phone: Mapped[str] = mapped_column(String(60), default="")
     contact_email: Mapped[str] = mapped_column(String(120), default="")

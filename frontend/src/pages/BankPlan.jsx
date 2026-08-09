@@ -1550,6 +1550,7 @@ function PlanSettingsEditor({ settings, onSaved }) {
   const [costs, setCosts] = useState(settings.one_time_costs || [])
   const [dcIncome, setDcIncome] = useState(settings.dc_annual_income ?? 0)
   const [dcYear, setDcYear] = useState(settings.dc_income_start_year ?? 2028)
+  const [dcByYear, setDcByYear] = useState(settings.dc_income_by_year || [])
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState('')
 
@@ -1560,6 +1561,10 @@ function PlanSettingsEditor({ settings, onSaved }) {
         acquisition_cost: parseFloat(cost) || 0,
         dc_annual_income: parseFloat(dcIncome) || 0,
         dc_income_start_year: parseInt(dcYear, 10) || 2028,
+        // שורה בלי שנה היא שורה שלא מולאה — היא נופלת ולא נשמרת כשנה 0
+        dc_income_by_year: dcByYear
+          .filter((x) => parseInt(x.year, 10) > 0)
+          .map((x) => ({ year: parseInt(x.year, 10), amount: Number(x.amount) || 0 })),
         // note אינו נערך כאן אבל חייב לשרוד שמירה — הוא ההסבר שמוצג בטבלת
         // הנחות העבודה, ובנייה מחדש של האובייקט הייתה מוחקת אותו.
         one_time_costs: costs
@@ -1594,11 +1599,34 @@ function PlanSettingsEditor({ settings, onSaved }) {
         <input type="number" min="0" step="10000" value={dcIncome ?? ''}
           onChange={(e) => setDcIncome(e.target.value)} />
       </label>
-      <label className="bkp-settings-field" style={{ marginBottom: 13 }}>
+      <label className="bkp-settings-field">
         <span>שנת התחלה</span>
         <input type="number" min="2000" max="2100" step="1" value={dcYear ?? ''}
           onChange={(e) => setDcYear(e.target.value)} />
       </label>
+      <p className="bkp-settings-note" style={{ margin: '8px 0' }}>
+        שנת הפעלה חלקית — סכום לשנה מסוימת שגובר על ההכנסה השנתית הקבועה.
+      </p>
+      <div className="bkp-costs" style={{ marginBottom: 13 }}>
+        {dcByYear.map((x, i) => (
+          <div className="bkp-cost-row" key={i}>
+            <input
+              type="number" min="2000" max="2100" step="1" placeholder="שנה"
+              value={x.year ?? ''}
+              onChange={(e) => setDcByYear(dcByYear.map((y, j) => j === i ? { ...y, year: e.target.value } : y))}
+            />
+            <input
+              type="number" min="0" step="10000" placeholder="₪"
+              value={x.amount ?? ''}
+              onChange={(e) => setDcByYear(dcByYear.map((y, j) => j === i ? { ...y, amount: e.target.value } : y))}
+            />
+            <button className="cf-del" title="מחק" onClick={() => setDcByYear(dcByYear.filter((_, j) => j !== i))}>✕</button>
+          </div>
+        ))}
+        <button className="tact-btn" onClick={() => setDcByYear([...dcByYear, { year: '', amount: 0 }])}>
+          + הוסף שנה
+        </button>
+      </div>
 
       <h4 className="bkp-settings-sub">עלויות חד-פעמיות</h4>
       <p className="bkp-settings-note" style={{ marginBottom: 8 }}>

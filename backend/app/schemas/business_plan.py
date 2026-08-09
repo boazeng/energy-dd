@@ -52,6 +52,7 @@ class PlanSettingsIn(BaseModel):
     one_time_costs: list[dict] | None = None
     dc_annual_income: float | None = Field(default=None, ge=0)
     dc_income_start_year: int | None = Field(default=None, ge=2000, le=2100)
+    dc_income_by_year: list[dict] | None = None
 
 
 class PlanSettingsOut(BaseModel):
@@ -71,6 +72,7 @@ class PlanSettingsOut(BaseModel):
     one_time_costs: list[dict] = []
     dc_annual_income: float = 0
     dc_income_start_year: int = 2028
+    dc_income_by_year: list[dict] = []
 
 
 class BusinessPlanOut(BaseModel):
@@ -127,7 +129,7 @@ class ForecastYearRow(BaseModel):
     pretax_profit: float = 0            # profit_before_loan פחות הריבית
     corporate_tax: float = 0            # 23% מהרווח לפני מס, ורק כשהוא חיובי
     net_income: float = 0               # רווח נקי לאחר מס חברות
-    cumulative: float = 0               # לפני מס, כמו התרשימים וניתוח הרגישות
+    cumulative: float = 0               # נצברת מ-net_after_tax, כמו ניתוח הרגישות
     dscr: float | None = None           # יחס כיסוי חוב; None כשאין החזר באותה שנה
 
 
