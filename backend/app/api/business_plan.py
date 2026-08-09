@@ -345,13 +345,13 @@ def get_plan_data(
     agg = _aggregate(buildings, override)
     cumulative = today.opening_balance
     forecast: list[ForecastYearRow] = []
-    first_forecast_year = min(agg) if agg else start_year
+    # השימושים החד-פעמיים אינם מנוכים מהתזרים, בדיוק כמו עלות הרכישה: שניהם
+    # ממומנים מכספי ההלוואה, וכספי ההלוואה עצמם אינם נכנסים לתזרים. ניכוי
+    # ההוצאה בלי התקבול שמימן אותה היה ספירה כפולה. התזרים נושא רק את ההחזר.
     for year in sorted(agg):
         r = agg[year]
-        # העלויות החד-פעמיות נזקפות כולן בשנה הראשונה
-        one_time = one_time_total if year == first_forecast_year else 0.0
         profit_before_loan = (
-            r["income"] - r["capex"] - r["opex"] - r["maint"] - overhead - one_time
+            r["income"] - r["capex"] - r["opex"] - r["maint"] - overhead
         )
         repayment = round(annual_payment, 2) if loan_start <= year <= loan_end else 0.0
         net = profit_before_loan - repayment
@@ -365,7 +365,6 @@ def get_plan_data(
             opex=round(r["opex"], 2),
             maintenance=round(r["maint"], 2),
             overhead=round(overhead, 2),
-            one_time=round(one_time, 2),
             ebitda=round(r["income"] - r["opex"] - r["maint"] - overhead, 2),
             profit_before_loan=round(profit_before_loan, 2),
             loan_repayment=repayment,
@@ -380,7 +379,6 @@ def get_plan_data(
         "opex": round(sum(f.opex for f in forecast), 2),
         "maintenance": round(sum(f.maintenance for f in forecast), 2),
         "overhead": round(sum(f.overhead for f in forecast), 2),
-        "one_time": round(sum(f.one_time for f in forecast), 2),
         "profit_before_loan": round(sum(f.profit_before_loan for f in forecast), 2),
         "loan_repayment": round(sum(f.loan_repayment for f in forecast), 2),
         "net_profit": round(sum(f.net_profit for f in forecast), 2),
@@ -530,7 +528,7 @@ def get_plan_data(
         # הסבר ייעודי לפריט גובר על הנוסח הגנרי — הפיצול של עלויות ההתאמה
         # נושא הסבר משלו לכל מרכיב.
         AssumptionRow(group=G6, label=c["name"] or "עלות חד-פעמית", value=_money(c["amount"]),
-                      note=c.get("note") or f"חד-פעמי, נזקף בשנת {first_year}")
+                      note=c.get("note") or "שימוש חד-פעמי בעסקה, ממומן מהאשראי")
         for c in acquisition.one_time_costs
     ] + [
         AssumptionRow(group=G6, label="אשראי מבוקש", value=_money(loan.amount),
@@ -555,11 +553,10 @@ def get_plan_data(
         cum = today.opening_balance
         cums: list[float] = []
         total_profit = 0.0
-        scen_first = min(scen) if scen else start_year
         for year in sorted(scen):
             r = scen[year]
-            pbl = (r["income"] - r["capex"] - r["opex"] - r["maint"] - overhead
-                   - (one_time_total if year == scen_first else 0.0))
+            # ללא השימושים החד-פעמיים — מאותה סיבה שבתחזית עצמה
+            pbl = r["income"] - r["capex"] - r["opex"] - r["maint"] - overhead
             repay = annual_payment if loan_start <= year <= loan_end else 0.0
             total_profit += pbl - repay
             cum += pbl - repay

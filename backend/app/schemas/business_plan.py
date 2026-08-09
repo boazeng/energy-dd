@@ -111,7 +111,6 @@ class ForecastYearRow(BaseModel):
     opex: float = 0                     # OPEX חד-פעמי (שנה ראשונה)
     maintenance: float = 0
     overhead: float = 0                 # תקורות שנתיות (מלשונית תזרים בניינים)
-    one_time: float = 0                 # עלויות חד-פעמיות; נזקפות בשנה הראשונה בלבד
     ebitda: float = 0                   # הכנסות פחות OPEX ותחזוקה (לפני CAPEX והחזר)
     profit_before_loan: float = 0
     loan_repayment: float = 0
@@ -172,7 +171,9 @@ class AcquisitionData(BaseModel):
 
     target_company: str = ""
     cost: float = 0                     # עלות הרכישה
-    one_time_costs: list[dict] = []     # שימושים חד-פעמיים נוספים בשנה הראשונה
+    # שימושים חד-פעמיים נוספים בעסקה. כמו עלות הרכישה — ממומנים מההלוואה
+    # ואינם מנוכים מהתזרים.
+    one_time_costs: list[dict] = []
     one_time_total: float = 0
     total_uses: float = 0               # cost + one_time_total
     credit_requested: float = 0         # האשראי המבוקש (= cashflow_loan.amount)

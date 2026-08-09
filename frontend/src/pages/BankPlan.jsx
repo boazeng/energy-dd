@@ -125,8 +125,9 @@ function Caption({ kind, n, children }) {
 }
 
 /* ─── טבלה 1 — מימון הרכישה ───────────────────────────────────────────────
-   מרכזת בפרק הפותח את מה שמפוזר בהמשך: עלות הרכישה מטבלת הנחות העבודה
-   (7.1) והשימושים החד-פעמיים שנזקפים כולם בשנה הראשונה של התחזית. */
+   מרכזת בפרק הפותח את מה שמפוזר בהמשך: עלות הרכישה והשימושים החד-פעמיים
+   מטבלת הנחות העבודה (7.1). שני אלה ממומנים מההלוואה ואינם נוגעים בתזרים,
+   ולכן זו הטבלה היחידה שבה הם מופיעים כסכומים. */
 function AcquisitionTable({ d }) {
   const a = d.acquisition
   const oneTime = a.one_time_costs || []
@@ -188,12 +189,11 @@ function AcquisitionTable({ d }) {
         </tbody>
       </table>
       <p className="bkp-note">
-        {oneTime.length > 0 && (
-          <>העלויות החד-פעמיות נזקפות כולן בשנה הראשונה של התחזית ({d.start_year}), ולכן הן
-          מופיעות גם בטבלת הנחות העבודה שבסעיף 7.1 ובתחזית השנתית שבסעיף 7.4. </>
-        )}
-        {surplus > 0 && <>ההפרש בין האשראי המבוקש לעלות הרכישה משמש כהון חוזר לפעילות. </>}
-        הסכומים אינם כוללים מע&quot;מ.
+        השימושים ממומנים במלואם מהאשראי המבוקש, ולפיכך אינם מנוכים מהתזרים המוצג
+        בפרקים הבאים — התזרים נושא את ההחזר השנתי בלבד. פירוט השימושים מופיע גם
+        בטבלת הנחות העבודה שבסעיף 7.1.
+        {surplus > 0 && <> ההפרש בין האשראי לשימושים משמש כהון חוזר לפעילות.</>}
+        {' '}הסכומים אינם כוללים מע&quot;מ.
       </p>
     </figure>
   )
@@ -226,9 +226,8 @@ function SummaryCompact({ d }) {
     ['הוצאות תפעול, תחזוקה ותקורה', f.map((r) => -(r.opex + r.maintenance + r.overhead)),
       -(T.opex + T.maintenance + (T.overhead || 0))],
     ['השקעה בעמדות חדשות', f.map((r) => -r.capex), -T.capex],
-    // מוצגת רק כשיש עלויות חד-פעמיות. היא חייבת להופיע כשהן קיימות: הסכום
-    // מנוכה מ-profit_before_loan, ובלי השורה הטור אינו מסתכם.
-    ...(T.one_time ? [['עלויות חד-פעמיות', f.map((r) => -r.one_time), -T.one_time]] : []),
+    // אין כאן שורת עלויות חד-פעמיות: הן שימוש בעסקה, ממומנות מההלוואה
+    // ואינן מנוכות מהתזרים. מקומן בטבלת מימון הרכישה שבסעיף 1.2.
     ['תזרים לפני החזר החוב', f.map((r) => r.profit_before_loan), T.profit_before_loan, true],
     ['החזר ההלוואה', f.map((r) => -r.loan_repayment), -T.loan_repayment],
     ['תזרים נטו', f.map((r) => r.net_profit), T.net_profit, true],
@@ -527,7 +526,6 @@ function SummaryFinancials({ d }) {
     ['הכנסות', f.map((r) => ils(r.income))],
     ['הוצאות תפעול, תחזוקה ותקורה', f.map((r) => ils(-(r.opex + r.maintenance + r.overhead)))],
     ['השקעה בתשתית (CAPEX)', f.map((r) => ils(-r.capex))],
-    ...(d.totals.one_time ? [['עלויות חד-פעמיות', f.map((r) => ils(-r.one_time))]] : []),
     ['תזרים לפני החזר הלוואה', f.map((r) => ils(r.profit_before_loan)), false, true],
     ['החזר הלוואה', f.map((r) => ils(-r.loan_repayment))],
     ['תזרים נטו', f.map((r) => ils(r.net_profit)), false, true],
@@ -613,7 +611,7 @@ function ForecastTable({ d }) {
             <th>מטענים<br />שנוספו</th>
             <th>סה&quot;כ<br />מטענים</th>
             <th>הכנסות</th>
-            <th>השקעה<br />וחד-פעמי</th>
+            <th>השקעה<br />בתשתית</th>
             <th>תפעול, תחזוקה<br />ותקורה</th>
             <th>תזרים לפני<br />החזר</th>
             <th>החזר<br />הלוואה</th>
@@ -628,7 +626,7 @@ function ForecastTable({ d }) {
               <td className="bkp-num">{r.chargers_added || '—'}</td>
               <td className="bkp-num">{nf.format(r.total_chargers)}</td>
               <td className="bkp-num">{num(r.income)}</td>
-              <td className="bkp-num">{num(-(r.capex + r.one_time))}</td>
+              <td className="bkp-num">{num(-r.capex)}</td>
               <td className="bkp-num">{num(-(r.opex + r.maintenance + r.overhead))}</td>
               <td className="bkp-num">{num(r.profit_before_loan)}</td>
               <td className="bkp-num">{r.loan_repayment ? num(-r.loan_repayment) : '—'}</td>
@@ -643,7 +641,7 @@ function ForecastTable({ d }) {
             <td className="bkp-num">{nf.format(T.chargers_added)}</td>
             <td className="bkp-num">{nf.format(T.chargers_end)}</td>
             <td className="bkp-num">{num(T.income)}</td>
-            <td className="bkp-num">{num(-(T.capex + (T.one_time || 0)))}</td>
+            <td className="bkp-num">{num(-T.capex)}</td>
             <td className="bkp-num">{num(-(T.opex + T.maintenance + (T.overhead || 0)))}</td>
             <td className="bkp-num">{num(T.profit_before_loan)}</td>
             <td className="bkp-num">{num(-T.loan_repayment)}</td>
@@ -1325,8 +1323,8 @@ function PlanSettingsEditor({ settings, onSaved }) {
 
       <h4 className="bkp-settings-sub">עלויות חד-פעמיות</h4>
       <p className="bkp-settings-note" style={{ marginBottom: 8 }}>
-        שימושים מעבר לעלות הרכישה, הנזקפים כולם בשנה הראשונה של התחזית ומשפיעים
-        על התזרים, על יחס כיסוי החוב ועל ניתוח הרגישות.
+        שימושים בעסקה מעבר לעלות הרכישה. כמוה, הם ממומנים מהאשראי ואינם מנוכים
+        מהתזרים — הם מופיעים בטבלת מימון הרכישה ובטבלת הנחות העבודה בלבד.
       </p>
       <div className="bkp-costs">
         {costs.map((c, i) => (
