@@ -120,6 +120,7 @@ class ForecastYearRow(BaseModel):
     profit_before_loan: float = 0
     loan_repayment: float = 0           # קרן וריבית יחד — כך זה יוצא מהתזרים
     net_profit: float = 0
+    net_after_tax: float = 0            # התזרים הנטו בניכוי מס החברות — ממנו נצברת היתרה
     # ── רווח והפסד: אותה פעילות, בלי החזר הקרן ────────────────────────────
     loan_interest: float = 0            # רכיב הריבית בהחזר — הוצאת מימון
     loan_principal: float = 0           # רכיב הקרן — פירעון התחייבות, לא הוצאה

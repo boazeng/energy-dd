@@ -408,8 +408,10 @@ def get_plan_data(
         # וההפסד אינו מקוזז קדימה — הצגה שמרנית שאינה מקטינה את המס בהמשך.
         tax = round(pretax * CORPORATE_TAX_RATE, 2) if pretax > 0 else 0.0
 
-        # היתרה המצטברת נשארת לפני מס, כמו התרשימים וניתוח הרגישות שנגזרים ממנה.
-        cumulative += net
+        # התזרים שנשאר בקופה הוא אחרי תשלום המס, ולכן היתרה המצטברת נצברת ממנו
+        # ולא מהתזרים הנטו. אותו בסיס משמש גם את ניתוח הרגישות שנגזר ממנה.
+        net_after_tax = round(net - tax, 2)
+        cumulative += net_after_tax
         forecast.append(ForecastYearRow(
             year=year,
             chargers_added=int(r["added"]),
@@ -424,6 +426,7 @@ def get_plan_data(
             profit_before_loan=round(profit_before_loan, 2),
             loan_repayment=repayment,
             net_profit=round(net, 2),
+            net_after_tax=net_after_tax,
             loan_interest=interest,
             loan_principal=principal,
             pretax_profit=pretax,
@@ -443,6 +446,7 @@ def get_plan_data(
         "profit_before_loan": round(sum(f.profit_before_loan for f in forecast), 2),
         "loan_repayment": round(sum(f.loan_repayment for f in forecast), 2),
         "net_profit": round(sum(f.net_profit for f in forecast), 2),
+        "net_after_tax": round(sum(f.net_after_tax for f in forecast), 2),
         "loan_interest": round(sum(f.loan_interest for f in forecast), 2),
         "loan_principal": round(sum(f.loan_principal for f in forecast), 2),
         "pretax_profit": round(sum(f.pretax_profit for f in forecast), 2),
@@ -644,9 +648,14 @@ def get_plan_data(
             dc = dc_annual_income if year >= dc_start_year else 0.0
             # ללא השימושים החד-פעמיים — מאותה סיבה שבתחזית עצמה
             pbl = r["income"] + dc - r["capex"] - r["opex"] - r["maint"] - overhead
-            repay = amortization.get(year, {}).get("payment", 0.0)
-            total_profit += pbl - repay
-            cum += pbl - repay
+            sched_y = amortization.get(year, {})
+            repay = sched_y.get("payment", 0.0)
+            # אחרי מס, בדיוק כמו היתרה המצטברת בתחזית — אחרת שורת "תרחיש הבסיס"
+            # כאן לא הייתה שווה למספרים שבטבלאות, והיא אותו תרחיש בדיוק.
+            pretax_y = pbl - sched_y.get("interest", 0.0)
+            tax_y = pretax_y * CORPORATE_TAX_RATE if pretax_y > 0 else 0.0
+            total_profit += pbl - repay - tax_y
+            cum += pbl - repay - tax_y
             cums.append(cum)
         sensitivity.append(SensitivityRow(
             label=label,

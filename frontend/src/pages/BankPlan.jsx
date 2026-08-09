@@ -260,9 +260,12 @@ function SummaryCompact({ d }) {
     // ואינן מנוכות מהתזרים. מקומן בטבלת תכנית ההשקעות שבפתח תמצית הבקשה.
     ['תזרים לפני החזר החוב', f.map((r) => r.profit_before_loan), T.profit_before_loan, true],
     ['החזר ההלוואה', f.map((r) => -r.loan_repayment), -T.loan_repayment],
-    // המס והרווח החשבונאי אינם כאן: זו טבלת תזרים, וההחזר שבשורה שמעל כולל
-    // קרן. הרווח וההפסד — ריבית בלבד ומס חברות — מוצג בטבלה שבסעיף 1.4.
     ['תזרים נטו', f.map((r) => r.net_profit), T.net_profit, true],
+    // המס עצמו מוצג כאן כשורה ולא רק כתוצאה: בלעדיה הקפיצה מהתזרים הנטו
+    // לתזרים שאחרי המס הייתה נראית כפער בלתי מוסבר. חישוב המס — 23% מהרווח
+    // לפני מס, ורק בשנים שהוא חיובי — נעשה בטבלת הרווח וההפסד שבסעיף 1.4.
+    ['מס חברות', f.map((r) => -r.corporate_tax), -T.corporate_tax],
+    ['תזרים לאחר מס', f.map((r) => r.net_after_tax), T.net_after_tax, true],
   ]
   return (
     <figure className="bkp-figure">
@@ -303,8 +306,8 @@ function SummaryCompact({ d }) {
       <Note id="note-summary" text={
         'הסכומים מנוטרלי מע"מ. היתרה המצטברת פותחת באפס ומציגה את מה שהפעילות הנרכשת'
         + ' מייצרת בלבד; יתרת המזומנים הקיימת של החברה אינה נכללת בה.'
-        + ' הרווח החשבונאי ומס החברות מוצגים בטבלת הרווח וההפסד הצפוי שבהמשך הפרק;'
-        + ' יתרות המזומנים כאן הן לפני מס.'
+        + ' הרווח החשבונאי שממנו נגזר המס מוצג בטבלת הרווח וההפסד הצפוי שבהמשך הפרק;'
+        + ' היתרה המצטברת נצברת מהתזרים שלאחר המס.'
         + ' הפירוט המלא, לרבות הנחות העבודה שמהן נגזרת התחזית, מופיע בפרק תחזית הגידול.'
       } />
     </figure>
@@ -717,8 +720,10 @@ function SummaryFinancials({ d }) {
     ['תזרים לפני החזר הלוואה', f.map((r) => ils(r.profit_before_loan)), false, true],
     ['החזר הלוואה', f.map((r) => ils(-r.loan_repayment))],
     ['תזרים נטו', f.map((r) => ils(r.net_profit)), false, true],
-    // המס אינו כאן: ההחזר שבשורה שמעל כולל קרן, ולכן זו שורת תזרים ולא רווח.
-    // ההצגה החשבונאית — ריבית בלבד ומס חברות — מרוכזת בסעיף 1.4.
+    // כמו בטבלת התמצית שבסעיף 1.3: המס מוצג כשורה משלו כדי שהמעבר לתזרים
+    // שאחריו יהיה גלוי. חישובו — 23% מהרווח לפני מס — מפורט בסעיף 1.4.
+    ['מס חברות', f.map((r) => ils(-r.corporate_tax))],
+    ['תזרים לאחר מס', f.map((r) => ils(r.net_after_tax)), false, true],
   ]
   return (
     <figure className="bkp-figure">
@@ -753,9 +758,11 @@ function CumulativeCashflow({ d }) {
             <tr><th className="bkp-rowlabel">סעיף</th>{d.forecast.map((r) => <th key={r.year}>{r.year}</th>)}</tr>
           </thead>
           <tbody>
+            {/* התזרים שאחרי המס ולא הנטו שלפניו — זה הסכום שהיתרה נצברת ממנו,
+                וכך שתי השורות נסגרות זו מול זו. */}
             <tr>
-              <td className="bkp-rowlabel">תזרים נטו בשנה</td>
-              {d.forecast.map((r) => <td key={r.year} className="bkp-num"><Money v={r.net_profit} /></td>)}
+              <td className="bkp-rowlabel">תזרים לאחר מס בשנה</td>
+              {d.forecast.map((r) => <td key={r.year} className="bkp-num"><Money v={r.net_after_tax} /></td>)}
             </tr>
             <tr className="bkp-total">
               <td className="bkp-rowlabel">יתרה מצטברת לסוף השנה</td>
@@ -766,8 +773,8 @@ function CumulativeCashflow({ d }) {
         {/* יתרת המזומנים הקיימת אינה מוצגת עוד במסמך, ולכן ההערה רק מבהירה
             שהיא אינה חלק מהיתרה המצטברת — בלי לנקוב בסכום או להפנות אליו. */}
         <Note id="note-cumulative" text={
-          'היתרה המצטברת פותחת באפס ומציגה את התזרים שהפעילות הנרכשת מייצרת בלבד.'
-          + ' יתרת המזומנים הקיימת של החברה אינה נכללת בה.'
+          'היתרה המצטברת פותחת באפס ומציגה את התזרים שהפעילות הנרכשת מייצרת בלבד,'
+          + ' לאחר תשלום מס החברות. יתרת המזומנים הקיימת של החברה אינה נכללת בה.'
         } />
       </figure>
 
@@ -807,7 +814,10 @@ function ForecastTable({ d }) {
             <th>תפעול, תחזוקה<br />ותקורה</th>
             <th>תזרים לפני<br />החזר</th>
             <th>החזר<br />הלוואה</th>
-            <th>תזרים<br />נטו</th>
+            {/* התזרים שאחרי המס, ולא הנטו שלפניו: היתרה המצטברת שבעמודה האחרונה
+                נצברת ממנו, וכך העמודות נסגרות זו מול זו. הנטו לפני מס והמס עצמו
+                מוצגים בטבלאות שבסעיפים 1.3 ו-8.2. */}
+            <th>תזרים<br />לאחר מס</th>
             {/* התוצאה החשבונאית לצד התזרים — ריבית בלבד ובניכוי מס חברות.
                 פירוט הדרך אליה, לרבות סכום הריבית והמס, מופיע בטבלה שבסעיף 1.4;
                 כאן נחסכות שתי עמודות בטבלה שהיא כבר הצרה במסמך. */}
@@ -826,7 +836,7 @@ function ForecastTable({ d }) {
               <td className="bkp-num">{num(-(r.opex + r.maintenance + r.overhead))}</td>
               <td className="bkp-num">{num(r.profit_before_loan)}</td>
               <td className="bkp-num">{r.loan_repayment ? num(-r.loan_repayment) : '—'}</td>
-              <td className="bkp-num">{num(r.net_profit)}</td>
+              <td className="bkp-num">{num(r.net_after_tax)}</td>
               <td className="bkp-num">{num(r.net_income)}</td>
               <td className="bkp-num">{num(r.cumulative)}</td>
             </tr>
@@ -842,7 +852,7 @@ function ForecastTable({ d }) {
             <td className="bkp-num">{num(-(T.opex + T.maintenance + (T.overhead || 0)))}</td>
             <td className="bkp-num">{num(T.profit_before_loan)}</td>
             <td className="bkp-num">{num(-T.loan_repayment)}</td>
-            <td className="bkp-num">{num(T.net_profit)}</td>
+            <td className="bkp-num">{num(T.net_after_tax)}</td>
             <td className="bkp-num">{num(T.net_income)}</td>
             <td className="bkp-num">{num(T.final_cumulative)}</td>
           </tr>
