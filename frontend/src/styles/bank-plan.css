@@ -232,6 +232,12 @@
    זה אותו גופן מוקטן שבו משתמשת לשונית "תכנית עסקית" לאותן טבלאות. */
 .bkp-table-tight { font-size: 9pt; }
 .bkp-table-tight th, .bkp-table-tight td { padding: 3pt 3.75pt; }
+
+/* טבלת עזר קטנה בתוך פסקה (תכנית ההשקעות בתמצית הבקשה). שתי עמודות בלבד,
+   ולכן היא נמדדת לפי התוכן ולא נמתחת לרוחב העמוד. הרוחב המזערי שומר שעמודת
+   הסכומים לא תיצמד לתוויות. */
+.bkp-table-mini { width: auto; min-width: 62%; font-size: 11pt; }
+.bkp-table-mini th, .bkp-table-mini td { padding: 3pt 6pt; }
 .bkp-total td { background: var(--bkp-head) !important; font-weight: 700; }
 .bkp-group td {
   background: var(--bkp-card) !important;
