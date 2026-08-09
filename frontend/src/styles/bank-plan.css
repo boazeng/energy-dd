@@ -45,6 +45,32 @@
 .bkp-toolbar-spacer { flex: 1; }
 .bkp-toolbar .bkp-meta { font-size: 12px; color: var(--color-text-light); }
 
+/* ─── פאנל נתוני העסקה (מסך בלבד) ───────────────────────────────────────────
+   ברוחב הגיליון כדי שיישב מעליו בקו אחד. הוסתר בהדפסה דרך .no-print. */
+.bkp-settings {
+  width: 210mm;
+  box-sizing: border-box;
+  margin: 0 auto 20px;
+  padding: 16px 18px;
+  background: var(--color-bg-white);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  box-shadow: var(--shadow-md);
+}
+.bkp-settings-title { margin: 0 0 13px; font-size: 16px; }
+.bkp-settings-sub { margin: 4px 0 6px; font-size: 14px; }
+.bkp-settings-note { font-size: 12px; color: var(--color-text-light); }
+.bkp-settings-field { display: flex; flex-direction: column; gap: 4px; font-size: 13px; max-width: 260px; }
+.bkp-settings-field input,
+.bkp-cost-row input {
+  font: inherit; padding: 6px 9px;
+  border: 1px solid var(--color-border); border-radius: 6px;
+}
+.bkp-costs { display: flex; flex-direction: column; gap: 7px; align-items: flex-start; }
+.bkp-cost-row { display: flex; gap: 7px; align-items: center; width: 100%; }
+.bkp-cost-row input:first-child { flex: 1; }
+.bkp-cost-row input[type='number'] { width: 130px; text-align: left; }
+
 /* ─── הגיליון ─── */
 .bkp-sheet {
   position: relative;

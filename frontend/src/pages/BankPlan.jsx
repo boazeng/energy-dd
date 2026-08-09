@@ -1,13 +1,16 @@
-/* ═══ תכנית עסקית לבנק ═══════════════════════════════════════════════════════
+/* ═══ תכנית עסקית ════════════════════════════════════════════════════════════
    שכפול נאמן של הקובץ "אנרגיה אורבנית - רכישת חברת מוביליטי.docx": אותו מלל,
    אותן תמונות, אותו גופן (David 14pt), אותה פריסה ואותו מספור טבלאות.
 
-   ההבדל היחיד מהקובץ: כל מספר נשלף חי מ-GET /api/business-plan/data — אותו
-   מקור אמת שממנו ניזונות שאר לשוניות האתר. שינוי סכום ההלוואה, עלות הרכישה,
-   מספר המטענים או כל פרמטר אחר באתר משתקף כאן מיד, בטבלאות ובמלל כאחד.
+   זהו המסמך היחיד באתר — הלשונית הישנה שניהלה מסמך ערוך מקביל הוסרה, כדי שלא
+   יהיו שתי גרסאות לאותה תכנית.
 
-   המלל נשמר כאן ולא ב-DB בכוונה: לשונית "תכנית עסקית" מנהלת מסמך ערוך משלה,
-   וזה כאן חייב להישאר זהה לקובץ שאושר.
+   ההבדל היחיד מהקובץ: כל מספר נשלף חי מ-GET /api/business-plan/data — אותו
+   מקור אמת שממנו ניזונות שאר לשוניות האתר. שינוי שיעור הגידול, סכום ההלוואה,
+   עלות הרכישה או מספר המטענים משתקף כאן מיד, בטבלאות ובמלל כאחד.
+
+   המלל נשמר כאן ולא ב-DB בכוונה — הוא חייב להישאר זהה לקובץ שאושר; רק בלוקים
+   שנערכו בפועל נשמרים ב-/api/bank-plan/texts.
    ═════════════════════════════════════════════════════════════════════════ */
 import { Fragment, useEffect, useState } from 'react'
 import {
@@ -951,6 +954,7 @@ export default function BankPlan({ agreementVersion, horizonMode = '5' }) {
   const [exporting, setExporting] = useState(false)
   // רק הבלוקים שנערכו; כל השאר מגיע מ-TEXTS
   const [overrides, setOverrides] = useState({})
+  const [settings, setSettings] = useState(null)
   const [edit, setEdit] = useState(false)
 
   async function saveText(id, body) {
@@ -985,13 +989,15 @@ export default function BankPlan({ agreementVersion, horizonMode = '5' }) {
     try {
       const byContract = horizonMode === 'contract'
       const years = byContract ? undefined : parseInt(horizonMode)
-      const [data, texts] = await Promise.all([
+      const [data, texts, plan] = await Promise.all([
         api.getBusinessPlanData(years, readOverheadTotal(), byContract),
-        // עריכות המלל אינן קריטיות להצגת המסמך — כשל בהן לא יפיל את הדף
+        // עריכות המלל ופרטי העסקה אינם קריטיים להצגת המסמך — כשל בהם לא יפיל את הדף
         api.getBankPlanTexts().catch(() => ({})),
+        api.getBusinessPlan().catch(() => null),
       ])
       setData(data)
       setOverrides(texts || {})
+      setSettings(plan?.settings || null)
       setError('')
     } catch (e) {
       setError(e.message)
@@ -1038,6 +1044,8 @@ export default function BankPlan({ agreementVersion, horizonMode = '5' }) {
           <span style={{ marginInlineStart: 6 }}>ייצוא PDF</span>
         </button>
       </div>
+
+      {edit && settings && <PlanSettingsEditor settings={settings} onSaved={load} />}
 
       <article className="bkp-sheet" dir="rtl">
         <div className="bkp-frame" aria-hidden="true" />
@@ -1247,6 +1255,88 @@ export default function BankPlan({ agreementVersion, horizonMode = '5' }) {
           </p>
         </footer>
       </article>
+    </div>
+  )
+}
+
+/* ─── עריכת נתוני העסקה ───────────────────────────────────────────────────────
+   רק שני הפרמטרים שהמסמך אכן צורך מהגדרות התכנית: עלות הרכישה והשימושים
+   החד-פעמיים. שאר המספרים נערכים במקום שבו הם נולדים — האשראי בלשונית תזרים,
+   ושיעור הגידול פר-אתר בלשונית תזרים בניינים — ולכן אינם מופיעים כאן. */
+
+function PlanSettingsEditor({ settings, onSaved }) {
+  const [cost, setCost] = useState(settings.acquisition_cost ?? 0)
+  const [costs, setCosts] = useState(settings.one_time_costs || [])
+  const [saving, setSaving] = useState(false)
+  const [err, setErr] = useState('')
+
+  async function save() {
+    setSaving(true)
+    try {
+      await api.updateBusinessPlanSettings({
+        acquisition_cost: parseFloat(cost) || 0,
+        // note אינו נערך כאן אבל חייב לשרוד שמירה — הוא ההסבר שמוצג בטבלת
+        // הנחות העבודה, ובנייה מחדש של האובייקט הייתה מוחקת אותו.
+        one_time_costs: costs
+          .filter((c) => (c.name || '').trim() || Number(c.amount) > 0)
+          .map((c) => ({
+            name: (c.name || '').trim(),
+            amount: Number(c.amount) || 0,
+            ...(c.note ? { note: c.note } : {}),
+          })),
+      })
+      setErr('')
+      onSaved()
+    } catch (e) {
+      setErr(e.message)
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="bkp-settings no-print">
+      <h3 className="bkp-settings-title">נתוני העסקה</h3>
+      <label className="bkp-settings-field" style={{ marginBottom: 13 }}>
+        <span>עלות הרכישה (₪)</span>
+        <input type="number" min="0" step="1000" value={cost ?? ''}
+          onChange={(e) => setCost(e.target.value)} />
+      </label>
+
+      <h4 className="bkp-settings-sub">עלויות חד-פעמיות</h4>
+      <p className="bkp-settings-note" style={{ marginBottom: 8 }}>
+        שימושים מעבר לעלות הרכישה, הנזקפים כולם בשנה הראשונה של התחזית ומשפיעים
+        על התזרים, על יחס כיסוי החוב ועל ניתוח הרגישות.
+      </p>
+      <div className="bkp-costs">
+        {costs.map((c, i) => (
+          <div className="bkp-cost-row" key={i}>
+            <input
+              placeholder="שם ההוצאה"
+              value={c.name ?? ''}
+              onChange={(e) => setCosts(costs.map((x, j) => j === i ? { ...x, name: e.target.value } : x))}
+            />
+            <input
+              type="number" min="0" step="1000" placeholder="₪"
+              value={c.amount ?? ''}
+              onChange={(e) => setCosts(costs.map((x, j) => j === i ? { ...x, amount: e.target.value } : x))}
+            />
+            <button className="cf-del" title="מחק" onClick={() => setCosts(costs.filter((_, j) => j !== i))}>✕</button>
+          </div>
+        ))}
+        <button className="tact-btn" onClick={() => setCosts([...costs, { name: '', amount: 0 }])}>
+          + הוסף עלות חד-פעמית
+        </button>
+      </div>
+
+      <p className="bkp-settings-note" style={{ margin: '12px 0 11px' }}>
+        האשראי המבוקש נלקח מסכום ההלוואה שבלשונית תזרים, כדי שלא יהיו שני מקורות
+        לאותו מספר. שיעור הגידול השנתי נקבע פר-אתר בלשונית תזרים בניינים.
+      </p>
+      {err && <p className="bkp-neg" style={{ marginBottom: 9 }}>שמירת הנתונים נכשלה: {err}</p>}
+      <button className="tact-btn tact-btn-primary" onClick={save} disabled={saving}>
+        {saving ? 'שומר…' : 'שמור נתונים'}
+      </button>
     </div>
   )
 }
