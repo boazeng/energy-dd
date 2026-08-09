@@ -532,11 +532,14 @@ def get_plan_data(
     _ag = lambda v: f"{v:,.1f} אג'"                  # noqa: E731
     _int = lambda v: f"{v:,.0f}"                     # noqa: E731
 
-    G1, G2, G3, G4, G5, G6 = (
+    # עלויות ההתאמה למטענים הקיימים (RCD, אינטרנט, בודק חשמל) אינן מוצגות כאן
+    # כהנחת עבודה — הן שימוש חד-פעמי בעסקה, ומקומן בטבלת תכנית ההשקעות ובשורות
+    # העלויות החד-פעמיות שבקבוצת המימון והרכישה.
+    G1, G2, G3, G4, G5 = (
         "הנחות יסוד",
         "תנאי ההכנסה — נקבעים בהסכמים, אינם הנחת עבודה",
         "עלות התקנת מטען חדש (CAPEX)",
-        "עלויות התאמה למטענים קיימים", "תפעול שוטף", "מימון ורכישה",
+        "תפעול שוטף", "מימון ורכישה",
     )
 
     assumptions: list[AssumptionRow] = [
@@ -570,14 +573,9 @@ def get_plan_data(
         _param(G3, "ארון תקשורת", "cost_comm_panel", _ils, note="מתחלק במספר המטענים לארון"),
         _param(G3, "מטענים לארון", "chargers_per_panel", _int),
 
-        _param(G4, "פחת חסר (RCD)", "cost_rcd_per_charger", _ils,
-               note="חד-פעמי בשנה הראשונה, רק למטענים קיימים ללא RCD"),
-        _param(G4, "אינטרנט", "cost_internet_per_charger", _ils, note="חד-פעמי בשנה הראשונה, למטענים קיימים"),
-        _param(G4, "אישור בודק חשמל", "cost_inspector_per_charger", _ils, note="חד-פעמי בשנה הראשונה, למטענים קיימים"),
-
-        _param(G5, "תחזוקה שנתית למטען", "cost_maintenance_per_charger", _ils, note="לכל מטען פעיל, בכל שנה"),
+        _param(G4, "תחזוקה שנתית למטען", "cost_maintenance_per_charger", _ils, note="לכל מטען פעיל, בכל שנה"),
         AssumptionRow(
-            group=G5, label="הוצאות תקורה שנתיות", value=_money(overhead),
+            group=G4, label="הוצאות תקורה שנתיות", value=_money(overhead),
             note=("תקורה ייעודית לפעילות הנרכשת" if overhead else
                   "אין תוספת תקורה: הפעילות נקלטת לתוך החברה הקיימת ומנוהלת "
                   "על ידי מערך הניהול, התפעול והגבייה שלה"),
@@ -593,33 +591,35 @@ def get_plan_data(
             b0.cost_charger_unit + b0.cost_infra_per_charger + b0.cost_install_per_charger
             + panel / per_panel
         )
+        # מיד אחרי רכיבי ה-CAPEX, ולא לפני קבוצה מסוימת שאחריהם: כך השורה נשארת
+        # במקומה גם כשקבוצות מתווספות או נמחקות.
         assumptions.insert(
-            next(i for i, a in enumerate(assumptions) if a.group == G4),
+            max(i for i, a in enumerate(assumptions) if a.group == G3) + 1,
             AssumptionRow(group=G3, label='סה"כ השקעה למטען חדש', value=_money(total_capex),
                           note="סכום הרכיבים שמעל, כולל חלק יחסי בארונות"),
         )
 
     assumptions += [
-        AssumptionRow(group=G6, label="עלות הרכישה", value=_money(acquisition.cost),
+        AssumptionRow(group=G5, label="עלות הרכישה", value=_money(acquisition.cost),
                       note=f"{acquisition.buildings} אתרים · {_money(acquisition.cost_per_building)} לאתר"),
     ] + [
         # הסבר ייעודי לפריט גובר על הנוסח הגנרי — הפיצול של עלויות ההתאמה
         # נושא הסבר משלו לכל מרכיב.
-        AssumptionRow(group=G6, label=c["name"] or "עלות חד-פעמית", value=_money(c["amount"]),
+        AssumptionRow(group=G5, label=c["name"] or "עלות חד-פעמית", value=_money(c["amount"]),
                       note=c.get("note") or "שימוש חד-פעמי בעסקה, ממומן מהאשראי")
         for c in acquisition.one_time_costs
     ] + [
-        AssumptionRow(group=G6, label="אשראי מבוקש", value=_money(loan.amount),
+        AssumptionRow(group=G5, label="אשראי מבוקש", value=_money(loan.amount),
                       note=f"{loan.years} שנים · פריים {loan.prime}% + מרווח {loan.margin}% · לוח שפיצר"
                            + (f" · {loan.grace_months} חודשי גרייס מלא" if loan.grace_months else "")),
-        AssumptionRow(group=G6, label="החזר שנתי", value=_money(loan.annual_payment),
+        AssumptionRow(group=G5, label="החזר שנתי", value=_money(loan.annual_payment),
                       note=f"{_money(loan.monthly_payment)} לחודש"
                            + (f" · מתחיל אחרי {loan.grace_months} חודשי הגרייס" if loan.grace_months else "")),
         # יתרת המזומנים הקיימת אינה מופיעה כאן: התחזית פותחת באפס ואינה נגזרת
         # ממנה, ולכן היא אינה הנחת עבודה. מקומה בפרק מצב היום, כנתון על החברה.
-        AssumptionRow(group=G6, label='מע"מ', value="מנוטרל", note="כל הסכומים בתכנית אינם כוללים מע\"מ"),
+        AssumptionRow(group=G5, label='מע"מ', value="מנוטרל", note="כל הסכומים בתכנית אינם כוללים מע\"מ"),
         AssumptionRow(
-            group=G6, label="מס חברות", value=f"{CORPORATE_TAX_RATE * 100:.0f}%",
+            group=G5, label="מס חברות", value=f"{CORPORATE_TAX_RATE * 100:.0f}%",
             note="ברווח והפסד בלבד — על הרווח לפני מס, ורק בשנים שבהן הוא חיובי; "
                  "בשנת הפסד אין חבות מס וההפסד אינו מקוזז קדימה",
         ),
