@@ -207,8 +207,8 @@
 .bkp-section { margin-bottom: 16.5pt; }
 
 /* סימוני הדגשה שנותרו בקובץ המקורי */
+/* הדגשה צהובה, לשימוש עריכת המלל (==טקסט==). אין הדגשות בנוסח שאושר. */
 .bkp-hl { background: #ffff00; }
-.bkp-hl-aqua { background: #00ffff; }
 
 /* ─── טבלאות ותרשימים ─── */
 .bkp-figure { margin: 13.5pt 0 18pt; }
