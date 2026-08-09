@@ -96,11 +96,95 @@ function H2({ n, plain, children }) {
   )
 }
 
+/* מספור רץ אחד לטבלאות ולתרשימים גם יחד, לפי סדר הופעתם במסמך — כך ממספר
+   Word את שדות ה-SEQ שלו. הסדר כאן הוא המקור היחיד למספרים, ולכן הוספת טבלה
+   באמצע המסמך היא הוספת מפתח אחד ברשימה ולא עדכון ידני של כל מה שאחריה. */
+const FIG = Object.fromEntries([
+  'financing',        // 1.2  מימון הרכישה
+  'summary',          // 1.3  תמצית התחזית הכספית
+  'profitChart',      // 1.4  תזרים נטו על פני השנים
+  'sensitivity',      // 1.5  רגישות התוצאות לקצב החדירה
+  'buildings',        // 2.4  פריסת האתרים
+  'agreementsProfile', // 2.5 פרופיל ההתקשרויות
+  'agreements',       // 2.6  מכלול ההסכמים החתומים
+  'siteEconomics',    // 2.7  תנאים כלכליים ופוטנציאל לפי אתר
+  'today',            // 6    תמונת מצב נוכחית
+  'assumptions',      // 7.1  הנחות העבודה
+  'financials',       // 7.2  תמצית נתונים פיננסיים
+  'cumulative',       // 7.3  יתרת מזומנים מצטברת
+  'cumulativeChart',  // 7.3  התפתחות יתרת המזומנים המצטברת
+  'forecast',         // 7.4  תחזית שנתית מפורטת
+].map((key, i) => [key, i + 1]))
+
 function Caption({ kind, n, children }) {
   return (
     <div className="bkp-caption">
       {kind === 'table' ? 'טבלה' : 'תרשים'} מס&apos; {n}: {children}
     </div>
+  )
+}
+
+/* ─── טבלה 1 — מימון הרכישה ───────────────────────────────────────────────
+   מרכזת בפרק הפותח את מה שמפוזר בהמשך: עלות הרכישה מטבלת הנחות העבודה
+   (7.1) והשימושים החד-פעמיים שנזקפים כולם בשנה הראשונה של התחזית. */
+function AcquisitionTable({ d }) {
+  const a = d.acquisition
+  const oneTime = a.one_time_costs || []
+  const sources = [['אשראי מבוקש', a.credit_requested]]
+  if (a.equity_required > 0) sources.push(['הון עצמי', a.equity_required])
+  const totalSources = sources.reduce((s, [, v]) => s + v, 0)
+
+  return (
+    <figure className="bkp-figure">
+      <Caption kind="table" n={FIG.financing}>מימון הרכישה — שימושים ומקורות (בש&quot;ח)</Caption>
+      <table className="bkp-table">
+        <thead>
+          <tr><th className="bkp-rowlabel">סעיף</th><th>סכום</th></tr>
+        </thead>
+        <tbody>
+          <tr className="bkp-group"><td colSpan={2}>שימושים</td></tr>
+          <tr>
+            <td className="bkp-rowlabel">עלות רכישת הפעילות</td>
+            <td className="bkp-num">{ils(a.cost)}</td>
+          </tr>
+          {oneTime.map((c) => (
+            <tr key={c.name}>
+              <td className="bkp-rowlabel">{c.name}</td>
+              <td className="bkp-num">{ils(c.amount)}</td>
+            </tr>
+          ))}
+          {oneTime.length > 0 && (
+            <tr>
+              <td className="bkp-rowlabel bkp-strong">סה&quot;כ עלויות חד-פעמיות</td>
+              <td className="bkp-num bkp-strong">{ils(a.one_time_total)}</td>
+            </tr>
+          )}
+          <tr className="bkp-total">
+            <td className="bkp-rowlabel">סה&quot;כ שימושים</td>
+            <td className="bkp-num">{ils(a.total_uses)}</td>
+          </tr>
+
+          <tr className="bkp-group"><td colSpan={2}>מקורות</td></tr>
+          {sources.map(([label, v]) => (
+            <tr key={label}>
+              <td className="bkp-rowlabel">{label}</td>
+              <td className="bkp-num">{ils(v)}</td>
+            </tr>
+          ))}
+          <tr className="bkp-total">
+            <td className="bkp-rowlabel">סה&quot;כ מקורות</td>
+            <td className="bkp-num">{ils(totalSources)}</td>
+          </tr>
+        </tbody>
+      </table>
+      <p className="bkp-note">
+        העלויות החד-פעמיות נזקפות כולן בשנה הראשונה של התחזית ({d.start_year}), ולכן הן
+        מופיעות גם בטבלת הנחות העבודה שבסעיף 7.1 ובתחזית השנתית שבסעיף 7.4.
+        {a.surplus_working_capital > 0 && (
+          <> יתרת האשראי מעבר לשימושים, {ils(a.surplus_working_capital)}, משמשת כהון חוזר.</>
+        )}
+      </p>
+    </figure>
   )
 }
 
@@ -140,7 +224,7 @@ function SummaryCompact({ d }) {
   ]
   return (
     <figure className="bkp-figure">
-      <Caption kind="table" n={1}>תמצית התחזית הכספית (בש&quot;ח)</Caption>
+      <Caption kind="table" n={FIG.summary}>תמצית התחזית הכספית (בש&quot;ח)</Caption>
       <table className="bkp-table-accent">
         <thead>
           <tr>
@@ -185,7 +269,7 @@ function BuildingsTable({ d }) {
   const rows = d.overview.buildings
   return (
     <figure className="bkp-figure">
-      <Caption kind="table" n={3}>פריסת האתרים של החברה הנרכשת</Caption>
+      <Caption kind="table" n={FIG.buildings}>פריסת האתרים של החברה הנרכשת</Caption>
       <table className="bkp-table">
         <thead>
           <tr>
@@ -238,7 +322,7 @@ function AgreementsProfile({ d }) {
   const thisYear = new Date().getFullYear()
   return (
     <figure className="bkp-figure">
-      <Caption kind="table" n={4}>פרופיל ההתקשרויות</Caption>
+      <Caption kind="table" n={FIG.agreementsProfile}>פרופיל ההתקשרויות</Caption>
       <div className="bkp-kpis" style={{ gridTemplateColumns: 'repeat(4, 1fr)' }}>
         {[
           [nf.format(d.overview.agreements_count), 'הסכמים חתומים'],
@@ -285,7 +369,7 @@ function AgreementsProfile({ d }) {
 function AgreementsTable({ d }) {
   return (
     <figure className="bkp-figure">
-      <Caption kind="table" n={5}>מכלול ההסכמים החתומים</Caption>
+      <Caption kind="table" n={FIG.agreements}>מכלול ההסכמים החתומים</Caption>
       <table className="bkp-table">
         <thead>
           <tr>
@@ -321,7 +405,7 @@ function SiteEconomicsTable({ d }) {
   const sum = (k) => rows.reduce((s, r) => s + r[k], 0)
   return (
     <figure className="bkp-figure">
-      <Caption kind="table" n={6}>תנאים כלכליים ופוטנציאל לפי אתר</Caption>
+      <Caption kind="table" n={FIG.siteEconomics}>תנאים כלכליים ופוטנציאל לפי אתר</Caption>
       <table className="bkp-table bkp-table-tight">
         <thead>
           <tr>
@@ -375,7 +459,7 @@ function TodayKpis({ d }) {
   const t = d.today
   return (
     <figure className="bkp-figure">
-      <Caption kind="table" n={7}>תמונת מצב נוכחית</Caption>
+      <Caption kind="table" n={FIG.today}>תמונת מצב נוכחית</Caption>
       <Kpis items={[
         { label: 'מטענים מותקנים', value: nf.format(o.current_chargers), note: `ב-${o.buildings_count} אתרים` },
         { label: 'חניות פוטנציאליות', value: nf.format(o.potential_spots), note: `מומשו ${o.penetration_pct}%` },
@@ -398,7 +482,7 @@ function AssumptionsTable({ d }) {
   }
   return (
     <figure className="bkp-figure">
-      <Caption kind="table" n={8}>הנחות העבודה</Caption>
+      <Caption kind="table" n={FIG.assumptions}>הנחות העבודה</Caption>
       <table className="bkp-table">
         <thead>
           <tr><th className="bkp-rowlabel">פרמטר</th><th>ערך</th><th>הערה</th></tr>
@@ -439,7 +523,7 @@ function SummaryFinancials({ d }) {
   ]
   return (
     <figure className="bkp-figure">
-      <Caption kind="table" n={9}>תמצית נתונים פיננסיים</Caption>
+      <Caption kind="table" n={FIG.financials}>תמצית נתונים פיננסיים</Caption>
       <table className="bkp-table">
         <thead>
           <tr><th className="bkp-rowlabel">סעיף</th>{f.map((r) => <th key={r.year}>{r.year}</th>)}</tr>
@@ -464,7 +548,7 @@ function CumulativeCashflow({ d }) {
   return (
     <>
       <figure className="bkp-figure">
-        <Caption kind="table" n={10}>יתרת מזומנים מצטברת</Caption>
+        <Caption kind="table" n={FIG.cumulative}>יתרת מזומנים מצטברת</Caption>
         <table className="bkp-table">
           <thead>
             <tr><th className="bkp-rowlabel">סעיף</th>{d.forecast.map((r) => <th key={r.year}>{r.year}</th>)}</tr>
@@ -487,7 +571,7 @@ function CumulativeCashflow({ d }) {
       </figure>
 
       <figure className="bkp-figure">
-        <Caption kind="chart" n={2}>התפתחות יתרת המזומנים המצטברת</Caption>
+        <Caption kind="chart" n={FIG.cumulativeChart}>התפתחות יתרת המזומנים המצטברת</Caption>
         <LineChart width={DOC_W} height={CHART_H} data={data} margin={{ top: 12, right: 8, left: 30, bottom: 4 }}>
           <CartesianGrid stroke={GRID} vertical={false} />
           <XAxis dataKey="year" tick={{ fill: AXIS, fontSize: 12 }} axisLine={{ stroke: GRID }} tickLine={false} />
@@ -510,7 +594,7 @@ function ForecastTable({ d }) {
   const T = d.totals
   return (
     <figure className="bkp-figure">
-      <Caption kind="table" n={11}>תחזית שנתית מפורטת (בש&quot;ח)</Caption>
+      <Caption kind="table" n={FIG.forecast}>תחזית שנתית מפורטת (בש&quot;ח)</Caption>
       <table className="bkp-table bkp-table-tight">
         <thead>
           <tr>
@@ -567,7 +651,7 @@ function ProfitChart({ d }) {
   if (!data.length) return null
   return (
     <figure className="bkp-figure">
-      <Caption kind="chart" n={1}>תזרים נטו על פני השנים</Caption>
+      <Caption kind="chart" n={FIG.profitChart}>תזרים נטו על פני השנים</Caption>
       <BarChart width={DOC_W} height={CHART_H} data={data} margin={{ top: 24, right: 8, left: 30, bottom: 4 }}>
         <CartesianGrid stroke={GRID} vertical={false} />
         <XAxis dataKey="year" tick={{ fill: AXIS, fontSize: 12 }} axisLine={{ stroke: GRID }} tickLine={false} />
@@ -588,7 +672,7 @@ function ProfitChart({ d }) {
 function SensitivityTable({ d }) {
   return (
     <figure className="bkp-figure">
-      <Caption kind="table" n={2}>רגישות התוצאות לקצב החדירה</Caption>
+      <Caption kind="table" n={FIG.sensitivity}>רגישות התוצאות לקצב החדירה</Caption>
       <table className="bkp-table">
         <thead>
           <tr>
@@ -1054,6 +1138,7 @@ export default function BankPlan({ agreementVersion, horizonMode = '5' }) {
             החברה הנרכשת עוסקת בפעילות זהה של החברה וכוללת {nf.format(o.buildings_count)} בניינים פעילים.
           </p>
           <P id="1.2b" />
+          <AcquisitionTable d={d} />
 
           <H2 n="1.3">תמצית התחזית הכספית</H2>
           <P id="1.3" />
