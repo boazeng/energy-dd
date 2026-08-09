@@ -588,11 +588,8 @@ def get_plan_data(
                       note=f"{loan.years} שנים · פריים {loan.prime}% + מרווח {loan.margin}% · לוח שפיצר"),
         AssumptionRow(group=G6, label="החזר שנתי", value=_money(loan.annual_payment),
                       note=f"{_money(loan.monthly_payment)} לחודש"),
-        # לא "יתרת פתיחה": התחזית פותחת באפס, ולכן היתרה הקיימת היא נתון על
-        # החברה ולא הנחה שממנה נגזר המצטבר. הניסוח מונע קריאה שגויה של הטבלה.
-        AssumptionRow(group=G6, label="יתרת מזומנים קיימת", value=_money(today.opening_balance),
-                      note=(f"{today.opening_balance_date}; " if today.opening_balance_date else "")
-                           + "אינה נכללת ביתרה המצטברת שבתחזית"),
+        # יתרת המזומנים הקיימת אינה מופיעה כאן: התחזית פותחת באפס ואינה נגזרת
+        # ממנה, ולכן היא אינה הנחת עבודה. מקומה בפרק מצב היום, כנתון על החברה.
         AssumptionRow(group=G6, label='מע"מ', value="מנוטרל", note="כל הסכומים בתכנית אינם כוללים מע\"מ"),
         AssumptionRow(
             group=G6, label="מס חברות", value=f"{CORPORATE_TAX_RATE * 100:.0f}%",
