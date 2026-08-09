@@ -12,7 +12,7 @@
    המלל נשמר כאן ולא ב-DB בכוונה — הוא חייב להישאר זהה לקובץ שאושר; רק בלוקים
    שנערכו בפועל נשמרים ב-/api/bank-plan/texts.
    ═════════════════════════════════════════════════════════════════════════ */
-import { Fragment, useEffect, useState } from 'react'
+import { createContext, Fragment, useContext, useEffect, useState } from 'react'
 import {
   Bar, BarChart, CartesianGrid, Cell, Line, LineChart,
   ReferenceLine, Tooltip, XAxis, YAxis,
@@ -126,6 +126,30 @@ function Caption({ kind, n, children }) {
   )
 }
 
+/* ─── עריכת ההערות שמתחת לטבלאות ──────────────────────────────────────────
+   ההערות יושבות עמוק בתוך רכיבי הטבלאות, ולכן מצב העריכה מגיע אליהן בהקשר
+   ולא כ-props שמושחלים דרך כל רכיב וטבלה בדרך. */
+const EditCtx = createContext({ edit: false, overrides: {}, onSave: null })
+
+/**
+ * הערה מתחת לטבלה, ניתנת לעריכה כמו כל בלוק מלל אחר במסמך.
+ *
+ * `text` הוא הנוסח שבקוד — הוא נבנה מהנתונים החיים ולכן מתעדכן מאליו. ברגע
+ * שנשמרת עריכה היא גוברת עליו, והמספרים שבתוכה הופכים לטקסט קפוא שאינו זז עם
+ * הנתונים; "החזר למקור" מחזיר את הנוסח החי. זו אותה התנהגות שיש לבלוקי המלל,
+ * וההערה בראש תיבת העריכה אומרת זאת במפורש.
+ */
+function Note({ id, text }) {
+  const { edit, overrides, onSave } = useContext(EditCtx)
+  return (
+    <EditableText
+      id={id} original={text} edit={edit} overrides={overrides} onSave={onSave}
+      hint="הנוסח שבקוד מתעדכן לפי הנתונים; נוסח שנשמר כאן קפוא"
+      render={(t) => <>{renderProse(t, 'bkp-note')}</>}
+    />
+  )
+}
+
 /* ─── טבלה 1 — תכנית ההשקעות ──────────────────────────────────────────────
    מרכזת בפרק הפותח את מה שמפוזר בהמשך: עלות הרכישה והעלויות החד-פעמיות
    מטבלת הנחות העבודה (8.1). כולן ממומנות מההלוואה ואינן נוגעות בתזרים,
@@ -180,16 +204,15 @@ function InvestmentPlanTable({ d }) {
           </tr>
         </tbody>
       </table>
-      <p className="bkp-note">
-        {equity > 0
-          ? <>תכנית ההשקעות ממומנת מהאשראי המבוקש בסך {ils(a.credit_requested)} ומהון
-            עצמי בסך {ils(equity)}.</>
-          : <>תכנית ההשקעות ממומנת במלואה מהאשראי המבוקש.</>}
-        {' '}רכיביה אינם מנוכים מהתזרים המוצג בפרקים הבאים — התזרים נושא את ההחזר
-        השנתי בלבד. פירוט העלויות החד-פעמיות מופיע גם בטבלת הנחות העבודה שבסעיף 8.1.
-        {surplus > 0 && <> ההפרש בין האשראי להשקעות המתוכננות משמש כהון חוזר לפעילות.</>}
-        {' '}הסכומים אינם כוללים מע&quot;מ.
-      </p>
+      <Note id="note-investment" text={[
+        equity > 0
+          ? `תכנית ההשקעות ממומנת מהאשראי המבוקש בסך ${ils(a.credit_requested)} ומהון עצמי בסך ${ils(equity)}.`
+          : 'תכנית ההשקעות ממומנת במלואה מהאשראי המבוקש.',
+        'רכיביה אינם מנוכים מהתזרים המוצג בפרקים הבאים — התזרים נושא את ההחזר השנתי בלבד.'
+        + ' פירוט העלויות החד-פעמיות מופיע גם בטבלת הנחות העבודה שבסעיף 8.1.',
+        surplus > 0 ? 'ההפרש בין האשראי להשקעות המתוכננות משמש כהון חוזר לפעילות.' : '',
+        'הסכומים אינם כוללים מע"מ.',
+      ].filter(Boolean).join(' ')} />
     </figure>
   )
 }
@@ -277,14 +300,13 @@ function SummaryCompact({ d }) {
           </tr>
         </tbody>
       </table>
-      <p className="bkp-note">
-        הסכומים מנוטרלי מע&quot;מ. היתרה המצטברת פותחת באפס ומציגה את מה שהפעילות
-        הנרכשת מייצרת בלבד; יתרת המזומנים הקיימת של החברה אינה נכללת בה.
-        {' '}הרווח החשבונאי ומס החברות מוצגים בטבלת הרווח וההפסד הצפוי שבהמשך
-        הפרק; יתרות המזומנים כאן הן לפני מס.
-        {' '}הפירוט המלא, לרבות הנחות העבודה שמהן נגזרת התחזית,
-        מופיע בפרק תחזית הגידול.
-      </p>
+      <Note id="note-summary" text={
+        'הסכומים מנוטרלי מע"מ. היתרה המצטברת פותחת באפס ומציגה את מה שהפעילות הנרכשת'
+        + ' מייצרת בלבד; יתרת המזומנים הקיימת של החברה אינה נכללת בה.'
+        + ' הרווח החשבונאי ומס החברות מוצגים בטבלת הרווח וההפסד הצפוי שבהמשך הפרק;'
+        + ' יתרות המזומנים כאן הן לפני מס.'
+        + ' הפירוט המלא, לרבות הנחות העבודה שמהן נגזרת התחזית, מופיע בפרק תחזית הגידול.'
+      } />
     </figure>
   )
 }
@@ -332,19 +354,21 @@ function PnlForecast({ d }) {
           ))}
         </tbody>
       </table>
-      <p className="bkp-note">
-        ההבדל מתמצית התחזית הכספית הוא ברכיב ההלוואה בלבד: התזרים נושא את ההחזר
-        המלא ({ils(d.loan.annual_payment)} לשנה), ואילו הרווח וההפסד נושא את
-        הריבית בלבד — סך {ils(d.loan.total_interest)} לאורך ההלוואה — משום שהחזר
-        הקרן הוא פירעון התחייבות ואינו הוצאה.
-        {d.loan.grace_months > 0 && ` בשנה הראשונה ההחזר נמוך מההחזר השנתי המלא, משום
-        ש-${d.loan.grace_months} החודשים הראשונים הם חודשי גרייס מלא: אין בהם תשלום כלל,
-        והריבית הנצברת בהם מהוונת לקרן ונפרעת בהמשך במסגרת ההחזר.`} מס החברות מחושב בשיעור 23% מהרווח
-        לפני מס ורק בשנים שבהן הוא חיובי; בשנת הפסד אין חבות מס, וההפסד אינו
-        מקוזז כנגד רווחי השנים הבאות — ולפיכך זו הצגה שמרנית. ההשקעה בעמדות
-        חדשות מוצגת במלואה בשנת ההשקעה, כמו בתזרים, ולא כפחת שנתי. הסכומים
-        מנוטרלי מע&quot;מ, והמס אינו מנוכה מיתרות המזומנים המוצגות במסמך.
-      </p>
+      <Note id="note-pnlForecast" text={[
+        'ההבדל מתמצית התחזית הכספית הוא ברכיב ההלוואה בלבד: התזרים נושא את ההחזר המלא'
+        + ` (${ils(d.loan.annual_payment)} לשנה), ואילו הרווח וההפסד נושא את הריבית בלבד —`
+        + ` סך ${ils(d.loan.total_interest)} לאורך ההלוואה — משום שהחזר הקרן הוא פירעון`
+        + ' התחייבות ואינו הוצאה.',
+        d.loan.grace_months > 0
+          ? `בשנה הראשונה ההחזר נמוך מההחזר השנתי המלא, משום ש-${d.loan.grace_months} החודשים`
+            + ' הראשונים הם חודשי גרייס מלא: אין בהם תשלום כלל, והריבית הנצברת בהם מהוונת'
+            + ' לקרן ונפרעת בהמשך במסגרת ההחזר.'
+          : '',
+        'מס החברות מחושב בשיעור 23% מהרווח לפני מס ורק בשנים שבהן הוא חיובי; בשנת הפסד'
+        + ' אין חבות מס, וההפסד אינו מקוזז כנגד רווחי השנים הבאות — ולפיכך זו הצגה שמרנית.'
+        + ' ההשקעה בעמדות חדשות מוצגת במלואה בשנת ההשקעה, כמו בתזרים, ולא כפחת שנתי.'
+        + ' הסכומים מנוטרלי מע"מ, והמס אינו מנוכה מיתרות המזומנים המוצגות במסמך.',
+      ].filter(Boolean).join(' ')} />
     </figure>
   )
 }
@@ -530,10 +554,10 @@ function SiteEconomicsTable({ d }) {
           </tr>
         </tfoot>
       </table>
-      <p className="bkp-note">
-        הסכומים בש&quot;ח ואינם כוללים מע&quot;מ. &quot;פוטנציאל שנתי מלא&quot; מבטא את ההכנסה
-        אילו כל החניות שבהסכם היו מאוישות — אינו יעד התחזית, אלא תקרת ההשבחה החוזית.
-      </p>
+      <Note id="note-siteEconomics" text={
+        'הסכומים בש"ח ואינם כוללים מע"מ. "פוטנציאל שנתי מלא" מבטא את ההכנסה אילו כל'
+        + ' החניות שבהסכם היו מאוישות — אינו יעד התחזית, אלא תקרת ההשבחה החוזית.'
+      } />
     </figure>
   )
 }
@@ -551,7 +575,6 @@ function TodayKpis({ d }) {
         { label: 'הכנסה שנתית נוכחית', value: ils(t.run_rate_annual_income), note: 'ללא הנחת גידול' },
         { label: 'הכנסה חודשית למטען', value: ils(t.monthly_income_per_charger), note: 'ממוצע בפועל' },
         { label: 'עלות תפעול שנתית', value: ils(t.run_rate_annual_opex), note: 'מטענים קיימים' },
-        { label: 'יתרת מזומנים', value: ils(t.opening_balance), note: t.opening_balance_date || '—' },
       ]} />
     </figure>
   )
@@ -636,11 +659,11 @@ function PnlTable() {
           ))}
         </tbody>
       </table>
-      <p className="bkp-note">
-        נתוני 2023 ו-2024 מתוך הדוחות הכספיים המבוקרים; 2025 ו-1–6/2026 מתוך מאזני בוחן,
-        שטרם עברו ביקורת. סיווג הסעיפים במאזני הבוחן אינו זהה לזה שבדוחות המבוקרים,
-        ולכן ההשוואה בין התקופות היא ברמת השורה התחתונה. הסכומים אינם כוללים מע&quot;מ.
-      </p>
+      <Note id="note-pnl" text={
+        'נתוני 2023 ו-2024 מתוך הדוחות הכספיים המבוקרים; 2025 ו-1–6/2026 מתוך מאזני בוחן,'
+        + ' שטרם עברו ביקורת. סיווג הסעיפים במאזני הבוחן אינו זהה לזה שבדוחות המבוקרים,'
+        + ' ולכן ההשוואה בין התקופות היא ברמת השורה התחתונה. הסכומים אינם כוללים מע"מ.'
+      } />
     </figure>
   )
 }
@@ -740,12 +763,12 @@ function CumulativeCashflow({ d }) {
             </tr>
           </tbody>
         </table>
-        <p className="bkp-note">
-          היתרה המצטברת פותחת באפס ומציגה את התזרים שהפעילות הנרכשת מייצרת בלבד.
-          יתרת המזומנים הקיימת של החברה
-          {d.today.opening_balance_date ? ` נכון ל-${d.today.opening_balance_date}` : ''}
-          {' '}({ils(d.today.opening_balance)}) אינה נכללת בה ומוצגת בפרק מצב היום.
-        </p>
+        {/* יתרת המזומנים הקיימת אינה מוצגת עוד במסמך, ולכן ההערה רק מבהירה
+            שהיא אינה חלק מהיתרה המצטברת — בלי לנקוב בסכום או להפנות אליו. */}
+        <Note id="note-cumulative" text={
+          'היתרה המצטברת פותחת באפס ומציגה את התזרים שהפעילות הנרכשת מייצרת בלבד.'
+          + ' יתרת המזומנים הקיימת של החברה אינה נכללת בה.'
+        } />
       </figure>
 
       <figure className="bkp-figure">
@@ -1052,8 +1075,9 @@ function withMarks(line, keyPrefix) {
   ))
 }
 
-/** מרנדר בלוק מלל: שורה ריקה מפרידה פסקאות, "- " פותח תבליט. */
-function renderProse(text) {
+/** מרנדר בלוק מלל: שורה ריקה מפרידה פסקאות, "- " פותח תבליט.
+    pClass מאפשר לאותו מרנדר לשרת גם הערות מתחת לטבלאות (גופן קטן ומעומעם). */
+function renderProse(text, pClass = 'bkp-p') {
   const blocks = []
   let list = null
   for (const raw of (text || '').split('\n')) {
@@ -1071,16 +1095,18 @@ function renderProse(text) {
   return blocks.map((b, i) => (
     b.type === 'ul'
       ? <ul key={i} className="bkp-ul">{b.items.map((it, j) => <li key={j}>{withMarks(it, `${i}-${j}`)}</li>)}</ul>
-      : <p key={i} className="bkp-p">{withMarks(b.text, String(i))}</p>
+      : <p key={i} className={pClass}>{withMarks(b.text, String(i))}</p>
   ))
 }
 
 /**
- * בלוק מלל של המסמך. במצב תצוגה מרנדר את הנוסח הפעיל (ערוך אם נערך, אחרת
- * הנוסח שבקובץ); במצב עריכה מציג תיבת טקסט עם שמירה והחזרה למקור.
+ * טקסט ערוך של המסמך. במצב תצוגה מרנדר את הנוסח הפעיל (ערוך אם נערך, אחרת
+ * הנוסח שבקוד); במצב עריכה מציג תיבת טקסט עם שמירה והחזרה למקור.
+ *
+ * `render` מקבל את הנוסח הפעיל ומחזיר את הצגתו — כך אותו מנגנון עריכה משרת גם
+ * את פסקאות המסמך וגם את ההערות שמתחת לטבלאות, בלי שתי תיבות עריכה שונות.
  */
-function Prose({ id, edit, overrides, onSave, className }) {
-  const original = TEXTS[id] ?? ''
+function EditableText({ id, original, edit, overrides, onSave, render, hint }) {
   const active = overrides[id] ?? original
   const edited = overrides[id] !== undefined
   const [draft, setDraft] = useState(active)
@@ -1089,7 +1115,7 @@ function Prose({ id, edit, overrides, onSave, className }) {
   // כשהעריכה נשמרת או מוחזרת במקום אחר — התיבה מתיישרת לנוסח הפעיל
   useEffect(() => { setDraft(active) }, [active])
 
-  if (!edit) return <div className={className}>{renderProse(active)}</div>
+  if (!edit) return render(active)
 
   const dirty = draft !== active
   const run = async (value) => {
@@ -1102,7 +1128,10 @@ function Prose({ id, edit, overrides, onSave, className }) {
       <div className="bkp-edit-head">
         <span className="bkp-edit-id">{id}</span>
         {edited && <span className="bkp-edit-flag">נערך</span>}
-        <span className="bkp-edit-hint">שורה ריקה = פסקה · &quot;- &quot; = תבליט · ==טקסט== = הדגשה</span>
+        <span className="bkp-edit-hint">
+          שורה ריקה = פסקה · &quot;- &quot; = תבליט · ==טקסט== = הדגשה
+          {hint ? ` · ${hint}` : ''}
+        </span>
       </div>
       <textarea
         className="bkp-edit-body"
@@ -1121,6 +1150,16 @@ function Prose({ id, edit, overrides, onSave, className }) {
         {dirty && <span className="bkp-sub">יש שינוי שלא נשמר</span>}
       </div>
     </div>
+  )
+}
+
+/** פסקת מלל של המסמך — הנוסח שבקוד הוא זה שאושר בקובץ המקורי. */
+function Prose({ id, edit, overrides, onSave, className }) {
+  return (
+    <EditableText
+      id={id} original={TEXTS[id] ?? ''} edit={edit} overrides={overrides} onSave={onSave}
+      render={(t) => <div className={className}>{renderProse(t)}</div>}
+    />
   )
 }
 
@@ -1244,6 +1283,9 @@ export default function BankPlan({ agreementVersion, horizonMode = '5' }) {
   )
 
   return (
+    // ההערות שמתחת לטבלאות נערכות דרך ההקשר, ולכן הן זמינות לעריכה בלי
+    // שכל רכיב טבלה יקבל את מצב העריכה כ-prop
+    <EditCtx.Provider value={{ edit, overrides, onSave: saveText }}>
     <div className="bkp-page">
       <div className="bkp-toolbar no-print">
         <span className="bkp-meta">
@@ -1484,6 +1526,7 @@ export default function BankPlan({ agreementVersion, horizonMode = '5' }) {
         </footer>
       </article>
     </div>
+    </EditCtx.Provider>
   )
 }
 
