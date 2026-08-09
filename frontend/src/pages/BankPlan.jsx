@@ -130,6 +130,10 @@ function Caption({ kind, n, children }) {
 function AcquisitionTable({ d }) {
   const a = d.acquisition
   const oneTime = a.one_time_costs || []
+  // עודף האשראי מעבר לשימושים הוא שימוש בפני עצמו — בלעדיו שני צדי הטבלה
+  // לא היו מסתכמים לאותו סכום.
+  const surplus = a.surplus_working_capital || 0
+  const totalUses = a.total_uses + surplus
   const sources = [['אשראי מבוקש', a.credit_requested]]
   if (a.equity_required > 0) sources.push(['הון עצמי', a.equity_required])
   const totalSources = sources.reduce((s, [, v]) => s + v, 0)
@@ -159,9 +163,15 @@ function AcquisitionTable({ d }) {
               <td className="bkp-num bkp-strong">{ils(a.one_time_total)}</td>
             </tr>
           )}
+          {surplus > 0 && (
+            <tr>
+              <td className="bkp-rowlabel">הון חוזר</td>
+              <td className="bkp-num">{ils(surplus)}</td>
+            </tr>
+          )}
           <tr className="bkp-total">
             <td className="bkp-rowlabel">סה&quot;כ שימושים</td>
-            <td className="bkp-num">{ils(a.total_uses)}</td>
+            <td className="bkp-num">{ils(totalUses)}</td>
           </tr>
 
           <tr className="bkp-group"><td colSpan={2}>מקורות</td></tr>
@@ -178,11 +188,12 @@ function AcquisitionTable({ d }) {
         </tbody>
       </table>
       <p className="bkp-note">
-        העלויות החד-פעמיות נזקפות כולן בשנה הראשונה של התחזית ({d.start_year}), ולכן הן
-        מופיעות גם בטבלת הנחות העבודה שבסעיף 7.1 ובתחזית השנתית שבסעיף 7.4.
-        {a.surplus_working_capital > 0 && (
-          <> יתרת האשראי מעבר לשימושים, {ils(a.surplus_working_capital)}, משמשת כהון חוזר.</>
+        {oneTime.length > 0 && (
+          <>העלויות החד-פעמיות נזקפות כולן בשנה הראשונה של התחזית ({d.start_year}), ולכן הן
+          מופיעות גם בטבלת הנחות העבודה שבסעיף 7.1 ובתחזית השנתית שבסעיף 7.4. </>
         )}
+        {surplus > 0 && <>ההפרש בין האשראי המבוקש לעלות הרכישה משמש כהון חוזר לפעילות. </>}
+        הסכומים אינם כוללים מע&quot;מ.
       </p>
     </figure>
   )
@@ -215,9 +226,9 @@ function SummaryCompact({ d }) {
     ['הוצאות תפעול, תחזוקה ותקורה', f.map((r) => -(r.opex + r.maintenance + r.overhead)),
       -(T.opex + T.maintenance + (T.overhead || 0))],
     ['השקעה בעמדות חדשות', f.map((r) => -r.capex), -T.capex],
-    // שורת העלויות החד-פעמיות אינה מוצגת כאן לפי בקשה, אך הסכום עצמו נשאר
-    // בתחזית: הוא מנוכה מ-profit_before_loan ומופיע בטבלאות 9 ו-12. לכן הטור
-    // בטבלה הזו אינו מסתכם — ההפרש הוא בדיוק העלויות החד-פעמיות של אותה שנה.
+    // מוצגת רק כשיש עלויות חד-פעמיות. היא חייבת להופיע כשהן קיימות: הסכום
+    // מנוכה מ-profit_before_loan, ובלי השורה הטור אינו מסתכם.
+    ...(T.one_time ? [['עלויות חד-פעמיות', f.map((r) => -r.one_time), -T.one_time]] : []),
     ['תזרים לפני החזר החוב', f.map((r) => r.profit_before_loan), T.profit_before_loan, true],
     ['החזר ההלוואה', f.map((r) => -r.loan_repayment), -T.loan_repayment],
     ['תזרים נטו', f.map((r) => r.net_profit), T.net_profit, true],
