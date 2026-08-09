@@ -219,6 +219,7 @@ function SummaryCompact({ d }) {
   const f = d.forecast
   if (!f.length) return null
   const T = d.totals
+  const opening = d.today.opening_balance || 0
   // הדגשה על שתי שורות התזרים בלבד — כך זה בקובץ שאושר. תוויות השורה נשארות
   // במשקל רגיל, גם הן כמו בקובץ.
   const rows = [
@@ -251,6 +252,19 @@ function SummaryCompact({ d }) {
               <td className={signCls(total)}>{num(total)}</td>
             </tr>
           ))}
+          {/* שורת הפתיחה נדרשת כדי שהגלגול ייסגר בכל עמודה: המצטבר פותח ביתרת
+              המזומנים בפועל ולא באפס, ובלעדיה השנה הראשונה נראית כאילו המצטבר
+              אינו שווה לתזרים הנטו. כשאין יתרת פתיחה השורה מיותרת ואינה מוצגת. */}
+          {opening !== 0 && (
+            <tr>
+              <td className="bkp-rowlabel">יתרת מזומנים בפתיחה</td>
+              {f.map((r, i) => {
+                const v = i ? f[i - 1].cumulative : opening
+                return <td key={r.year} className={signCls(v)}>{num(v)}</td>
+              })}
+              <td />
+            </tr>
+          )}
           <tr>
             <td className="bkp-rowlabel">יתרת מזומנים מצטברת</td>
             {f.map((r) => (
@@ -267,7 +281,13 @@ function SummaryCompact({ d }) {
         </tbody>
       </table>
       <p className="bkp-note">
-        הסכומים מנוטרלי מע&quot;מ. הפירוט המלא, לרבות הנחות העבודה שמהן נגזרת התחזית,
+        הסכומים מנוטרלי מע&quot;מ.
+        {opening !== 0 && (
+          <> יתרת המזומנים המצטברת פותחת ביתרה בפועל
+            {d.today.opening_balance_date ? ` נכון ל-${d.today.opening_balance_date}` : ''}
+            {' '}({ils(opening)}), ולפיכך היא גבוהה מהתזרים הנטו המצטבר בסכום זה.</>
+        )}
+        {' '}הפירוט המלא, לרבות הנחות העבודה שמהן נגזרת התחזית,
         מופיע בפרק תחזית הגידול.
       </p>
     </figure>
