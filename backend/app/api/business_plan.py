@@ -362,6 +362,11 @@ def get_plan_data(
     )
 
     # ── פרק 3: תחזית ──────────────────────────────────────────────────────
+    # הכנסה שנתית קבועה ממטעני DC, החל משנת ההפעלה. אינה נגזרת ממספר המטענים
+    # בבניינים ואינה גדלה עם קצב החדירה, ולכן היא נזקפת כאן ולא ב-_aggregate.
+    dc_annual_income = float(plan_settings.dc_annual_income or 0)
+    dc_start_year = int(plan_settings.dc_income_start_year or 0)
+
     annual_payment = _shpitzer_annual(loan_row)
     loan_start = int(loan_row.start_month[:4]) if loan_row.start_month else start_year
     loan_end = loan_start + loan_row.years - 1
@@ -380,8 +385,13 @@ def get_plan_data(
     # ההוצאה בלי התקבול שמימן אותה היה ספירה כפולה. התזרים נושא רק את ההחזר.
     for year in sorted(agg):
         r = agg[year]
+        # הכנסה ממטעני DC — נזקפת ברמת התכנית ולא בתחזית פר-אתר, ולכן היא
+        # מתווספת כאן ל-income. כך היא זורמת אחת לתזרים (דרך profit_before_loan)
+        # ואחת לרווח והפסד (דרך pretax_profit), בלי ספירה כפולה.
+        dc_income = dc_annual_income if year >= dc_start_year else 0.0
+        income = r["income"] + dc_income
         profit_before_loan = (
-            r["income"] - r["capex"] - r["opex"] - r["maint"] - overhead
+            income - r["capex"] - r["opex"] - r["maint"] - overhead
         )
         repayment = round(annual_payment, 2) if loan_start <= year <= loan_end else 0.0
         net = profit_before_loan - repayment
@@ -403,12 +413,13 @@ def get_plan_data(
             year=year,
             chargers_added=int(r["added"]),
             total_chargers=int(r["total"]),
-            income=round(r["income"], 2),
+            income=round(income, 2),
+            dc_income=round(dc_income, 2),
             capex=round(r["capex"], 2),
             opex=round(r["opex"], 2),
             maintenance=round(r["maint"], 2),
             overhead=round(overhead, 2),
-            ebitda=round(r["income"] - r["opex"] - r["maint"] - overhead, 2),
+            ebitda=round(income - r["opex"] - r["maint"] - overhead, 2),
             profit_before_loan=round(profit_before_loan, 2),
             loan_repayment=repayment,
             net_profit=round(net, 2),
@@ -423,6 +434,7 @@ def get_plan_data(
 
     totals = {
         "income": round(sum(f.income for f in forecast), 2),
+        "dc_income": round(sum(f.dc_income for f in forecast), 2),
         "capex": round(sum(f.capex for f in forecast), 2),
         "opex": round(sum(f.opex for f in forecast), 2),
         "maintenance": round(sum(f.maintenance for f in forecast), 2),
@@ -531,6 +543,13 @@ def get_plan_data(
         _param(G1, "שיעור גידול שנתי", "annual_growth_rate", _pct,
                note="מטענים חדשים כאחוז מהחניות הפוטנציאליות בכל אתר"),
         _param(G1, "צריכה חודשית ממוצעת למטען", "avg_kwh_per_charger_monthly", _kwh),
+    ] + ([
+        AssumptionRow(
+            group=G1, label="הכנסה שנתית ממטעני DC", value=_money(dc_annual_income),
+            note=f"סכום קבוע בכל שנה החל מ-{dc_start_year}; אינו נגזר ממספר "
+                 "העמדות בבניינים ואינו משתנה עם קצב החדירה",
+        ),
+    ] if dc_annual_income > 0 else []) + [
 
         # רכיבי ההכנסה נקבעים בהסכם ואינם הנחה — מוצגים כטווח, לא כממוצע.
         # "דמי מנוי" אינם שורה נפרדת: זהו אותו רכיב כמו דמי הניהול.
@@ -613,8 +632,10 @@ def get_plan_data(
         total_profit = 0.0
         for year in sorted(scen):
             r = scen[year]
+            # הכנסת ה-DC זהה בכל התרחישים: היא אינה תלויה בקצב החדירה בבניינים
+            dc = dc_annual_income if year >= dc_start_year else 0.0
             # ללא השימושים החד-פעמיים — מאותה סיבה שבתחזית עצמה
-            pbl = r["income"] - r["capex"] - r["opex"] - r["maint"] - overhead
+            pbl = r["income"] + dc - r["capex"] - r["opex"] - r["maint"] - overhead
             repay = annual_payment if loan_start <= year <= loan_end else 0.0
             total_profit += pbl - repay
             cum += pbl - repay

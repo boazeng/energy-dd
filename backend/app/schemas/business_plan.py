@@ -50,6 +50,8 @@ class PlanSettingsIn(BaseModel):
     acquisition_cost: float | None = Field(default=None, ge=0)
     target_company: str | None = None
     one_time_costs: list[dict] | None = None
+    dc_annual_income: float | None = Field(default=None, ge=0)
+    dc_income_start_year: int | None = Field(default=None, ge=2000, le=2100)
 
 
 class PlanSettingsOut(BaseModel):
@@ -67,6 +69,8 @@ class PlanSettingsOut(BaseModel):
     acquisition_cost: float = 0
     target_company: str = ""
     one_time_costs: list[dict] = []
+    dc_annual_income: float = 0
+    dc_income_start_year: int = 2028
 
 
 class BusinessPlanOut(BaseModel):
@@ -106,7 +110,8 @@ class ForecastYearRow(BaseModel):
     year: int
     chargers_added: int = 0
     total_chargers: int = 0
-    income: float = 0
+    income: float = 0                   # סה"כ הכנסות השנה, כולל מטעני DC
+    dc_income: float = 0                # מתוכן: הכנסה ממטעני DC (0 לפני שנת ההפעלה)
     capex: float = 0
     opex: float = 0                     # OPEX חד-פעמי (שנה ראשונה)
     maintenance: float = 0

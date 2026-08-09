@@ -296,6 +296,9 @@ def migrate_business_plan(engine: Engine) -> None:
             ("target_company",   "TEXT", "''"),
             # NULL מבדיל בין "טרם הוגדר" (הזריעה תמלא) לבין רשימה ריקה במפורש
             ("one_time_costs",   "TEXT", "NULL"),
+            # הכנסה שנתית ממטעני DC, החל משנת ההפעלה
+            ("dc_annual_income",     "REAL",    "300000"),
+            ("dc_income_start_year", "INTEGER", "2028"),
         ],
     }
     with engine.connect() as conn:

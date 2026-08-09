@@ -59,6 +59,13 @@ class BusinessPlanSetting(Base):
     # [{"name": "התאמת מטענים קיימים", "amount": 800000}, ...]
     # NULL = טרם הוגדר (הזריעה תמלא ברירת מחדל); [] = הוגדר במפורש כריק.
     one_time_costs: Mapped[list | None] = mapped_column(JSON, nullable=True, default=None)
+
+    # הכנסה שנתית ממטעני DC. אינה נגזרת ממספר המטענים בבניינים אלא מהפעלת
+    # מטענים מהירים במרכזים המסחריים, ולכן היא נזקפת ברמת התכנית ולא בתחזית
+    # פר-אתר: סכום קבוע בכל שנה, החל משנת ההפעלה.
+    dc_annual_income: Mapped[float] = mapped_column(Float, default=300_000)
+    dc_income_start_year: Mapped[int] = mapped_column(Integer, default=2028)
+
     contact_name: Mapped[str] = mapped_column(String(120), default="")
     contact_phone: Mapped[str] = mapped_column(String(60), default="")
     contact_email: Mapped[str] = mapped_column(String(120), default="")

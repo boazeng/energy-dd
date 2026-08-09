@@ -192,6 +192,18 @@ function InvestmentPlanTable({ d }) {
   )
 }
 
+/* שורות ההכנסה המשותפות לטבלת התזרים ולטבלת הרווח וההפסד. הכנסת מטעני DC
+   אינה נגזרת ממספר העמדות בבניינים אלא מהפעלת מטענים מהירים במרכזים המסחריים,
+   ולכן היא מוצגת בשורה נפרדת — אבל רק כשהיא קיימת בתחזית בפועל. */
+function incomeRows(f, T) {
+  if (!T.dc_income) return [['הכנסות', f.map((r) => r.income), T.income]]
+  return [
+    ['הכנסות מעמדות הטעינה בבניינים',
+      f.map((r) => r.income - r.dc_income), T.income - T.dc_income],
+    ['הכנסות ממטעני DC', f.map((r) => r.dc_income), T.dc_income],
+  ]
+}
+
 function Kpis({ items }) {
   return (
     <div className="bkp-kpis">
@@ -215,7 +227,7 @@ function SummaryCompact({ d }) {
   // הדגשה על שתי שורות התזרים בלבד — כך זה בקובץ שאושר. תוויות השורה נשארות
   // במשקל רגיל, גם הן כמו בקובץ.
   const rows = [
-    ['הכנסות', f.map((r) => r.income), T.income],
+    ...incomeRows(f, T),
     ['הוצאות תפעול, תחזוקה ותקורה', f.map((r) => -(r.opex + r.maintenance + r.overhead)),
       -(T.opex + T.maintenance + (T.overhead || 0))],
     ['השקעה בעמדות חדשות', f.map((r) => -r.capex), -T.capex],
@@ -284,7 +296,7 @@ function PnlForecast({ d }) {
   if (!f.length) return null
   const T = d.totals
   const rows = [
-    ['הכנסות', f.map((r) => r.income), T.income],
+    ...incomeRows(f, T),
     ['הוצאות תפעול, תחזוקה ותקורה', f.map((r) => -(r.opex + r.maintenance + r.overhead)),
       -(T.opex + T.maintenance + (T.overhead || 0))],
     ['השקעה בעמדות חדשות', f.map((r) => -r.capex), -T.capex],
@@ -669,6 +681,8 @@ function SummaryFinancials({ d }) {
     ['מספר מטענים פעילים (סוף שנה)', f.map((r) => nf.format(r.total_chargers)), true],
     ['מטענים שנוספו במהלך השנה', f.map((r) => nf.format(r.chargers_added)), true],
     ['הכנסות', f.map((r) => ils(r.income))],
+    // שורת משנה ולא רכיב נוסף: הסכום כבר כלול בשורת ההכנסות שמעליה
+    ...(d.totals.dc_income ? [['מזה — הכנסות ממטעני DC', f.map((r) => ils(r.dc_income))]] : []),
     ['הוצאות תפעול, תחזוקה ותקורה', f.map((r) => ils(-(r.opex + r.maintenance + r.overhead)))],
     ['השקעה בתשתית (CAPEX)', f.map((r) => ils(-r.capex))],
     ['תזרים לפני החזר הלוואה', f.map((r) => ils(r.profit_before_loan)), false, true],
@@ -1479,6 +1493,8 @@ export default function BankPlan({ agreementVersion, horizonMode = '5' }) {
 function PlanSettingsEditor({ settings, onSaved }) {
   const [cost, setCost] = useState(settings.acquisition_cost ?? 0)
   const [costs, setCosts] = useState(settings.one_time_costs || [])
+  const [dcIncome, setDcIncome] = useState(settings.dc_annual_income ?? 0)
+  const [dcYear, setDcYear] = useState(settings.dc_income_start_year ?? 2028)
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState('')
 
@@ -1487,6 +1503,8 @@ function PlanSettingsEditor({ settings, onSaved }) {
     try {
       await api.updateBusinessPlanSettings({
         acquisition_cost: parseFloat(cost) || 0,
+        dc_annual_income: parseFloat(dcIncome) || 0,
+        dc_income_start_year: parseInt(dcYear, 10) || 2028,
         // note אינו נערך כאן אבל חייב לשרוד שמירה — הוא ההסבר שמוצג בטבלת
         // הנחות העבודה, ובנייה מחדש של האובייקט הייתה מוחקת אותו.
         one_time_costs: costs
@@ -1513,6 +1531,18 @@ function PlanSettingsEditor({ settings, onSaved }) {
         <span>עלות הרכישה (₪)</span>
         <input type="number" min="0" step="1000" value={cost ?? ''}
           onChange={(e) => setCost(e.target.value)} />
+      </label>
+
+      <h4 className="bkp-settings-sub">הכנסות ממטעני DC</h4>
+      <label className="bkp-settings-field">
+        <span>הכנסה שנתית (₪)</span>
+        <input type="number" min="0" step="10000" value={dcIncome ?? ''}
+          onChange={(e) => setDcIncome(e.target.value)} />
+      </label>
+      <label className="bkp-settings-field" style={{ marginBottom: 13 }}>
+        <span>שנת התחלה</span>
+        <input type="number" min="2000" max="2100" step="1" value={dcYear ?? ''}
+          onChange={(e) => setDcYear(e.target.value)} />
       </label>
 
       <h4 className="bkp-settings-sub">עלויות חד-פעמיות</h4>
