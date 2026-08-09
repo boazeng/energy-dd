@@ -14,7 +14,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.api.building_models import _calc_forecast, _shpitzer_annual
+from app.api.building_models import _calc_forecast, _loan_by_year, _loan_schedule, _shpitzer_annual
 from app.api.cashflow import _get_loan, _get_settings as _get_cashflow_settings
 from app.core.config import settings as app_settings
 from app.core.db import get_db
@@ -155,24 +155,25 @@ def _aggregate(
     return agg
 
 
-def _loan_amortization(loan, start_year: int) -> dict[int, dict[str, float]]:
-    """פיצול ההחזר השנתי לריבית ולקרן, לפי לוח שפיצר חודשי. מפתח = שנה.
+def _loan_amortization(loan, start_year: int, last_year: int | None = None) -> dict[int, dict[str, float]]:
+    """לוח הסילוקין השנתי — תשלום, ריבית וקרן לכל שנה קלנדרית. מפתח = שנה.
 
     התזרים נושא את ההחזר במלואו, אבל ברווח והפסד הקרן אינה הוצאה — היא פירעון
     התחייבות. רק הריבית היא הוצאת מימון, ולכן הפיצול נדרש.
+
+    `last_year`: שנת התחזית האחרונה. חודשי הגרייס מאריכים את ההלוואה מעבר לשנות
+    ההחזר, ולכן זנב הלוח עלול לחרוג ממנה; הוא מקופל לתוך השנה האחרונה כדי שסך
+    ההחזר בתכנית יישאר מלא.
     """
-    r = (loan.prime + loan.margin) / 100 / 12
-    n = loan.years * 12
-    monthly = _shpitzer_annual(loan) / 12
-    balance = loan.amount
-    out: dict[int, dict[str, float]] = {}
-    for i in range(n):
-        interest = balance * r
-        principal = monthly - interest
-        balance -= principal
-        row = out.setdefault(start_year + i // 12, {"interest": 0.0, "principal": 0.0})
-        row["interest"] += interest
-        row["principal"] += principal
+    out = _loan_by_year(loan, start_year)
+    if last_year is not None:
+        for y in sorted(k for k in out if k > last_year):
+            tail = out.pop(y)
+            last = out.setdefault(last_year, {"payment": 0.0, "interest": 0.0,
+                                              "principal": 0.0, "grace_interest": 0.0,
+                                              "grace_months": 0.0})
+            for k, v in tail.items():
+                last[k] += v
     return out
 
 
@@ -369,11 +370,9 @@ def get_plan_data(
 
     annual_payment = _shpitzer_annual(loan_row)
     loan_start = int(loan_row.start_month[:4]) if loan_row.start_month else start_year
-    loan_end = loan_start + loan_row.years - 1
-
-    amortization = _loan_amortization(loan_row, loan_start)
 
     agg = _aggregate(buildings, override)
+    amortization = _loan_amortization(loan_row, loan_start, max(agg) if agg else None)
     # המצטבר פותח באפס ולא ביתרת המזומנים הקיימת של החברה הרוכשת: התכנית מציגה
     # את מה שהפעילות הנרכשת מייצרת בפני עצמה, ולא את מצב הקופה המאוחד. כך גם
     # השנה הראשונה נסגרת — המצטבר בה שווה בדיוק לתזרים הנטו. יתרת המזומנים
@@ -393,13 +392,15 @@ def get_plan_data(
         profit_before_loan = (
             income - r["capex"] - r["opex"] - r["maint"] - overhead
         )
-        repayment = round(annual_payment, 2) if loan_start <= year <= loan_end else 0.0
+        sched = amortization.get(year, {})
+        repayment = round(sched.get("payment", 0.0), 2)
         net = profit_before_loan - repayment
 
         # ── רווח והפסד: אותם הכנסות והוצאות, אבל בלי החזר הקרן ────────────
         # ההחזר מתחלק לריבית ולקרן. הריבית היא הוצאת מימון ונכנסת לרווח והפסד;
         # הקרן היא פירעון התחייבות ואינה הוצאה, ולכן היא מנוכה מהתזרים בלבד.
-        sched = amortization.get(year, {})
+        # בחודשי הגרייס אין תשלום אבל הריבית נצברת, ולכן היא נרשמת כהוצאה גם
+        # בלי תזרים יוצא.
         interest = round(sched.get("interest", 0.0), 2)
         principal = round(sched.get("principal", 0.0), 2)
         pretax = round(profit_before_loan - interest, 2)
@@ -459,6 +460,10 @@ def get_plan_data(
     span_years = len(forecast) or horizon
 
     monthly = annual_payment / 12
+    # סך ההחזר נלקח מהלוח עצמו ולא מ-`annual_payment * years`: בגרייס הריבית
+    # נצברת ומהוונת לקרן, ולכן סך התשלומים גדול מהמכפלה הפשוטה.
+    schedule = _loan_schedule(loan_row)
+    total_repayment = sum(x["payment"] for x in schedule)
     loan = LoanData(
         amount=loan_row.amount,
         years=loan_row.years,
@@ -466,10 +471,11 @@ def get_plan_data(
         margin=loan_row.margin,
         annual_rate=round(loan_row.prime + loan_row.margin, 2),
         start_month=loan_row.start_month or "",
+        grace_months=loan_row.grace_months or 0,
         annual_payment=round(annual_payment, 2),
         monthly_payment=round(monthly, 2),
-        total_repayment=round(annual_payment * loan_row.years, 2),
-        total_interest=round(annual_payment * loan_row.years - loan_row.amount, 2),
+        total_repayment=round(total_repayment, 2),
+        total_interest=round(total_repayment - (loan_row.amount or 0), 2),
     )
 
     # ── הנחות עבודה — הערכים בפועל מהמודל, לא מספרים כתובים ביד ─────────
@@ -604,9 +610,11 @@ def get_plan_data(
         for c in acquisition.one_time_costs
     ] + [
         AssumptionRow(group=G6, label="אשראי מבוקש", value=_money(loan.amount),
-                      note=f"{loan.years} שנים · פריים {loan.prime}% + מרווח {loan.margin}% · לוח שפיצר"),
+                      note=f"{loan.years} שנים · פריים {loan.prime}% + מרווח {loan.margin}% · לוח שפיצר"
+                           + (f" · {loan.grace_months} חודשי גרייס מלא" if loan.grace_months else "")),
         AssumptionRow(group=G6, label="החזר שנתי", value=_money(loan.annual_payment),
-                      note=f"{_money(loan.monthly_payment)} לחודש"),
+                      note=f"{_money(loan.monthly_payment)} לחודש"
+                           + (f" · מתחיל אחרי {loan.grace_months} חודשי הגרייס" if loan.grace_months else "")),
         # יתרת המזומנים הקיימת אינה מופיעה כאן: התחזית פותחת באפס ואינה נגזרת
         # ממנה, ולכן היא אינה הנחת עבודה. מקומה בפרק מצב היום, כנתון על החברה.
         AssumptionRow(group=G6, label='מע"מ', value="מנוטרל", note="כל הסכומים בתכנית אינם כוללים מע\"מ"),
@@ -636,7 +644,7 @@ def get_plan_data(
             dc = dc_annual_income if year >= dc_start_year else 0.0
             # ללא השימושים החד-פעמיים — מאותה סיבה שבתחזית עצמה
             pbl = r["income"] + dc - r["capex"] - r["opex"] - r["maint"] - overhead
-            repay = annual_payment if loan_start <= year <= loan_end else 0.0
+            repay = amortization.get(year, {}).get("payment", 0.0)
             total_profit += pbl - repay
             cum += pbl - repay
             cums.append(cum)

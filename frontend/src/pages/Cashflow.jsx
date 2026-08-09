@@ -85,36 +85,52 @@ function expandCombined(combined, viewMode, excludedNames = new Set()) {
   return out
 }
 
-// ─── לוח שפיצר ───────────────────────────────────────────────────────────────
+// ─── לוח שפיצר + גרייס ───────────────────────────────────────────────────────
 
-function buildAmort(amount, annualPct, years) {
+// גרייס מלא: בחודשי הגרייס אין תשלום כלל, הריבית נצברת ומצטרפת לקרן, ולוח
+// השפיצר מתחיל אחריהם על היתרה המוגדלת ונפרס על מלוא שנות ההחזר. כלומר הגרייס
+// מאריך את ההלוואה ואינו נבלע בתוכה — סה"כ graceMonths + years*12 חודשים.
+// הריבית שהוונה נפרעת בהמשך כחלק מהקרן, ולכן סך הקרן גדול מסכום ההלוואה.
+function buildAmort(amount, annualPct, years, graceMonths = 0) {
+  const g = Math.max(0, Math.round(graceMonths || 0))
   const n = Math.max(1, Math.round((years || 0) * 12))
   const r = (annualPct || 0) / 100 / 12
-  const M = r === 0 ? amount / n : (amount * r) / (1 - Math.pow(1 + r, -n))
   const rows = []
   let bal = amount
+
+  for (let i = 1; i <= g; i++) {
+    const interest = bal * r
+    bal += interest
+    rows.push({ i, payment: 0, interest, principal: 0, balance: bal, grace: true })
+  }
+
+  const M = r === 0 ? bal / n : (bal * r) / (1 - Math.pow(1 + r, -n))
   for (let i = 1; i <= n; i++) {
     const interest = bal * r
     let principal = M - interest
     if (i === n) principal = bal
     const payment = principal + interest
     bal = Math.max(0, bal - principal)
-    rows.push({ i, payment, interest, principal, balance: bal })
+    rows.push({ i: g + i, payment, interest, principal, balance: bal, grace: false })
   }
+
   const totalPaid = rows.reduce((s, x) => s + x.payment, 0)
-  return { n, monthly: M, rows, totalPaid, totalInterest: totalPaid - amount }
+  const graceInterest = rows.reduce((s, x) => s + (x.grace ? x.interest : 0), 0)
+  return { n, g, monthly: M, rows, totalPaid, graceInterest, totalInterest: totalPaid - amount }
 }
 
 function LoanTab({ loan, onChange }) {
   const [openYear, setOpenYear] = useState(null)
   const amount = Number(loan.amount || 0)
   const years  = Number(loan.years  || 0)
+  const grace  = Number(loan.grace_months ?? 0)
   const rate   = Number(loan.prime  || 0) + Number(loan.margin || 0)
-  const am = useMemo(() => buildAmort(amount, rate, years), [amount, rate, years])
+  const am = useMemo(() => buildAmort(amount, rate, years, grace), [amount, rate, years, grace])
 
+  // הגרייס מאריך את הלוח מעבר ל-years, ולכן מספר שנות הלוח נגזר מאורך הלוח
   const byYear = useMemo(() => {
     const out = []
-    for (let y = 1; y <= years; y++) {
+    for (let y = 1; y <= Math.ceil(am.rows.length / 12); y++) {
       const slice = am.rows.slice((y - 1) * 12, y * 12)
       if (!slice.length) break
       out.push({
@@ -122,12 +138,13 @@ function LoanTab({ loan, onChange }) {
         payment:    slice.reduce((s, r) => s + r.payment, 0),
         interest:   slice.reduce((s, r) => s + r.interest, 0),
         principal:  slice.reduce((s, r) => s + r.principal, 0),
+        graceMonths: slice.filter((r) => r.grace).length,
         endBalance: slice[slice.length - 1].balance,
         months: slice,
       })
     }
     return out
-  }, [am, years])
+  }, [am])
 
   return (
     <div>
@@ -138,6 +155,9 @@ function LoanTab({ loan, onChange }) {
         <label><span>שנות החזר</span>
           <input type="number" min="1" max="30" value={years}
             onChange={(e) => onChange({ years: parseInt(e.target.value) || 1 })} /></label>
+        <label><span>חודשי גרייס</span>
+          <input type="number" min="0" max="24" value={grace}
+            onChange={(e) => onChange({ grace_months: parseInt(e.target.value) || 0 })} /></label>
         <label><span>ריבית פריים %</span>
           <input type="number" step="0.1" value={loan.prime ?? 0}
             onChange={(e) => onChange({ prime: parseFloat(e.target.value) || 0 })} /></label>
@@ -159,9 +179,25 @@ function LoanTab({ loan, onChange }) {
           <div className="tact-kpi-val fin-neg">{ils(am.totalInterest)}</div></div>
         <div className="tact-kpi"><div className="tact-kpi-label">קרן</div>
           <div className="tact-kpi-val">{ils(amount)}</div></div>
+        {grace > 0 && (
+          <div className="tact-kpi">
+            <div className="tact-kpi-label">ריבית שנצברה בגרייס ({grace} ח׳)</div>
+            <div className="tact-kpi-val fin-neg">{ils(am.graceInterest)}</div>
+          </div>
+        )}
       </div>
 
-      <h2 className="block-title">לוח סילוקין — {years} שנים</h2>
+      {grace > 0 && (
+        <p className="muted" style={{ fontSize: '0.82rem', margin: '4px 0 0' }}>
+          גרייס מלא ל-{grace} החודשים הראשונים: אין תשלום כלל, הריבית נצברת ומצטרפת לקרן,
+          ולוח השפיצר מתחיל בחודש {grace + 1} על יתרה של {ils(amount + am.graceInterest)} ונפרס
+          על {years} שנים — סה"כ {am.rows.length} חודשים.
+        </p>
+      )}
+
+      <h2 className="block-title">
+        לוח סילוקין — {years} שנים{grace > 0 ? ` + ${grace} חודשי גרייס` : ''}
+      </h2>
       <div className="fin-table-wrap">
         <table className="fin-table cf-fc">
           <thead><tr>
@@ -178,7 +214,14 @@ function LoanTab({ loan, onChange }) {
                     <td className="ta-expander">
                       <span className={`ta-chevron ${isOpen ? 'open' : ''}`}>▸</span>
                     </td>
-                    <td className="fin-rowlabel">שנה {y.year}</td>
+                    <td className="fin-rowlabel">
+                      שנה {y.year}
+                      {y.graceMonths > 0 && (
+                        <span className="muted" style={{ fontSize: '0.78rem', marginRight: 6 }}>
+                          · {y.graceMonths} ח׳ גרייס
+                        </span>
+                      )}
+                    </td>
                     <td>{ils(y.payment)}</td>
                     <td>{ils(y.principal)}</td>
                     <td className="fin-neg">{ils(y.interest)}</td>
@@ -191,8 +234,11 @@ function LoanTab({ loan, onChange }) {
                         <tbody>
                           {y.months.map((r) => (
                             <tr key={r.i}>
-                              <td>{r.i}</td><td>{ils(r.payment)}</td><td>{ils(r.principal)}</td>
-                              <td className="fin-neg">{ils(r.interest)}</td><td>{ils(r.balance)}</td>
+                              <td>{r.i}{r.grace ? ' · גרייס' : ''}</td>
+                              <td>{r.grace ? '—' : ils(r.payment)}</td>
+                              <td>{r.grace ? '—' : ils(r.principal)}</td>
+                              <td className="fin-neg">{ils(r.interest)}{r.grace ? ' (נצברת)' : ''}</td>
+                              <td>{ils(r.balance)}</td>
                             </tr>
                           ))}
                         </tbody>
@@ -306,7 +352,7 @@ const VIEW_OPTS  = [{ v: 'annual', l: 'שנתי' }, { v: 'quarterly', l: 'רבע
 const BAR_DEFS   = [{ k: 'הכנסות', color: '#2e7d4f' }, { k: 'הוצאות', color: '#d64a2e' }, { k: 'רווח', color: '#1f3a5f' }]
 
 export default function Cashflow({ loading: parentLoading, horizonMode = 'contract', excludedIds = new Set(), agreementVersion = 0 }) {
-  const [loan, setLoan]                   = useState({ amount: 3000000, years: 5, prime: 6, margin: 2, start_month: '' })
+  const [loan, setLoan]                   = useState({ amount: 3000000, years: 5, prime: 6, margin: 2, start_month: '', grace_months: 3 })
   const [combinedForecast, setCombined]   = useState([])
   const [buildings, setBuildings]         = useState([])
   const [loading, setLoading]             = useState(true)
@@ -368,23 +414,39 @@ export default function Cashflow({ loading: parentLoading, horizonMode = 'contra
   const totalAnnualOverhead = overheadItems.reduce((s, o) => s + (Number(o.annual) || 0), 0)
   const totalAdaptation2026 = adaptationCosts.reduce((s, c) => s + (Number(c.amount) || 0), 0)
 
-  // ריבית וקרן לכל שנת לוח — לפיצול מימון/קרן בטבלה
+  // תשלום, ריבית וקרן לכל שנת לוח — לפיצול מימון/קרן בטבלה.
+  // בחודשי הגרייס התשלום הוא 0 והריבית נצברת בלבד, ולכן `payment` נמדד בנפרד
+  // מ-interest+principal ואינו שווה להם בשנה שיש בה גרייס.
   const amortCalYear = useMemo(() => {
     if (!loan.amount || !loan.years) return {}
     const rate = Number(loan.prime || 0) + Number(loan.margin || 0)
-    const am   = buildAmort(Number(loan.amount), rate, Number(loan.years))
+    const am   = buildAmort(Number(loan.amount), rate, Number(loan.years), Number(loan.grace_months || 0))
     const startYear = loan.start_month ? parseInt(loan.start_month.slice(0, 4), 10) : 2026
     const out = {}
-    for (let y = 1; y <= Number(loan.years); y++) {
-      const slice = am.rows.slice((y - 1) * 12, y * 12)
-      if (!slice.length) break
-      out[startYear + y - 1] = {
-        interest:  slice.reduce((s, r) => s + r.interest, 0),
-        principal: slice.reduce((s, r) => s + r.principal, 0),
+    am.rows.forEach((row, idx) => {
+      const y = startYear + Math.floor(idx / 12)
+      const o = out[y] || (out[y] = { payment: 0, interest: 0, principal: 0, graceInterest: 0 })
+      o.payment   += row.payment
+      o.interest  += row.interest
+      o.principal += row.principal
+      if (row.grace) o.graceInterest += row.interest
+    })
+    // הגרייס מאריך את ההלוואה מעבר לשנות ההחזר, ולכן זנב הלוח עלול לחרוג משנת
+    // התחזית האחרונה. הוא מקופל לתוכה כדי שסך ההחזר והיתרה המצטברת יישארו
+    // מלאים ולא ייעלמו מהם חודשים.
+    const lastYear = combinedForecast.length
+      ? Math.max(...combinedForecast.map((r) => r.year))
+      : null
+    if (lastYear != null) {
+      for (const y of Object.keys(out).map(Number).filter((y) => y > lastYear).sort()) {
+        const tail = out[y]
+        delete out[y]
+        const last = out[lastYear] || (out[lastYear] = { payment: 0, interest: 0, principal: 0, graceInterest: 0 })
+        for (const k of Object.keys(tail)) last[k] += tail[k]
       }
     }
     return out
-  }, [loan])
+  }, [loan, combinedForecast])
 
   // בניינים שהוסרו מהתזרים — מ-excludedIds שמגיע מ-App.jsx (מעודכן בזמן-אמת)
   const excludedNames = useMemo(() => {
@@ -402,10 +464,13 @@ export default function Cashflow({ loading: parentLoading, horizonMode = 'contra
       const overheadPer   = totalAnnualOverhead / n
       const overheadByItem = overheadItems.map(o => (Number(o.annual) || 0) / n)
       const adaptationPer = p.year === 2026 ? totalAdaptation2026 / n : 0
-      const amYear   = amortCalYear[p.year] || { interest: 0, principal: 0 }
+      const amYear   = amortCalYear[p.year] || { payment: 0, interest: 0, principal: 0, graceInterest: 0 }
       const loanInterest  = amYear.interest  / n
       const loanPrincipal = amYear.principal / n
-      const loan          = loanInterest + loanPrincipal
+      // בגרייס אין תשלום אף שהריבית נצברת, ולכן ההחזר התזרימי נלקח מ-payment
+      // ולא מריבית+קרן. הפער הוא בדיוק הריבית שהוונה לקרן.
+      const loan          = amYear.payment / n
+      const graceInterest = amYear.graceInterest / n
       const netOperating  = p.total_income - p.total_capex - p.total_opex - (p.total_maint || 0) - overheadPer - adaptationPer
       const net           = netOperating - loan
       bal += net
@@ -424,7 +489,7 @@ export default function Cashflow({ loading: parentLoading, horizonMode = 'contra
         opex:   p.total_opex,
         maint:  p.total_maint || 0,
         loan, overhead: overheadPer, overheadByItem, adaptation: adaptationPer,
-        loanInterest, loanPrincipal,
+        loanInterest, loanPrincipal, graceInterest,
         netOperating, netMinusInterest, net, balance: bal,
         pvNetOp, pvNetMinusInterest, pvNet, pvBalance: pvBal,
         chargers,
@@ -447,12 +512,39 @@ export default function Cashflow({ loading: parentLoading, horizonMode = 'contra
   const totalLoan          = periods.reduce((s, r) => s + r.loan, 0)
   const totalLoanInterest  = periods.reduce((s, r) => s + r.loanInterest, 0)
   const totalLoanPrincipal = periods.reduce((s, r) => s + r.loanPrincipal, 0)
+  const totalGraceInterest = periods.reduce((s, r) => s + r.graceInterest, 0)
   const totalNetOperating     = periods.reduce((s, r) => s + r.netOperating, 0)
   const totalNetMinusInterest = periods.reduce((s, r) => s + r.netMinusInterest, 0)
   const totalNet              = periods.reduce((s, r) => s + r.net, 0)
   const npv                   = periods.reduce((s, r) => s + r.pvNetOp, 0)
   const npvWithFinancing      = periods.reduce((s, r) => s + r.pvNetMinusInterest, 0)
   const endBalance            = periods.length ? periods[periods.length - 1].balance : 0
+
+  // הערת הגרייס שמתחת לטבלה — מנוסחת מהמספרים עצמם ולא מטקסט קבוע
+  const graceNote = useMemo(() => {
+    const g = Math.round(Number(loan.grace_months || 0))
+    if (!g || !loan.amount || !loan.years) return ''
+    const rate      = Number(loan.prime || 0) + Number(loan.margin || 0)
+    const am        = buildAmort(Number(loan.amount), rate, Number(loan.years), g)
+    const startYear = loan.start_month ? parseInt(loan.start_month.slice(0, 4), 10) : 2026
+    const lastYear  = combinedForecast.length ? Math.max(...combinedForecast.map((r) => r.year)) : null
+    const tailMonths = lastYear == null ? 0 : Math.max(0, am.rows.length - (lastYear - startYear + 1) * 12)
+    return (
+      `ההלוואה נושאת גרייס מלא ל-${g} החודשים הראשונים ממועד הנטילה — בתקופה זו אין תשלום כלל, ` +
+      `לא קרן ולא ריבית. הריבית הנצברת בהם, ${ils(am.graceInterest)}, מהוונת ומצטרפת לקרן, ` +
+      `ולוח השפיצר מתחיל בחודש ${g + 1} על יתרה של ${ils(Number(loan.amount) + am.graceInterest)} ` +
+      `ונפרס על ${loan.years} שנים מלאות — סה"כ ${am.rows.length} חודשי הלוואה. ` +
+      `הגרייס מאריך את ההלוואה ואינו נבלע בתקופת ההחזר. ` +
+      (npvMode === 'with_financing'
+        ? `בשנת הגרייס שורת "עלות מימון (ריבית)" כוללת את הריבית שנצברה אף שלא שולמה, ולכן שורת ` +
+          `"ריבית גרייס" מחזירה אותה כדי שהיתרה תשקף את התזרים בפועל. `
+        : '') +
+      (tailMonths > 0
+        ? `${tailMonths} חודשי ההחזר האחרונים חורגים משנת התחזית האחרונה (${lastYear}) ומוצגים בתוכה, ` +
+          `כדי שסך ההחזר והיתרה המצטברת יישארו מלאים.`
+        : '')
+    ).trim()
+  }, [loan, combinedForecast, npvMode])
 
   const activeNpv    = npvMode === 'with_financing' ? npvWithFinancing : npv
   const activePvKey  = npvMode === 'with_financing' ? 'pvNetMinusInterest' : 'pvNetOp'
@@ -769,6 +861,22 @@ export default function Cashflow({ loading: parentLoading, horizonMode = 'contra
                     </tr>
                   )}
 
+                  {/* ריבית הגרייס נוכתה למעלה כהוצאת מימון, אבל היא לא שולמה —
+                      היא הוונה לקרן. ההשבה כאן סוגרת את השורה מול היתרה בפועל. */}
+                  {npvMode === 'with_financing' && totalGraceInterest > 0 && (
+                    <tr>
+                      <td className="fin-rowlabel">ריבית גרייס (נצברה, לא שולמה)</td>
+                      {periods.map((r, i) => (
+                        <td key={i} className={r.graceInterest > 0 ? 'fin-pos' : ''} style={{ color: r.graceInterest > 0 ? undefined : '#bbb' }}>
+                          {r.graceInterest > 0 ? ils(r.graceInterest) : '—'}
+                        </td>
+                      ))}
+                      <td className="fin-pos" style={{ background: 'rgba(0,0,0,.04)', fontWeight: 700 }}>
+                        {ils(totalGraceInterest)}
+                      </td>
+                    </tr>
+                  )}
+
                   <tr style={{ fontWeight: 600 }}>
                     <td className="fin-rowlabel">יתרה לאחר החזר הלוואה</td>
                     {periods.map((r, i) => (
@@ -791,6 +899,12 @@ export default function Cashflow({ loading: parentLoading, horizonMode = 'contra
 
                 </tbody>
               </table>
+
+              {graceNote && (
+                <p className="muted" style={{ fontSize: '0.82rem', lineHeight: 1.7, marginTop: 10 }}>
+                  <strong>הערה — גרייס בהלוואת הרכישה:</strong> {graceNote}
+                </p>
+              )}
             </div>
           )}
         </>

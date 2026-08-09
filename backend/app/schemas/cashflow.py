@@ -63,6 +63,7 @@ class CashflowLoanIn(BaseModel):
     prime: float | None = None
     margin: float | None = None
     start_month: str | None = None
+    grace_months: int | None = Field(default=None, ge=0, le=24)
 
 
 class CashflowLoanOut(BaseModel):
@@ -73,6 +74,7 @@ class CashflowLoanOut(BaseModel):
     prime: float
     margin: float
     start_month: str
+    grace_months: int
 
 
 class CashflowOut(BaseModel):

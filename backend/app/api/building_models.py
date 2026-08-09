@@ -162,16 +162,65 @@ def delete_building(bm_id: int, db: Session = Depends(get_db)):
     db.commit()
 
 
-# ─── עזר: שפיצר ─────────────────────────────────────────────────────────────
+# ─── עזר: שפיצר וגרייס ──────────────────────────────────────────────────────
+
+def _loan_schedule(loan: CashflowLoan) -> list[dict[str, float]]:
+    """לוח סילוקין חודשי, כולל תקופת גרייס מלא בתחילת ההלוואה.
+
+    בגרייס אין תשלום כלל: הריבית נצברת ומצטרפת לקרן (היוון), ולוח השפיצר מתחיל
+    אחריו על היתרה המוגדלת ונפרס על מלוא `years`. כלומר הגרייס מאריך את
+    ההלוואה בפועל ואינו נבלע בתוך תקופת ההחזר — סה"כ `grace_months + years*12`
+    חודשים.
+
+    בשורות הגרייס `principal` הוא 0 (לא נפרעה קרן) והריבית עדיין נרשמת כהוצאת
+    מימון לרווח והפסד. הריבית שהוונה נפרעת בהמשך כחלק מהקרן, ולכן סך הקרן
+    לאורך ההלוואה גדול מסכום ההלוואה המקורי — וסך התשלומים נשאר קרן + ריבית.
+    """
+    r = (loan.prime + loan.margin) / 100 / 12    # ריבית חודשית
+    g = max(0, getattr(loan, "grace_months", 0) or 0)
+    n = max(1, loan.years * 12)                  # מספר תשלומים חודשיים
+    rows: list[dict[str, float]] = []
+    balance = float(loan.amount or 0)
+
+    for _ in range(g):
+        interest = balance * r
+        balance += interest
+        rows.append({"payment": 0.0, "interest": interest, "principal": 0.0,
+                     "balance": balance, "grace": 1.0})
+
+    pmt = balance / n if r == 0 else balance * r / (1 - (1 + r) ** (-n))
+    for i in range(n):
+        interest = balance * r
+        principal = balance if i == n - 1 else pmt - interest
+        balance = max(0.0, balance - principal)
+        rows.append({"payment": principal + interest, "interest": interest,
+                     "principal": principal, "balance": balance, "grace": 0.0})
+    return rows
+
+
+def _loan_by_year(loan: CashflowLoan, start_year: int) -> dict[int, dict[str, float]]:
+    """מסכם את לוח הסילוקין לשנים קלנדריות. מפתח = שנה.
+
+    כמו בשאר האתר, חודש הפתיחה בתוך השנה אינו נלקח בחשבון — השנה הראשונה היא
+    12 החודשים הראשונים של הלוח.
+    """
+    out: dict[int, dict[str, float]] = {}
+    for i, row in enumerate(_loan_schedule(loan)):
+        y = out.setdefault(start_year + i // 12,
+                           {"payment": 0.0, "interest": 0.0, "principal": 0.0,
+                            "grace_interest": 0.0, "grace_months": 0.0})
+        y["payment"] += row["payment"]
+        y["interest"] += row["interest"]
+        y["principal"] += row["principal"]
+        if row["grace"]:
+            y["grace_interest"] += row["interest"]
+            y["grace_months"] += 1
+    return out
+
 
 def _shpitzer_annual(loan: CashflowLoan) -> float:
-    """תשלום שנתי קבוע לפי לוח שפיצר."""
-    r = (loan.prime + loan.margin) / 100 / 12  # ריבית חודשית
-    n = loan.years * 12                          # מספר תשלומים חודשיים
-    if r == 0 or n == 0:
-        return loan.amount / max(1, loan.years)
-    pmt = loan.amount * r / (1 - (1 + r) ** (-n))
-    return pmt * 12
+    """תשלום שנתי קבוע בתקופת ההחזר — כלומר אחרי הגרייס."""
+    return sum(x["payment"] for x in _loan_schedule(loan) if not x["grace"]) / max(1, loan.years)
 
 
 # ─── תחזית ───────────────────────────────────────────────────────────────────
@@ -192,14 +241,24 @@ def combined_forecast(
     loan = db.get(CashflowLoan, 1)
     if loan is None:
         loan = CashflowLoan(id=1)
-    annual_loan = _shpitzer_annual(loan)
     loan_start_year = int(loan.start_month[:4]) if loan.start_month else min(b.start_year for b in buildings)
-    loan_end_year = loan_start_year + loan.years - 1
 
     # מציאת טווח שנים מקסימלי — לפי תקופת ההסכם בכל בניין, או force_years
     effective = lambda b: force_years if force_years else _effective_forecast_years(b)
     min_year = min(b.start_year for b in buildings)
     max_year = max(b.start_year + effective(b) - 1 for b in buildings)
+
+    # הגרייס מאריך את ההלוואה מעבר לשנות ההחזר, ולכן זנב הלוח עלול לחרוג משנת
+    # התחזית האחרונה. הוא מקופל לתוכה כדי שסך ההחזר המוצג יישאר מלא ולא ייעלמו
+    # ממנו חודשים.
+    loan_years = _loan_by_year(loan, loan_start_year)
+    for y in sorted(k for k in loan_years if k > max_year):
+        tail = loan_years.pop(y)
+        last = loan_years.setdefault(max_year, {"payment": 0.0, "interest": 0.0,
+                                                "principal": 0.0, "grace_interest": 0.0,
+                                                "grace_months": 0.0})
+        for k, v in tail.items():
+            last[k] += v
 
     # מיפוי תחזית לכל בניין
     forecasts: dict[str, dict[int, YearForecast]] = {}
@@ -225,7 +284,7 @@ def combined_forecast(
                 total_maint += yf.maintenance_opex
                 total_profit += yf.profit
 
-        loan_repay = round(annual_loan, 2) if loan_start_year <= year <= loan_end_year else 0.0
+        loan_repay = round(loan_years.get(year, {}).get("payment", 0.0), 2)
         result.append(CombinedForecastYear(
             year=year,
             buildings=bldg_map,

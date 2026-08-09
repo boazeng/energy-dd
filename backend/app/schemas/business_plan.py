@@ -137,6 +137,7 @@ class LoanData(BaseModel):
     margin: float = 0
     annual_rate: float = 0
     start_month: str = ""
+    grace_months: int = 0               # גרייס מלא בתחילת ההלוואה — ללא תשלום
     annual_payment: float = 0
     monthly_payment: float = 0
     total_repayment: float = 0

@@ -315,6 +315,41 @@ def migrate_business_plan(engine: Engine) -> None:
         conn.commit()
 
 
+def migrate_cashflow(engine: Engine) -> None:
+    """משלים עמודות חסרות בטבלאות התזרים.
+
+    הטבלאות עצמן נוצרות ב-`init_db()`; המיגרציה נדרשת רק כשמוסיפים עמודה למודל
+    אחרי שהטבלה כבר קיימת בפרודקשן — ראה הכלל בזיכרון הפרויקט.
+    """
+    tables = {
+        "cashflow_loan": [
+            ("amount",       "REAL",    "3000000"),
+            ("years",        "INTEGER", "5"),
+            ("prime",        "REAL",    "6.0"),
+            ("margin",       "REAL",    "2.0"),
+            ("start_month",  "TEXT",    "''"),
+            # גרייס מלא של 3 חודשים — ברירת המחדל של העסקה
+            ("grace_months", "INTEGER", "3"),
+        ],
+        "cashflow_settings": [
+            ("opening_balance", "REAL", "0"),
+            ("balance_date",    "TEXT", "''"),
+        ],
+    }
+    with engine.connect() as conn:
+        for table, cols in tables.items():
+            info = list(conn.execute(text(f"PRAGMA table_info({table})")))
+            if not info:
+                continue  # הטבלה טרם נוצרה — create_all יטפל בה
+            existing = {row[1] for row in info}
+            for col_name, col_type, default in cols:
+                if col_name not in existing:
+                    conn.execute(text(
+                        f"ALTER TABLE {table} ADD COLUMN {col_name} {col_type} DEFAULT {default}"
+                    ))
+        conn.commit()
+
+
 def apply_manual_building_corrections(engine: Engine) -> None:
     """תיקונים ידניים לנתונים שגויים במקור (projects.json של החברה).
 

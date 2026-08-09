@@ -49,7 +49,11 @@ class CashflowLoan(Base):
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)  # תמיד 1
     amount: Mapped[float] = mapped_column(Float, default=3_000_000)   # גובה הרכישה/הלוואה ₪
-    years: Mapped[int] = mapped_column(Integer, default=5)            # שנות החזר
+    years: Mapped[int] = mapped_column(Integer, default=5)            # שנות החזר (אחרי הגרייס)
     prime: Mapped[float] = mapped_column(Float, default=6.0)          # ריבית פריים %
     margin: Mapped[float] = mapped_column(Float, default=2.0)         # מרווח מעל פריים %
     start_month: Mapped[str] = mapped_column(String(7), default="")   # YYYY-MM (לשילוב בתזרים בהמשך)
+    # גרייס מלא בתחילת ההלוואה: אין תשלום כלל, הריבית נצברת ומצטרפת לקרן, ולוח
+    # השפיצר מתחיל אחריו על היתרה המוגדלת ונפרס על מלוא `years`. כלומר הגרייס
+    # מאריך את ההלוואה בפועל ואינו נבלע בתוך תקופת ההחזר.
+    grace_months: Mapped[int] = mapped_column(Integer, default=3)

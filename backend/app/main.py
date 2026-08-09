@@ -16,7 +16,7 @@ from app.seed_business_plan import seed_business_plan
 from app.seed_cashflow import seed_cashflow
 from app.seed_contracts import seed_contracts
 from app.seed_supplier_balances import seed_supplier_balances
-from app.migrations import apply_manual_building_corrections, migrate_bank_plan_text_keys, migrate_building_models, migrate_business_plan, shift_forecast_start_to_2027
+from app.migrations import apply_manual_building_corrections, migrate_bank_plan_text_keys, migrate_building_models, migrate_business_plan, migrate_cashflow, shift_forecast_start_to_2027
 from app.seed_building_models import backfill_building_links, seed_building_models, sync_contract_dates, sync_install_income, sync_projects_data
 from app.seed_supplier_ledger import seed_supplier_ledger
 
@@ -32,6 +32,7 @@ async def lifespan(_: FastAPI):
     from app.core.db import engine
     migrate_building_models(engine)
     migrate_business_plan(engine)
+    migrate_cashflow(engine)
     migrate_bank_plan_text_keys(engine)
     with SessionLocal() as db:
         seed_tasks(db)
