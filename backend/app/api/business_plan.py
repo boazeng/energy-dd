@@ -43,7 +43,7 @@ from app.schemas.business_plan import (
 
 router = APIRouter(prefix="/api/business-plan", tags=["business-plan"])
 
-# מס חברות בישראל. מחושב על התזרים הנטו ורק בשנים שבהן הוא חיובי.
+# מס חברות בישראל. מחושב על הרווח לפני מס ורק בשנים שבהן הוא חיובי.
 CORPORATE_TAX_RATE = 0.23
 
 
@@ -153,6 +153,27 @@ def _aggregate(
             row["opex"] += yf.annual_opex
             row["maint"] += yf.maintenance_opex
     return agg
+
+
+def _loan_amortization(loan, start_year: int) -> dict[int, dict[str, float]]:
+    """פיצול ההחזר השנתי לריבית ולקרן, לפי לוח שפיצר חודשי. מפתח = שנה.
+
+    התזרים נושא את ההחזר במלואו, אבל ברווח והפסד הקרן אינה הוצאה — היא פירעון
+    התחייבות. רק הריבית היא הוצאת מימון, ולכן הפיצול נדרש.
+    """
+    r = (loan.prime + loan.margin) / 100 / 12
+    n = loan.years * 12
+    monthly = _shpitzer_annual(loan) / 12
+    balance = loan.amount
+    out: dict[int, dict[str, float]] = {}
+    for i in range(n):
+        interest = balance * r
+        principal = monthly - interest
+        balance -= principal
+        row = out.setdefault(start_year + i // 12, {"interest": 0.0, "principal": 0.0})
+        row["interest"] += interest
+        row["principal"] += principal
+    return out
 
 
 def _load_financials() -> dict:
@@ -345,8 +366,14 @@ def get_plan_data(
     loan_start = int(loan_row.start_month[:4]) if loan_row.start_month else start_year
     loan_end = loan_start + loan_row.years - 1
 
+    amortization = _loan_amortization(loan_row, loan_start)
+
     agg = _aggregate(buildings, override)
-    cumulative = today.opening_balance
+    # המצטבר פותח באפס ולא ביתרת המזומנים הקיימת של החברה הרוכשת: התכנית מציגה
+    # את מה שהפעילות הנרכשת מייצרת בפני עצמה, ולא את מצב הקופה המאוחד. כך גם
+    # השנה הראשונה נסגרת — המצטבר בה שווה בדיוק לתזרים הנטו. יתרת המזומנים
+    # בפועל מוצגת בפרק מצב היום.
+    cumulative = 0.0
     forecast: list[ForecastYearRow] = []
     # השימושים החד-פעמיים אינם מנוכים מהתזרים, בדיוק כמו עלות הרכישה: שניהם
     # ממומנים מכספי ההלוואה, וכספי ההלוואה עצמם אינם נכנסים לתזרים. ניכוי
@@ -358,9 +385,18 @@ def get_plan_data(
         )
         repayment = round(annual_payment, 2) if loan_start <= year <= loan_end else 0.0
         net = profit_before_loan - repayment
-        # מס חברות רק בשנים שבהן התזרים הנטו חיובי. בשנת הפסד אין חבות מס,
+
+        # ── רווח והפסד: אותם הכנסות והוצאות, אבל בלי החזר הקרן ────────────
+        # ההחזר מתחלק לריבית ולקרן. הריבית היא הוצאת מימון ונכנסת לרווח והפסד;
+        # הקרן היא פירעון התחייבות ואינה הוצאה, ולכן היא מנוכה מהתזרים בלבד.
+        sched = amortization.get(year, {})
+        interest = round(sched.get("interest", 0.0), 2)
+        principal = round(sched.get("principal", 0.0), 2)
+        pretax = round(profit_before_loan - interest, 2)
+        # מס חברות רק בשנים שבהן הרווח לפני מס חיובי. בשנת הפסד אין חבות מס,
         # וההפסד אינו מקוזז קדימה — הצגה שמרנית שאינה מקטינה את המס בהמשך.
-        tax = round(net * CORPORATE_TAX_RATE, 2) if net > 0 else 0.0
+        tax = round(pretax * CORPORATE_TAX_RATE, 2) if pretax > 0 else 0.0
+
         # היתרה המצטברת נשארת לפני מס, כמו התרשימים וניתוח הרגישות שנגזרים ממנה.
         cumulative += net
         forecast.append(ForecastYearRow(
@@ -376,8 +412,11 @@ def get_plan_data(
             profit_before_loan=round(profit_before_loan, 2),
             loan_repayment=repayment,
             net_profit=round(net, 2),
+            loan_interest=interest,
+            loan_principal=principal,
+            pretax_profit=pretax,
             corporate_tax=tax,
-            net_after_tax=round(net - tax, 2),
+            net_income=round(pretax - tax, 2),
             cumulative=round(cumulative, 2),
             dscr=round(profit_before_loan / repayment, 2) if repayment > 0 else None,
         ))
@@ -391,12 +430,15 @@ def get_plan_data(
         "profit_before_loan": round(sum(f.profit_before_loan for f in forecast), 2),
         "loan_repayment": round(sum(f.loan_repayment for f in forecast), 2),
         "net_profit": round(sum(f.net_profit for f in forecast), 2),
+        "loan_interest": round(sum(f.loan_interest for f in forecast), 2),
+        "loan_principal": round(sum(f.loan_principal for f in forecast), 2),
+        "pretax_profit": round(sum(f.pretax_profit for f in forecast), 2),
         "corporate_tax": round(sum(f.corporate_tax for f in forecast), 2),
-        "net_after_tax": round(sum(f.net_after_tax for f in forecast), 2),
+        "net_income": round(sum(f.net_income for f in forecast), 2),
         "chargers_added": sum(f.chargers_added for f in forecast),
         "chargers_end": forecast[-1].total_chargers if forecast else total_current,
-        "final_cumulative": forecast[-1].cumulative if forecast else today.opening_balance,
-        "min_cumulative": min((f.cumulative for f in forecast), default=today.opening_balance),
+        "final_cumulative": forecast[-1].cumulative if forecast else 0.0,
+        "min_cumulative": min((f.cumulative for f in forecast), default=0.0),
     }
 
     # הטווח בפועל — במצב "לפי הסכם" הוא נגזר מהאתר עם ההסכם הארוך ביותר
@@ -546,12 +588,16 @@ def get_plan_data(
                       note=f"{loan.years} שנים · פריים {loan.prime}% + מרווח {loan.margin}% · לוח שפיצר"),
         AssumptionRow(group=G6, label="החזר שנתי", value=_money(loan.annual_payment),
                       note=f"{_money(loan.monthly_payment)} לחודש"),
-        AssumptionRow(group=G6, label="יתרת מזומנים לתחילת התקופה", value=_money(today.opening_balance),
-                      note=today.opening_balance_date or "לפי לשונית תזרים"),
+        # לא "יתרת פתיחה": התחזית פותחת באפס, ולכן היתרה הקיימת היא נתון על
+        # החברה ולא הנחה שממנה נגזר המצטבר. הניסוח מונע קריאה שגויה של הטבלה.
+        AssumptionRow(group=G6, label="יתרת מזומנים קיימת", value=_money(today.opening_balance),
+                      note=(f"{today.opening_balance_date}; " if today.opening_balance_date else "")
+                           + "אינה נכללת ביתרה המצטברת שבתחזית"),
         AssumptionRow(group=G6, label='מע"מ', value="מנוטרל", note="כל הסכומים בתכנית אינם כוללים מע\"מ"),
         AssumptionRow(
             group=G6, label="מס חברות", value=f"{CORPORATE_TAX_RATE * 100:.0f}%",
-            note="מחושב על התזרים הנטו, רק בשנים שבהן הוא חיובי; בשנת הפסד אין חבות מס",
+            note="ברווח והפסד בלבד — על הרווח לפני מס, ורק בשנים שבהן הוא חיובי; "
+                 "בשנת הפסד אין חבות מס וההפסד אינו מקוזז קדימה",
         ),
     ]
 
@@ -565,7 +611,7 @@ def get_plan_data(
         ("מהיר ב-25%", 1.25),
     ]:
         scen = _aggregate(buildings, override, growth_factor=factor)
-        cum = today.opening_balance
+        cum = 0.0   # פותח באפס, כמו בתחזית עצמה
         cums: list[float] = []
         total_profit = 0.0
         for year in sorted(scen):

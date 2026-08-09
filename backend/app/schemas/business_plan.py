@@ -113,10 +113,14 @@ class ForecastYearRow(BaseModel):
     overhead: float = 0                 # תקורות שנתיות (מלשונית תזרים בניינים)
     ebitda: float = 0                   # הכנסות פחות OPEX ותחזוקה (לפני CAPEX והחזר)
     profit_before_loan: float = 0
-    loan_repayment: float = 0
+    loan_repayment: float = 0           # קרן וריבית יחד — כך זה יוצא מהתזרים
     net_profit: float = 0
-    corporate_tax: float = 0            # 23% מהתזרים הנטו, ורק כשהוא חיובי
-    net_after_tax: float = 0            # net_profit פחות המס
+    # ── רווח והפסד: אותה פעילות, בלי החזר הקרן ────────────────────────────
+    loan_interest: float = 0            # רכיב הריבית בהחזר — הוצאת מימון
+    loan_principal: float = 0           # רכיב הקרן — פירעון התחייבות, לא הוצאה
+    pretax_profit: float = 0            # profit_before_loan פחות הריבית
+    corporate_tax: float = 0            # 23% מהרווח לפני מס, ורק כשהוא חיובי
+    net_income: float = 0               # רווח נקי לאחר מס חברות
     cumulative: float = 0               # לפני מס, כמו התרשימים וניתוח הרגישות
     dscr: float | None = None           # יחס כיסוי חוב; None כשאין החזר באותה שנה
 

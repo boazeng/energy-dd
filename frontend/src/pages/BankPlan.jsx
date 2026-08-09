@@ -102,8 +102,9 @@ function H2({ n, plain, children }) {
 const FIG = Object.fromEntries([
   'financing',        // 1.2  מימון הרכישה
   'summary',          // 1.3  תמצית התחזית הכספית
-  'profitChart',      // 1.4  תזרים נטו על פני השנים
-  'sensitivity',      // 1.5  רגישות התוצאות לקצב החדירה
+  'pnlForecast',      // 1.4  רווח והפסד צפוי
+  'profitChart',      // 1.5  תזרים נטו על פני השנים
+  'sensitivity',      // 1.6  רגישות התוצאות לקצב החדירה
   'buildings',        // 2.4  פריסת האתרים
   'agreementsProfile', // 2.5 פרופיל ההתקשרויות
   'agreements',       // 2.6  מכלול ההסכמים החתומים
@@ -192,7 +193,7 @@ function AcquisitionTable({ d }) {
       <p className="bkp-note">
         השימושים ממומנים במלואם מהאשראי המבוקש, ולפיכך אינם מנוכים מהתזרים המוצג
         בפרקים הבאים — התזרים נושא את ההחזר השנתי בלבד. פירוט השימושים מופיע גם
-        בטבלת הנחות העבודה שבסעיף 7.1.
+        בטבלת הנחות העבודה שבסעיף 8.1.
         {surplus > 0 && <> ההפרש בין האשראי לשימושים משמש כהון חוזר לפעילות.</>}
         {' '}הסכומים אינם כוללים מע&quot;מ.
       </p>
@@ -220,7 +221,6 @@ function SummaryCompact({ d }) {
   const f = d.forecast
   if (!f.length) return null
   const T = d.totals
-  const opening = d.today.opening_balance || 0
   // הדגשה על שתי שורות התזרים בלבד — כך זה בקובץ שאושר. תוויות השורה נשארות
   // במשקל רגיל, גם הן כמו בקובץ.
   const rows = [
@@ -232,12 +232,9 @@ function SummaryCompact({ d }) {
     // ואינן מנוכות מהתזרים. מקומן בטבלת מימון הרכישה שבסעיף 1.2.
     ['תזרים לפני החזר החוב', f.map((r) => r.profit_before_loan), T.profit_before_loan, true],
     ['החזר ההלוואה', f.map((r) => -r.loan_repayment), -T.loan_repayment],
+    // המס והרווח החשבונאי אינם כאן: זו טבלת תזרים, וההחזר שבשורה שמעל כולל
+    // קרן. הרווח וההפסד — ריבית בלבד ומס חברות — מוצג בטבלה שבסעיף 1.4.
     ['תזרים נטו', f.map((r) => r.net_profit), T.net_profit, true],
-    // המס נגבה רק בשנים שבהן התזרים הנטו חיובי; בשנת הפסד התא ריק ולא אפס,
-    // כדי שלא ייקרא כאילו חושב מס ויצא אפס.
-    ['מס חברות (23%)', f.map((r) => (r.corporate_tax ? -r.corporate_tax : null)),
-      T.corporate_tax ? -T.corporate_tax : null],
-    ['רווח לאחר מס חברות', f.map((r) => r.net_after_tax), T.net_after_tax, true],
   ]
   return (
     <figure className="bkp-figure">
@@ -258,19 +255,8 @@ function SummaryCompact({ d }) {
               <td className={signCls(total)}>{num(total)}</td>
             </tr>
           ))}
-          {/* שורת הפתיחה נדרשת כדי שהגלגול ייסגר בכל עמודה: המצטבר פותח ביתרת
-              המזומנים בפועל ולא באפס, ובלעדיה השנה הראשונה נראית כאילו המצטבר
-              אינו שווה לתזרים הנטו. כשאין יתרת פתיחה השורה מיותרת ואינה מוצגת. */}
-          {opening !== 0 && (
-            <tr>
-              <td className="bkp-rowlabel">יתרת מזומנים בפתיחה</td>
-              {f.map((r, i) => {
-                const v = i ? f[i - 1].cumulative : opening
-                return <td key={r.year} className={signCls(v)}>{num(v)}</td>
-              })}
-              <td />
-            </tr>
-          )}
+          {/* אין כאן שורת יתרת פתיחה: המצטבר פותח באפס, ולכן בשנה הראשונה הוא
+              שווה לתזרים הנטו והגלגול נסגר בלי שורת עזר. */}
           <tr>
             <td className="bkp-rowlabel">יתרת מזומנים מצטברת</td>
             {f.map((r) => (
@@ -287,17 +273,69 @@ function SummaryCompact({ d }) {
         </tbody>
       </table>
       <p className="bkp-note">
-        הסכומים מנוטרלי מע&quot;מ.
-        {opening !== 0 && (
-          <> יתרת המזומנים המצטברת פותחת ביתרה בפועל
-            {d.today.opening_balance_date ? ` נכון ל-${d.today.opening_balance_date}` : ''}
-            {' '}({ils(opening)}), ולפיכך היא גבוהה מהתזרים הנטו המצטבר בסכום זה.</>
-        )}
-        {' '}מס החברות בשיעור 23% מחושב על התזרים הנטו ורק בשנים שבהן הוא חיובי;
-        בשנת הפסד אין חבות מס. יתרת המזומנים המצטברת, וכן התרשימים וניתוח הרגישות
-        הנגזרים ממנה, מוצגים לפני מס.
+        הסכומים מנוטרלי מע&quot;מ. היתרה המצטברת פותחת באפס ומציגה את מה שהפעילות
+        הנרכשת מייצרת בלבד; יתרת המזומנים הקיימת של החברה אינה נכללת בה.
+        {' '}הרווח החשבונאי ומס החברות מוצגים בטבלת הרווח וההפסד הצפוי שבהמשך
+        הפרק; יתרות המזומנים כאן הן לפני מס.
         {' '}הפירוט המלא, לרבות הנחות העבודה שמהן נגזרת התחזית,
         מופיע בפרק תחזית הגידול.
+      </p>
+    </figure>
+  )
+}
+
+/* ─── רווח והפסד צפוי ─────────────────────────────────────────────────────
+   אותה פעילות שבטבלת התמצית, בהצגה חשבונאית: החזר הקרן אינו הוצאה אלא פירעון
+   התחייבות, ולכן מהשורה התחתונה מנוכה הריבית בלבד. עליה מחושב מס חברות 23%,
+   רק בשנים שבהן יש רווח. שני הפיצולים — ריבית מול קרן והמס — מגיעים מהשרת. */
+function PnlForecast({ d }) {
+  const f = d.forecast
+  if (!f.length) return null
+  const T = d.totals
+  const rows = [
+    ['הכנסות', f.map((r) => r.income), T.income],
+    ['הוצאות תפעול, תחזוקה ותקורה', f.map((r) => -(r.opex + r.maintenance + r.overhead)),
+      -(T.opex + T.maintenance + (T.overhead || 0))],
+    ['השקעה בעמדות חדשות', f.map((r) => -r.capex), -T.capex],
+    ['רווח לפני הוצאות מימון', f.map((r) => r.profit_before_loan), T.profit_before_loan, true],
+    // בשנים שאין בהן הלוואה התא ריק ולא אפס — כך גם בשורת המס
+    ['הוצאות ריבית', f.map((r) => (r.loan_interest ? -r.loan_interest : null)),
+      T.loan_interest ? -T.loan_interest : null],
+    ['רווח לפני מס', f.map((r) => r.pretax_profit), T.pretax_profit, true],
+    ['מס חברות (23%)', f.map((r) => (r.corporate_tax ? -r.corporate_tax : null)),
+      T.corporate_tax ? -T.corporate_tax : null],
+    ['רווח נקי לאחר מס', f.map((r) => r.net_income), T.net_income, true],
+  ]
+  return (
+    <figure className="bkp-figure">
+      <Caption kind="table" n={FIG.pnlForecast}>רווח והפסד צפוי (בש&quot;ח)</Caption>
+      <table className="bkp-table">
+        <thead>
+          <tr>
+            <th className="bkp-rowlabel">סעיף</th>
+            {f.map((r) => <th key={r.year}>{r.year}</th>)}
+            <th>סה&quot;כ</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map(([label, vals, total, strong], i) => (
+            <tr key={i} className={strong ? 'bkp-total-row' : ''}>
+              <td className="bkp-rowlabel">{label}</td>
+              {vals.map((v, j) => <td key={j} className={`bkp-num ${signCls(v)}`}>{num(v)}</td>)}
+              <td className={`bkp-num ${signCls(total)}`}>{num(total)}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+      <p className="bkp-note">
+        ההבדל מתמצית התחזית הכספית הוא ברכיב ההלוואה בלבד: התזרים נושא את ההחזר
+        המלא ({ils(d.loan.annual_payment)} לשנה), ואילו הרווח וההפסד נושא את
+        הריבית בלבד — סך {ils(d.loan.total_interest)} לאורך ההלוואה — משום שהחזר
+        הקרן הוא פירעון התחייבות ואינו הוצאה. מס החברות מחושב בשיעור 23% מהרווח
+        לפני מס ורק בשנים שבהן הוא חיובי; בשנת הפסד אין חבות מס, וההפסד אינו
+        מקוזז כנגד רווחי השנים הבאות — ולפיכך זו הצגה שמרנית. ההשקעה בעמדות
+        חדשות מוצגת במלואה בשנת ההשקעה, כמו בתזרים, ולא כפחת שנתי. הסכומים
+        מנוטרלי מע&quot;מ, והמס אינו מנוכה מיתרות המזומנים המוצגות במסמך.
       </p>
     </figure>
   )
@@ -645,9 +683,8 @@ function SummaryFinancials({ d }) {
     ['תזרים לפני החזר הלוואה', f.map((r) => ils(r.profit_before_loan)), false, true],
     ['החזר הלוואה', f.map((r) => ils(-r.loan_repayment))],
     ['תזרים נטו', f.map((r) => ils(r.net_profit)), false, true],
-    // מקף בשנת הפסד — אין חבות מס, ולא "מס אפס"
-    ['מס חברות (23%)', f.map((r) => (r.corporate_tax ? ils(-r.corporate_tax) : '—'))],
-    ['רווח לאחר מס חברות', f.map((r) => ils(r.net_after_tax)), false, true],
+    // המס אינו כאן: ההחזר שבשורה שמעל כולל קרן, ולכן זו שורת תזרים ולא רווח.
+    // ההצגה החשבונאית — ריבית בלבד ומס חברות — מרוכזת בסעיף 1.4.
   ]
   return (
     <figure className="bkp-figure">
@@ -693,8 +730,10 @@ function CumulativeCashflow({ d }) {
           </tbody>
         </table>
         <p className="bkp-note">
-          היתרה המצטברת פותחת ביתרת המזומנים בפועל
-          {d.today.opening_balance_date ? ` נכון ל-${d.today.opening_balance_date}` : ''} ({ils(d.today.opening_balance)}).
+          היתרה המצטברת פותחת באפס ומציגה את התזרים שהפעילות הנרכשת מייצרת בלבד.
+          יתרת המזומנים הקיימת של החברה
+          {d.today.opening_balance_date ? ` נכון ל-${d.today.opening_balance_date}` : ''}
+          {' '}({ils(d.today.opening_balance)}) אינה נכללת בה ומוצגת בפרק מצב היום.
         </p>
       </figure>
 
@@ -735,9 +774,10 @@ function ForecastTable({ d }) {
             <th>תזרים לפני<br />החזר</th>
             <th>החזר<br />הלוואה</th>
             <th>תזרים<br />נטו</th>
-            {/* סכום המס עצמו הוא ההפרש בין שתי העמודות; פירוטו מופיע בטבלאות
-                התמצית, וכאן נחסכת עמודה בטבלה שהיא כבר הצרה במסמך. */}
-            <th>רווח לאחר<br />מס חברות</th>
+            {/* התוצאה החשבונאית לצד התזרים — ריבית בלבד ובניכוי מס חברות.
+                פירוט הדרך אליה, לרבות סכום הריבית והמס, מופיע בטבלה שבסעיף 1.4;
+                כאן נחסכות שתי עמודות בטבלה שהיא כבר הצרה במסמך. */}
+            <th>רווח נקי<br />לאחר מס</th>
             <th>יתרה<br />מצטברת</th>
           </tr>
         </thead>
@@ -753,7 +793,7 @@ function ForecastTable({ d }) {
               <td className="bkp-num">{num(r.profit_before_loan)}</td>
               <td className="bkp-num">{r.loan_repayment ? num(-r.loan_repayment) : '—'}</td>
               <td className="bkp-num">{num(r.net_profit)}</td>
-              <td className="bkp-num">{num(r.net_after_tax)}</td>
+              <td className="bkp-num">{num(r.net_income)}</td>
               <td className="bkp-num">{num(r.cumulative)}</td>
             </tr>
           ))}
@@ -769,7 +809,7 @@ function ForecastTable({ d }) {
             <td className="bkp-num">{num(T.profit_before_loan)}</td>
             <td className="bkp-num">{num(-T.loan_repayment)}</td>
             <td className="bkp-num">{num(T.net_profit)}</td>
-            <td className="bkp-num">{num(T.net_after_tax)}</td>
+            <td className="bkp-num">{num(T.net_income)}</td>
             <td className="bkp-num">{num(T.final_cumulative)}</td>
           </tr>
         </tfoot>
@@ -865,7 +905,10 @@ const TEXTS = {
 
   '1.3': `להלן תמצית התחזית לתקופת ההלוואה. הנתונים נגזרים מהתנאים החוזיים של האתרים הנרכשים ומהנחות העבודה המפורטות בפרק תחזית הגידול (הנתונים הכספיים אינם כוללים את הפעילות הכוללת של חברת האנרגיה אלא רק את הבניינים הרלוונטיים לחברה הנרכשת):`,
 
-  // 1.4 (רווחיות לאורך התקופה) הוא תרשים ללא פסקה מלווה.
+  // הרווח וההפסד (סעיף 1.4) — מזהה עצמאי, כמו שאר הבלוקים שאינם מספר סעיף
+  'pnl-forecast': `הטבלה שלעיל מציגה תזרים מזומנים, שבו ההלוואה נושאת את ההחזר במלואו. להלן אותה פעילות בהצגה חשבונאית של רווח והפסד: החזר הקרן אינו הוצאה אלא פירעון התחייבות, ולפיכך נכללת בו הריבית בלבד. על הרווח לפני מס מחושב מס חברות בשיעור 23%, בשנים שבהן צפוי רווח:`,
+
+  // סעיף 1.5 (רווחיות לאורך התקופה) הוא תרשים ללא פסקה מלווה.
   '1.5': `להלן בחינת השפעתו של קצב חדירה איטי או מהיר מהמתוכנן על תוצאות התקופה. מבנה ההוצאות הגמיש והיכולת לדחות השקעות תשתית מאפשרים לחברה להתאים את קצב ההתרחבות לתזרים בפועל:`,
 
   '1.6': `- הפעילות הנרכשת מייצרת הכנסה חוזרת כבר במועד ההשלמה, ואינה תלויה בתקופת הרצה;
@@ -1078,10 +1121,11 @@ const TOC = [
   ['1.1', 'רקע כללי ותיאור החברה', 2],
   ['1.2', 'בקשת האשראי', 2],
   ['1.3', 'תמצית התחזית הכספית', 2],
-  ['1.4', 'רווחיות לאורך התקופה', 2],
-  ['1.5', 'ניתוח רגישות', 2],
-  ['1.6', 'יתרונות הרכישה', 2],
-  ['1.7', 'הבהרות', 2],
+  ['1.4', 'רווח והפסד צפוי', 2],
+  ['1.5', 'רווחיות לאורך התקופה', 2],
+  ['1.6', 'ניתוח רגישות', 2],
+  ['1.7', 'יתרונות הרכישה', 2],
+  ['1.8', 'הבהרות', 2],
   ['2.', 'החברה הנרכשת — פעילות ונכסים', 1],
   ['2.1', 'תחום הפעילות והערך המוסף', 2],
   ['2.2', 'המוצרים והשירותים', 2],
@@ -1284,19 +1328,27 @@ export default function BankPlan({ agreementVersion, horizonMode = '5' }) {
           <P id="1.3" />
           <SummaryCompact d={d} />
 
+          {/* הרווח וההפסד צמוד לתמצית התזרים: אותה פעילות, שתי הצגות. הבנק
+              רואה קודם את יכולת ההחזר ומיד אחריה את התוצאה החשבונאית.
+              הוספת הסעיף הזיזה את הסעיפים שאחריו; מזהי ה-Prose לא זזו איתם,
+              כדי שעריכות מלל שנשמרו באתר לא יאבדו. */}
+          <H2 n="1.4">רווח והפסד צפוי</H2>
+          <P id="pnl-forecast" />
+          <PnlForecast d={d} />
+
           {/* הרווחיות והרגישות הועברו לכאן מפרק התחזית — הבנק מבקש לראות את
               התוצאה ואת עמידותה לשינוי בקצב כבר בתמצית, לפני הפירוט. */}
-          <H2 n="1.4">רווחיות לאורך התקופה</H2>
+          <H2 n="1.5">רווחיות לאורך התקופה</H2>
           <ProfitChart d={d} />
 
-          <H2 n="1.5">ניתוח רגישות</H2>
+          <H2 n="1.6">ניתוח רגישות</H2>
           <P id="1.5" />
           <SensitivityTable d={d} />
 
-          <H2 n="1.6">יתרונות הרכישה</H2>
+          <H2 n="1.7">יתרונות הרכישה</H2>
           <P id="1.6" />
 
-          <H2 n="1.7">הבהרות</H2>
+          <H2 n="1.8">הבהרות</H2>
           <P id="1.7" />
         </section>
 
