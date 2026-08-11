@@ -1333,6 +1333,7 @@ export default function BankPlan({ agreementVersion, horizonMode = '5' }) {
           <div className="bkp-cover-purpose">מימון רכישת פעילות ש.א.ר מוביליטי בע&quot;מ</div>
           <div className="bkp-cover-gap" />
           <div className="bkp-cover-to">מוגש לבנק הפועלים</div>
+          <div className="bkp-cover-by">הוכן על ידי התנופה - ייעוץ וליווי עסקי</div>
           <div className="bkp-cover-facts">
             {nf.format(o.buildings_count)} אתרים&nbsp; ·&nbsp; {nf.format(o.current_chargers)} מטענים
             מותקנים&nbsp; ·&nbsp; אשראי מבוקש {ils(d.acquisition.credit_requested)}&nbsp; ·&nbsp;
@@ -1527,6 +1528,11 @@ export default function BankPlan({ agreementVersion, horizonMode = '5' }) {
         <section className="bkp-section bkp-level-1">
           <H1 n="9">סיכום ומסקנות</H1>
           <P id="8" />
+          {/* חתימת עורך התכנית — מיושרת לשמאל, כמקובל בסיום מסמך */}
+          <div className="bkp-signoff">
+            <p>בכבוד רב,</p>
+            <p>התנופה - ייעוץ וליווי עסקי</p>
+          </div>
         </section>
 
         <footer className="bkp-doc-foot">

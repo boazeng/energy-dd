@@ -129,6 +129,14 @@
   font-family: 'Segoe UI', sans-serif;
   font-size: 14.5pt;
   color: var(--bkp-taupe);
+  margin-bottom: 9pt;
+}
+/* שורת עורך התכנית, צמודה לשורת הנמען. הרווח שהיה מתחת ל-.bkp-cover-to עבר
+   לכאן, כדי שהמרחק עד פס העובדות יישאר כפי שאושר. */
+.bkp-cover-by {
+  font-family: 'Segoe UI', sans-serif;
+  font-size: 12pt;
+  color: var(--bkp-taupe);
   margin-bottom: 31.5pt;
 }
 .bkp-cover-facts {
@@ -191,6 +199,11 @@
 
 /* ─── פסקאות ורשימות ─── */
 .bkp-p { margin: 0 0 9pt; text-align: justify; }
+/* חתימה בסוף המסמך. `left` ולא `end` — הבקשה היא לצד שמאל הפיזי, גם במסמך RTL,
+   וכך גם היישור נשמר בייצוא ל-Word. */
+.bkp-signoff { text-align: left; margin-top: 18pt; }
+.bkp-signoff p { margin: 0 0 12pt; }
+.bkp-signoff p:last-child { margin-bottom: 0; }
 .bkp-ul { margin: 0 0 9.75pt; padding-inline-start: 16.5pt; list-style: disc; }
 .bkp-ul li { margin-bottom: 4.5pt; }
 .bkp-section { margin-bottom: 16.5pt; }
