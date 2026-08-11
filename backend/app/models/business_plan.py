@@ -78,6 +78,11 @@ class BusinessPlanSetting(Base):
     # נזקפת במלואה בשנת ההשקעה, ולכן אין ספירה כפולה.
     annual_depreciation: Mapped[float] = mapped_column(Float, default=100_000)
 
+    # שיעור הגידול בשנת הפתיחה, במקום שיעור הגידול השוטף שנקבע פר-אתר. הוא
+    # נמוך יותר בשל הטמעת הפעילות הנרכשת, ומשקף חמישה רבעונים: הרבעון האחרון
+    # של השנה שלפניה וכל שנת הפתיחה. 0 = אין גידול בשנת הפתיחה.
+    first_year_growth_rate: Mapped[float] = mapped_column(Float, default=5.0)
+
     contact_name: Mapped[str] = mapped_column(String(120), default="")
     contact_phone: Mapped[str] = mapped_column(String(60), default="")
     contact_email: Mapped[str] = mapped_column(String(120), default="")

@@ -224,6 +224,7 @@ class PlanData(BaseModel):
     generated_at: str
     horizon_years: int
     start_year: int
+    first_year_growth_rate: float = 0   # גידול בשנת הפתיחה; 0 = אין
     by_contract: bool = False   # האופק נגזר מתקופת ההסכם בכל אתר בנפרד
     overview: OverviewData
     today: TodayData

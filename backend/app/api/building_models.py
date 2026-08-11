@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.core.config import settings
 from app.core.db import get_db
 from app.models.building_model import BuildingModel
+from app.models.business_plan import BusinessPlanSetting
 from app.models.cashflow import CashflowLoan
 from app.schemas.building_model import (
     BuildingForecastOut,
@@ -27,6 +28,12 @@ from app.seed_building_models import (
 router = APIRouter(prefix="/api/building-models", tags=["building-models"])
 
 
+def _first_year_growth(db: Session) -> float:
+    """שיעור הגידול בשנת הפתיחה, מהגדרות התכנית. מקור אמת אחד לכל הלשוניות."""
+    s = db.get(BusinessPlanSetting, 1)
+    return float(getattr(s, "first_year_growth_rate", 0) or 0) if s else 0.0
+
+
 def _effective_forecast_years(bm: BuildingModel) -> int:
     """מחשב מספר שנות תחזית: לפי הסכם אם מוגדר, אחרת forecast_years."""
     if bm.contract_start_year and bm.contract_duration_years:
@@ -39,10 +46,13 @@ def _calc_forecast(
     bm: BuildingModel,
     override_years: int | None = None,
     growth_override: float | None = None,
+    first_year_growth: float | None = None,
 ) -> list[YearForecast]:
     """מחשב תחזית שנתית לבניין — גידול מטענים, הכנסות, CAPEX ו-OPEX.
 
     growth_override: שיעור גידול שנתי חלופי (%) במקום זה שב-DB — לניתוח רגישות.
+    first_year_growth: שיעור הגידול בשנת הפתיחה (%). None או 0 = אין גידול בה,
+        כלומר השנה מציגה את המצב הקיים בלבד.
     """
     monthly_income_per_charger = (
         bm.mgmt_fee_per_charger
@@ -75,18 +85,23 @@ def _calc_forecast(
     growth_rate = bm.annual_growth_rate if growth_override is None else growth_override
     new_per_year = math.floor(bm.potential_spots * growth_rate / 100) if bm.potential_spots > 0 else 0
 
+    # שנת הפתיחה נושאת שיעור גידול משלה, נמוך מהשוטף. בניתוח הרגישות היא
+    # מוסטת באותו יחס כמו השוטף, אחרת התרחישים היו נבדלים רק בשנים שאחריה.
+    first_rate = first_year_growth or 0.0
+    if first_rate and growth_override is not None and bm.annual_growth_rate:
+        first_rate *= growth_override / bm.annual_growth_rate
+    new_first_year = math.floor(bm.potential_spots * first_rate / 100) if bm.potential_spots > 0 else 0
+
     total = bm.current_chargers
     years: list[YearForecast] = []
 
     for i in range(override_years if override_years else _effective_forecast_years(bm)):
-        # שנה ראשונה = מצב קיים, OPEX חד-פעמי; שנים הבאות = גידול, OPEX=0
-        if i == 0:
-            added = 0
-            annual_opex = opex_year_one
-        else:
-            remaining = max(0, bm.potential_spots - total)
-            added = min(new_per_year, remaining)
-            annual_opex = 0
+        # שנה ראשונה = מצב קיים בתוספת גידול ההטמעה, ו-OPEX חד-פעמי;
+        # שנים הבאות = גידול שוטף, OPEX=0
+        cap = new_first_year if i == 0 else new_per_year
+        annual_opex = opex_year_one if i == 0 else 0
+        remaining = max(0, bm.potential_spots - total)
+        added = min(cap, remaining)
         total += added
 
         panels_needed = math.ceil(added / chargers_per_panel) if added > 0 else 0
@@ -242,6 +257,7 @@ def combined_forecast(
     if loan is None:
         loan = CashflowLoan(id=1)
     loan_start_year = int(loan.start_month[:4]) if loan.start_month else min(b.start_year for b in buildings)
+    first_year_growth = _first_year_growth(db)
 
     # מציאת טווח שנים מקסימלי — לפי תקופת ההסכם בכל בניין, או force_years
     effective = lambda b: force_years if force_years else _effective_forecast_years(b)
@@ -263,7 +279,7 @@ def combined_forecast(
     # מיפוי תחזית לכל בניין
     forecasts: dict[str, dict[int, YearForecast]] = {}
     for bm in buildings:
-        years = _calc_forecast(bm, override_years=force_years)
+        years = _calc_forecast(bm, override_years=force_years, first_year_growth=first_year_growth)
         forecasts[bm.building_name] = {yf.year: yf for yf in years}
 
     result: list[CombinedForecastYear] = []
@@ -308,7 +324,7 @@ def building_forecast(
     bm = db.get(BuildingModel, bm_id)
     if bm is None:
         raise HTTPException(status_code=404, detail="בניין לא נמצא")
-    years = _calc_forecast(bm, override_years=force_years)
+    years = _calc_forecast(bm, override_years=force_years, first_year_growth=_first_year_growth(db))
     return BuildingForecastOut(
         building=BuildingModelOut.model_validate(bm),
         years=years,

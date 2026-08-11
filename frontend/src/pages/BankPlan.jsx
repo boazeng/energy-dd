@@ -312,6 +312,12 @@ function SummaryCompact({ d }) {
           ? ' הרווח החשבונאי נושא גם הוצאות פחת, שאינן תזרימיות ולכן אינן מנוכות כאן —'
             + ' אך המס שלמעלה מחושב אחריהן ולפיכך נמוך בהתאם.'
           : '')
+        + (d.first_year_growth_rate > 0
+          ? ` בשנת ${d.start_year} חושב גידול של ${d.first_year_growth_rate}% במקום השיעור`
+            + ` השוטף: הוא מבטא חמישה רבעונים — הרבעון האחרון של ${d.start_year - 1} וכל שנת`
+            + ` ${d.start_year} — והוא נמוך יותר בשל הטמעת החברה הנרכשת. משנת`
+            + ` ${d.start_year + 1} ואילך חל שיעור הגידול השוטף שהוגדר במערכת.`
+          : '')
         + ' הפירוט המלא, לרבות הנחות העבודה שמהן נגזרת התחזית, מופיע בפרק תחזית הגידול.'
       } />
     </figure>
@@ -1573,6 +1579,7 @@ function PlanSettingsEditor({ settings, onSaved }) {
   const [dcYear, setDcYear] = useState(settings.dc_income_start_year ?? 2028)
   const [dcByYear, setDcByYear] = useState(settings.dc_income_by_year || [])
   const [depreciation, setDepreciation] = useState(settings.annual_depreciation ?? 0)
+  const [firstGrowth, setFirstGrowth] = useState(settings.first_year_growth_rate ?? 0)
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState('')
 
@@ -1582,6 +1589,7 @@ function PlanSettingsEditor({ settings, onSaved }) {
       await api.updateBusinessPlanSettings({
         acquisition_cost: parseFloat(cost) || 0,
         annual_depreciation: parseFloat(depreciation) || 0,
+        first_year_growth_rate: parseFloat(firstGrowth) || 0,
         dc_annual_income: parseFloat(dcIncome) || 0,
         dc_income_start_year: parseInt(dcYear, 10) || 2028,
         // שורה בלי שנה היא שורה שלא מולאה — היא נופלת ולא נשמרת כשנה 0
@@ -1622,6 +1630,15 @@ function PlanSettingsEditor({ settings, onSaved }) {
       </label>
       <p className="bkp-settings-note" style={{ margin: '0 0 13px' }}>
         הוצאה חשבונאית בלבד — מקטינה את הרווח לפני מס ואת המס, ואינה מנוכה מהתזרים.
+      </p>
+      <label className="bkp-settings-field">
+        <span>גידול בשנה הראשונה (%)</span>
+        <input type="number" min="0" max="100" step="0.5" value={firstGrowth ?? ''}
+          onChange={(e) => setFirstGrowth(e.target.value)} />
+      </label>
+      <p className="bkp-settings-note" style={{ margin: '0 0 13px' }}>
+        מחליף את שיעור הגידול השוטף בשנת התחזית הראשונה בלבד. חל על כל הלשוניות,
+        לא רק על המסמך. 0 = אין גידול בשנה הראשונה.
       </p>
 
       <h4 className="bkp-settings-sub">הכנסות ממטעני DC</h4>

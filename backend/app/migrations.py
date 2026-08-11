@@ -303,6 +303,8 @@ def migrate_business_plan(engine: Engine) -> None:
             ("dc_income_by_year",    "TEXT",    "NULL"),
             # פחת שנתי — הוצאה חשבונאית שאינה נכנסת לתזרים
             ("annual_depreciation",  "REAL",    "100000"),
+            # גידול בשנת הפתיחה — נמוך מהשוטף בשל הטמעת הפעילות הנרכשת
+            ("first_year_growth_rate", "REAL",  "5.0"),
         ],
     }
     with engine.connect() as conn:

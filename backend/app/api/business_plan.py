@@ -133,6 +133,7 @@ def _aggregate(
     buildings: list[BuildingModel],
     horizon: int | None,
     growth_factor: float = 1.0,
+    first_year_growth: float = 0.0,
 ) -> dict[int, dict[str, float]]:
     """מסכם את תחזיות כל הבניינים לשנה קלנדרית אחת. מפתח = שנה.
 
@@ -141,7 +142,8 @@ def _aggregate(
     agg: dict[int, dict[str, float]] = {}
     for bm in buildings:
         growth = None if growth_factor == 1.0 else bm.annual_growth_rate * growth_factor
-        for yf in _calc_forecast(bm, override_years=horizon, growth_override=growth):
+        for yf in _calc_forecast(bm, override_years=horizon, growth_override=growth,
+                                 first_year_growth=first_year_growth):
             row = agg.setdefault(
                 yf.year,
                 {"added": 0.0, "total": 0.0, "income": 0.0, "capex": 0.0, "opex": 0.0, "maint": 0.0},
@@ -378,6 +380,7 @@ def get_plan_data(
     # פחת שנתי על השימושים המהוונים בעסקה. הוצאה חשבונאית בלבד — ראה ההערה
     # שבמודל ואת חישוב `pretax` שלהלן.
     depreciation = float(plan_settings.annual_depreciation or 0)
+    first_year_growth = float(plan_settings.first_year_growth_rate or 0)
 
     def _dc_for(year: int) -> float:
         if year in dc_by_year:
@@ -387,7 +390,7 @@ def get_plan_data(
     annual_payment = _shpitzer_annual(loan_row)
     loan_start = int(loan_row.start_month[:4]) if loan_row.start_month else start_year
 
-    agg = _aggregate(buildings, override)
+    agg = _aggregate(buildings, override, first_year_growth=first_year_growth)
     amortization = _loan_amortization(loan_row, loan_start, max(agg) if agg else None)
     # המצטבר פותח באפס ולא ביתרת המזומנים הקיימת של החברה הרוכשת: התכנית מציגה
     # את מה שהפעילות הנרכשת מייצרת בפני עצמה, ולא את מצב הקופה המאוחד. כך גם
@@ -574,7 +577,15 @@ def get_plan_data(
                   if by_contract else f"{first_year}–{last_year} · אחיד לכל האתרים"),
         ),
         _param(G1, "שיעור גידול שנתי", "annual_growth_rate", _pct,
-               note="מטענים חדשים כאחוז מהחניות הפוטנציאליות בכל אתר"),
+               note="מטענים חדשים כאחוז מהחניות הפוטנציאליות בכל אתר"
+                    + (f"; חל מ-{first_year + 1} ואילך" if first_year_growth > 0 else "")),
+    ] + ([
+        AssumptionRow(
+            group=G1, label=f"שיעור גידול בשנת {first_year}", value=_pct(first_year_growth),
+            note=f"נמוך מהשיעור השוטף בשל הטמעת הפעילות הנרכשת. השיעור מבטא חמישה "
+                 f"רבעונים — הרבעון האחרון של {first_year - 1} וכל שנת {first_year}",
+        ),
+    ] if first_year_growth > 0 else []) + [
         _param(G1, "צריכה חודשית ממוצעת למטען", "avg_kwh_per_charger_monthly", _kwh),
     ] + ([
         AssumptionRow(
@@ -673,7 +684,8 @@ def get_plan_data(
         ("מהיר ב-15%", 1.15),
         ("מהיר ב-25%", 1.25),
     ]:
-        scen = _aggregate(buildings, override, growth_factor=factor)
+        scen = _aggregate(buildings, override, growth_factor=factor,
+                          first_year_growth=first_year_growth)
         cum = 0.0   # פותח באפס, כמו בתחזית עצמה
         cums: list[float] = []
         total_profit = 0.0
@@ -704,6 +716,7 @@ def get_plan_data(
         generated_at=datetime.now(timezone.utc).isoformat(timespec="seconds"),
         horizon_years=span_years,
         start_year=first_year,
+        first_year_growth_rate=first_year_growth,
         by_contract=by_contract,
         overview=overview,
         today=today,
