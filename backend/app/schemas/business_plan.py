@@ -53,6 +53,7 @@ class PlanSettingsIn(BaseModel):
     dc_annual_income: float | None = Field(default=None, ge=0)
     dc_income_start_year: int | None = Field(default=None, ge=2000, le=2100)
     dc_income_by_year: list[dict] | None = None
+    annual_depreciation: float | None = Field(default=None, ge=0)
 
 
 class PlanSettingsOut(BaseModel):
@@ -73,6 +74,7 @@ class PlanSettingsOut(BaseModel):
     dc_annual_income: float = 0
     dc_income_start_year: int = 2028
     dc_income_by_year: list[dict] = []
+    annual_depreciation: float = 0
 
 
 class BusinessPlanOut(BaseModel):
@@ -126,7 +128,8 @@ class ForecastYearRow(BaseModel):
     # ── רווח והפסד: אותה פעילות, בלי החזר הקרן ────────────────────────────
     loan_interest: float = 0            # רכיב הריבית בהחזר — הוצאת מימון
     loan_principal: float = 0           # רכיב הקרן — פירעון התחייבות, לא הוצאה
-    pretax_profit: float = 0            # profit_before_loan פחות הריבית
+    depreciation: float = 0             # פחת — הוצאה חשבונאית בלבד, לא תזרימית
+    pretax_profit: float = 0            # profit_before_loan פחות הריבית והפחת
     corporate_tax: float = 0            # 23% מהרווח לפני מס, ורק כשהוא חיובי
     net_income: float = 0               # רווח נקי לאחר מס חברות
     cumulative: float = 0               # נצברת מ-net_after_tax, כמו ניתוח הרגישות

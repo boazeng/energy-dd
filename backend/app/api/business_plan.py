@@ -375,6 +375,10 @@ def get_plan_data(
         if str(x.get("year") or "").strip()
     }
 
+    # פחת שנתי על השימושים המהוונים בעסקה. הוצאה חשבונאית בלבד — ראה ההערה
+    # שבמודל ואת חישוב `pretax` שלהלן.
+    depreciation = float(plan_settings.annual_depreciation or 0)
+
     def _dc_for(year: int) -> float:
         if year in dc_by_year:
             return dc_by_year[year]
@@ -415,7 +419,9 @@ def get_plan_data(
         # בלי תזרים יוצא.
         interest = round(sched.get("interest", 0.0), 2)
         principal = round(sched.get("principal", 0.0), 2)
-        pretax = round(profit_before_loan - interest, 2)
+        # הפחת מקטין את הרווח לפני מס ולכן גם את המס, אבל אינו יוצא מהקופה:
+        # הוא אינו מנוכה מהתזרים, ורק חבות המס שנגזרת ממנו נכנסת אליו.
+        pretax = round(profit_before_loan - interest - depreciation, 2)
         # מס חברות רק בשנים שבהן הרווח לפני מס חיובי. בשנת הפסד אין חבות מס,
         # וההפסד אינו מקוזז קדימה — הצגה שמרנית שאינה מקטינה את המס בהמשך.
         tax = round(pretax * CORPORATE_TAX_RATE, 2) if pretax > 0 else 0.0
@@ -441,6 +447,7 @@ def get_plan_data(
             net_after_tax=net_after_tax,
             loan_interest=interest,
             loan_principal=principal,
+            depreciation=round(depreciation, 2),
             pretax_profit=pretax,
             corporate_tax=tax,
             net_income=round(pretax - tax, 2),
@@ -461,6 +468,7 @@ def get_plan_data(
         "net_after_tax": round(sum(f.net_after_tax for f in forecast), 2),
         "loan_interest": round(sum(f.loan_interest for f in forecast), 2),
         "loan_principal": round(sum(f.loan_principal for f in forecast), 2),
+        "depreciation": round(sum(f.depreciation for f in forecast), 2),
         "pretax_profit": round(sum(f.pretax_profit for f in forecast), 2),
         "corporate_tax": round(sum(f.corporate_tax for f in forecast), 2),
         "net_income": round(sum(f.net_income for f in forecast), 2),
@@ -598,6 +606,13 @@ def get_plan_data(
         _param(G3, "מטענים לארון", "chargers_per_panel", _int),
 
         _param(G4, "תחזוקה שנתית למטען", "cost_maintenance_per_charger", _ils, note="לכל מטען פעיל, בכל שנה"),
+    ] + ([
+        AssumptionRow(
+            group=G4, label="פחת שנתי", value=_money(depreciation),
+            note="פחת על השימושים המהוונים בעסקה. הוצאה חשבונאית בלבד — מקטינה "
+                 "את הרווח לפני מס ואת המס, ואינה מנוכה מהתזרים",
+        ),
+    ] if depreciation > 0 else []) + [
         AssumptionRow(
             group=G4, label="הוצאות תקורה שנתיות", value=_money(overhead),
             note=("תקורה ייעודית לפעילות הנרכשת" if overhead else
@@ -672,7 +687,7 @@ def get_plan_data(
             repay = sched_y.get("payment", 0.0)
             # אחרי מס, בדיוק כמו היתרה המצטברת בתחזית — אחרת שורת "תרחיש הבסיס"
             # כאן לא הייתה שווה למספרים שבטבלאות, והיא אותו תרחיש בדיוק.
-            pretax_y = pbl - sched_y.get("interest", 0.0)
+            pretax_y = pbl - sched_y.get("interest", 0.0) - depreciation
             tax_y = pretax_y * CORPORATE_TAX_RATE if pretax_y > 0 else 0.0
             total_profit += pbl - repay - tax_y
             cum += pbl - repay - tax_y

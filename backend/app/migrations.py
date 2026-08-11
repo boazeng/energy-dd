@@ -301,6 +301,8 @@ def migrate_business_plan(engine: Engine) -> None:
             ("dc_income_start_year", "INTEGER", "2028"),
             # שנות הרצה חריגות (JSON). NULL = טרם הוגדר, הזריעה תמלא
             ("dc_income_by_year",    "TEXT",    "NULL"),
+            # פחת שנתי — הוצאה חשבונאית שאינה נכנסת לתזרים
+            ("annual_depreciation",  "REAL",    "100000"),
         ],
     }
     with engine.connect() as conn:

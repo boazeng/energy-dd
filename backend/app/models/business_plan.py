@@ -72,6 +72,12 @@ class BusinessPlanSetting(Base):
     # NULL = טרם הוגדר (הזריעה תמלא ברירת מחדל); [] = הוגדר במפורש כריק.
     dc_income_by_year: Mapped[list | None] = mapped_column(JSON, nullable=True, default=None)
 
+    # פחת שנתי על השימושים המהוונים בעסקה (הרכישה והעלויות החד-פעמיות). הוא
+    # הוצאה חשבונאית בלבד: מקטין את הרווח לפני מס ולכן גם את המס, אך אינו יוצא
+    # מהקופה ואינו מנוכה מהתזרים. ההשקעה בעמדות חדשות אינה מופחתת כאן — היא
+    # נזקפת במלואה בשנת ההשקעה, ולכן אין ספירה כפולה.
+    annual_depreciation: Mapped[float] = mapped_column(Float, default=100_000)
+
     contact_name: Mapped[str] = mapped_column(String(120), default="")
     contact_phone: Mapped[str] = mapped_column(String(60), default="")
     contact_email: Mapped[str] = mapped_column(String(120), default="")

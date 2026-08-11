@@ -308,6 +308,10 @@ function SummaryCompact({ d }) {
         + ' מייצרת בלבד; יתרת המזומנים הקיימת של החברה אינה נכללת בה.'
         + ' הרווח החשבונאי שממנו נגזר המס מוצג בטבלת הרווח וההפסד הצפוי שבהמשך הפרק;'
         + ' היתרה המצטברת נצברת מהתזרים שלאחר המס.'
+        + (T.depreciation
+          ? ' הרווח החשבונאי נושא גם הוצאות פחת, שאינן תזרימיות ולכן אינן מנוכות כאן —'
+            + ' אך המס שלמעלה מחושב אחריהן ולפיכך נמוך בהתאם.'
+          : '')
         + ' הפירוט המלא, לרבות הנחות העבודה שמהן נגזרת התחזית, מופיע בפרק תחזית הגידול.'
       } />
     </figure>
@@ -331,6 +335,11 @@ function PnlForecast({ d }) {
     // בשנים שאין בהן הלוואה התא ריק ולא אפס — כך גם בשורת המס
     ['הוצאות ריבית', f.map((r) => (r.loan_interest ? -r.loan_interest : null)),
       T.loan_interest ? -T.loan_interest : null],
+    // הפחת מופיע רק ברווח והפסד: הוא מקטין את המס אך אינו יוצא מהקופה, ולכן
+    // אין לו שורה בטבלאות התזרים.
+    ...(T.depreciation
+      ? [['פחת', f.map((r) => (r.depreciation ? -r.depreciation : null)), -T.depreciation]]
+      : []),
     ['רווח לפני מס', f.map((r) => r.pretax_profit), T.pretax_profit, true],
     ['מס חברות (23%)', f.map((r) => (r.corporate_tax ? -r.corporate_tax : null)),
       T.corporate_tax ? -T.corporate_tax : null],
@@ -367,9 +376,14 @@ function PnlForecast({ d }) {
             + ' הראשונים הם חודשי גרייס מלא: אין בהם תשלום כלל, והריבית הנצברת בהם מהוונת'
             + ' לקרן ונפרעת בהמשך במסגרת ההחזר.'
           : '',
+        T.depreciation
+          ? 'הפחת הוא על השימושים המהוונים בעסקה — הרכישה והעלויות החד-פעמיות שמומנו'
+            + ' מהאשראי. הוא מקטין את הרווח לפני מס ולכן גם את חבות המס, אך אינו יוצא'
+            + ' מהקופה ואינו מנוכה בטבלאות התזרים; מהן יורד רק המס שנגזר ממנו.'
+          : '',
         'מס החברות מחושב בשיעור 23% מהרווח לפני מס ורק בשנים שבהן הוא חיובי; בשנת הפסד'
         + ' אין חבות מס, וההפסד אינו מקוזז כנגד רווחי השנים הבאות — ולפיכך זו הצגה שמרנית.'
-        + ' ההשקעה בעמדות חדשות מוצגת במלואה בשנת ההשקעה, כמו בתזרים, ולא כפחת שנתי.'
+        + ' ההשקעה בעמדות חדשות מוצגת במלואה בשנת ההשקעה, כמו בתזרים, ואינה מופחתת.'
         + ' הסכומים מנוטרלי מע"מ, והמס אינו מנוכה מיתרות המזומנים המוצגות במסמך.',
       ].filter(Boolean).join(' ')} />
     </figure>
@@ -1558,6 +1572,7 @@ function PlanSettingsEditor({ settings, onSaved }) {
   const [dcIncome, setDcIncome] = useState(settings.dc_annual_income ?? 0)
   const [dcYear, setDcYear] = useState(settings.dc_income_start_year ?? 2028)
   const [dcByYear, setDcByYear] = useState(settings.dc_income_by_year || [])
+  const [depreciation, setDepreciation] = useState(settings.annual_depreciation ?? 0)
   const [saving, setSaving] = useState(false)
   const [err, setErr] = useState('')
 
@@ -1566,6 +1581,7 @@ function PlanSettingsEditor({ settings, onSaved }) {
     try {
       await api.updateBusinessPlanSettings({
         acquisition_cost: parseFloat(cost) || 0,
+        annual_depreciation: parseFloat(depreciation) || 0,
         dc_annual_income: parseFloat(dcIncome) || 0,
         dc_income_start_year: parseInt(dcYear, 10) || 2028,
         // שורה בלי שנה היא שורה שלא מולאה — היא נופלת ולא נשמרת כשנה 0
@@ -1594,11 +1610,19 @@ function PlanSettingsEditor({ settings, onSaved }) {
   return (
     <div className="bkp-settings no-print">
       <h3 className="bkp-settings-title">נתוני העסקה</h3>
-      <label className="bkp-settings-field" style={{ marginBottom: 13 }}>
+      <label className="bkp-settings-field">
         <span>עלות הרכישה (₪)</span>
         <input type="number" min="0" step="1000" value={cost ?? ''}
           onChange={(e) => setCost(e.target.value)} />
       </label>
+      <label className="bkp-settings-field">
+        <span>פחת שנתי (₪)</span>
+        <input type="number" min="0" step="10000" value={depreciation ?? ''}
+          onChange={(e) => setDepreciation(e.target.value)} />
+      </label>
+      <p className="bkp-settings-note" style={{ margin: '0 0 13px' }}>
+        הוצאה חשבונאית בלבד — מקטינה את הרווח לפני מס ואת המס, ואינה מנוכה מהתזרים.
+      </p>
 
       <h4 className="bkp-settings-sub">הכנסות ממטעני DC</h4>
       <label className="bkp-settings-field">
